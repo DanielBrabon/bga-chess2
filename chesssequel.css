@@ -1,0 +1,144 @@
+/**
+ *------
+ * BGA framework: © Gregory Isabelli <gisabelli@boardgamearena.com> & Emmanuel Colin <ecolin@boardgamearena.com>
+ * ChessSequel implementation : © <Daniel Brabon> <dev.d8dms@simplelogin.co>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * chesssequel.css
+ *
+ * ChessSequel stylesheet
+ *
+ */
+
+/*
+    This is the CSS stylesheet of your game User Interface.
+    
+    Styles defined on this file will be applied to the HTML elements you define in your
+    HTML template (chesssequel_chesssequel.tpl), and to HTML elements you create dynamically
+    (in chesssequel.js).
+    
+    Usually, you are using CSS to:
+    
+    1°) define the overall layout of your game
+        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
+
+    2°) create your CSS-sprites:
+        All images of your games should be gathered into a small number of image files. Then, using
+        background-image and background-position CSS properties, you create HTML blocks that can 
+        display these images correctly (see example below).
+    
+    3°) ... anything else:
+        It is really easy to add and remove CSS classes dynamically from your Javascript with
+        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
+        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
+        very often, using CSS classes for the logic of your user interface allow you to do complex
+        thing easily.
+        
+        
+     Note: on the production platform, this file will be compressed and comments will be removed.
+           Consequently, don't hesitate to put as many comments as necessary.
+*/
+
+
+/* Note: you must not use any @import directive */
+
+
+/********* You can start writing your CSS below this line: **********/
+
+
+/*
+    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
+
+    .white_token {
+        background-image: url('img/tokens.png');
+        background-position: 0px 0px;
+    }
+    .black_token {
+        background-image: url('img/tokens.png');
+        background-position: -20px 0px;
+    }
+    .token {
+        width: 20px;
+        height: 20px;
+        background-repeat: none;
+    }
+*/
+
+/* With "position: relative" on board, we ensure square elements are positioned relatively to board. */
+#board {
+    width: 520px;
+    height: 520px;
+    background-image: url('img/board.jpg');
+    position: relative;
+    float: left;
+}
+
+#info_panel {
+    float: right;
+}
+
+.square {
+    width: 60px;
+    height: 60px;
+    position: absolute;
+}
+
+.piece {
+    width: 60px;
+    height: 60px;
+    position: absolute;
+}
+
+.piececolor_000000 {
+    background-image: url('img/blackpieces.png');
+}
+
+.piececolor_ffffff {
+    background-image: url('img/whitepieces.png');
+}
+
+.piecetype_queen { background-position: 0px 0px; }
+.piecetype_king { background-position: -60px 0px; }
+.piecetype_rook { background-position: -120px 0px; }
+.piecetype_knight { background-position: -180px 0px; }
+.piecetype_bishop { background-position: -240px 0px; }
+.piecetype_pawn { background-position: -300px 0px; }
+.piecetype_nemesis { background-position: -360px 0px; }
+.piecetype_nemesispawn { background-position: -420px 0px; }
+.piecetype_empoweredknight { background-position: -480px 0px; }
+.piecetype_empoweredbishop { background-position: -540px 0px; }
+.piecetype_empoweredrook { background-position: -600px 0px; }
+.piecetype_reaper { background-position: -660px 0px; }
+.piecetype_ghost { background-position: -720px 0px; }
+.piecetype_warriorking { background-position: -780px 0px; }
+.piecetype_wildhorse { background-position: -840px 0px; }
+.piecetype_tiger { background-position: -900px 0px; }
+.piecetype_elephant { background-position: -960px 0px; }
+.piecetype_junglequeen { background-position: -1020px 0px; }
+.piecetype_empoweredqueen { background-position: -1080px 0px; } /* Doesn't have a graphic right now */
+
+.possible_move {
+    background-color: white;
+    opacity: 0.8;
+    filter:alpha(opacity=20); /* For IE8 and earlier */  
+    cursor: pointer;  
+}
+
+.highlight_piece {
+    background-color: rgb(182, 243, 238);
+    opacity: 0.2;
+    filter:alpha(opacity=20); /* For IE8 and earlier */  
+    cursor: pointer; 
+}
+
+.bgabutton_beddac_temp {
+    background: #beddac;
+    border: 1px solid #000000;
+}
+
+.btn_container {
+    border: 3px solid #000000;
+}
