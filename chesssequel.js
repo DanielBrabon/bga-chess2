@@ -241,6 +241,7 @@ function (dojo, declare) {
             var dojo_query = dojo.query( '.piececolor_'+player_color );
             if ( dojo_query.length != 0 )
             {
+                // Should I use for-of instead of for-in? Would that mean I don't need the if statement?
                 for ( var piece in dojo_query )
                 {
                     if ( dojo_query[piece].id != undefined )

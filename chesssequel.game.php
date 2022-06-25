@@ -185,13 +185,31 @@ class ChessSequel extends Table
 
     }
 
-    function findValidNormalPieceMoves( $piece_id, $piece_type, $all_piece_data, $board_state )
+    function moveGeneration( $piece_id, $piece_type, $all_piece_data, $board_state )
     {
-        // Returns an array of all board squares to which the clicked piece can move based on its movement rules, without hitting a friendly piece
-        // Used for: knights, bishops, rooks, and queens in regular chess
-        // Used for: ??? in chess 2
+        // Generate unfiltered movement options
+        $generated_moves = $this->baseMoveGeneration( $piece_id, $piece_type, $all_piece_data, $board_state );
 
-        $this->printWithJavascript( "finding valid normal piece moves" );
+        // If this piece is of a type that has conditional movement options, filter out any of those options which cannot currently be performed
+        if ( $piece_type === "pawn" )
+        {
+            $generated_moves = $this->filterPawnMoves( $piece_id, $all_piece_data, $board_state, $generated_moves );
+        }
+        elseif ( $piece_type === "king" )
+        {
+            $generated_moves = $this->filterKingMoves( $piece_id, $all_piece_data, $board_state, $generated_moves );
+        }
+
+        return $generated_moves;
+    }
+
+    function baseMoveGeneration( $piece_id, $piece_type, $all_piece_data, $board_state )
+    {
+        // Returns an array of all board squares to which the clicked piece might be able to move based on:
+        // 1) Its movement possibilities in $this->all_pieces_possible_moves (in material.inc.php)
+        // 2) The condition that it cannot land on or pass through a friendly piece
+        // 3) The condition that it cannot pass through an enemy piece
+        // These potential moves must then be filtered to remove illegal options such as self-check or impossible castling
 
         // Form: array( array(file, rank), array(file, rank), ... )
         $potential_moves = array();
@@ -201,7 +219,7 @@ class ChessSequel extends Table
 
         $piece_color = $all_piece_data[$piece_id]['piece_color'];
 
-        // Apply rules in material.inc and check for: edge of board, leaving king in check, and landing on friendly pieces
+        // Apply rules in material.inc.php and check for the edge of the board and landing on other pieces
         $piece_possible_move_steps = $this->all_pieces_possible_moves[$piece_type];
         
         // Loop over possible move steps, %i is the index of the move step
@@ -235,7 +253,7 @@ class ChessSequel extends Table
                     }
                     elseif ( explode( "_", $piece_on_checking_location )[0] === $piece_color )
                     {
-                        // Piece would be landing on a friendly piece; don't accept this move or apply this move step any further
+                        // Piece would be landing on a friendly piece; don't accept this move and don't apply this move step any further
                         break;
                     }
                     else
@@ -248,15 +266,95 @@ class ChessSequel extends Table
             }
         }
 
-        $this->printWithJavascript($potential_moves);
+        //$this->printWithJavascript( "unfiltered moves: ");
+        //$this->printWithJavascript( $potential_moves );
         return $potential_moves;
     }
 
-    // Takes an array of potential moves and returns the same array but with any options removed that would leave the king in check 
-    function filterOutSelfCheckMoves( $piece_id, $all_piece_data, $board_state, $potential_moves )
+    // Takes an array of generated moves and returns the same array but with any options removed that would leave the player's own king in check 
+    function filterSelfChecks( $piece_id, $all_piece_data, $board_state, $generated_moves )
     {
-        return $potential_moves;
+        $self_check_move_indices = array();
+
+        // For all of the generated moves
+        foreach ( $generated_moves as $move_index => $generated_move )
+        {
+            // Make a separate copy of the board state and piece data arrays which I can modify
+            $board_state_copy = $board_state;
+            $all_piece_data_copy = $all_piece_data;
+
+            // Change the board state and piece data copies to what they would be if that generated move was made
+            $piece_current_file = $all_piece_data[$piece_id]['board_file'];
+            $piece_current_rank = $all_piece_data[$piece_id]['board_rank'];
+            $piece_on_move_destination = $board_state_copy[$generated_move[0]][$generated_move[1]]['defending_piece'];
+            
+            $board_state_copy[$piece_current_file][$piece_current_rank]['defending_piece'] = null;
+
+            $board_state_copy[$generated_move[0]][$generated_move[1]]['defending_piece'] = $piece_id;
+
+            $all_piece_data_copy[$piece_id]['board_file'] = $generated_move[0];
+            $all_piece_data_copy[$piece_id]['board_rank'] = $generated_move[1];
+
+            if ( $piece_on_move_destination != null )
+            {
+                $all_piece_data_copy[$piece_on_move_destination]['if_captured'] = "1";
+            }
+
+            // For all pieces
+            foreach ( $all_piece_data_copy as $piece_data )
+            {
+                // If that piece belongs to the enemy
+                if ( $piece_data['piece_color'] != $all_piece_data_copy[$piece_id]['piece_color'] && $piece_data['if_captured'] === "0" )
+                {
+                    // Generate possible moves for this enemy piece
+                    $enemy_piece_moves = $this->moveGeneration( $piece_data['piece_id'], $piece_data['piece_type'], $all_piece_data_copy, $board_state_copy );
+
+                    // For each of these generated enemy moves
+                    foreach ( $enemy_piece_moves as $enemy_piece_move )
+                    {
+                        $defending_piece_at_enemy_move_square = $board_state_copy[$enemy_piece_move[0]][$enemy_piece_move[1]]['defending_piece'];
+                        if ( $defending_piece_at_enemy_move_square != null && $all_piece_data_copy[$defending_piece_at_enemy_move_square]['piece_type'] === "king" )
+                        {
+                            // This generated move is an illegal self-check; remove it from $generated_moves
+                            $self_check_move_indices[] = $move_index;
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ( $self_check_move_indices as $self_check_move_index )
+        {
+            unset( $generated_moves[$self_check_move_index] );
+        }
+        $generated_moves = array_values($generated_moves);
+
+        // Return the filtered array of moves
+        return $generated_moves;
+    }
+
+    // Removes invalid conditional move options from an array of potential moves for a pawn
+    function filterPawnMoves( $piece_id, $all_piece_data, $board_state, $potential_moves )
+    {
         // TO DO
+
+        // Remove any moves in the wrong direction based on piece colour
+
+        // Remove double pawn push if the pawn has already moved or a friendly piece is in front
+
+        // Remove diagonal moves if not capturing
+
+        return $potential_moves;
+    }
+
+    // Removes invalid conditional move options from an array of potential moves for a king
+    function filterKingMoves( $piece_id, $all_piece_data, $board_state, $potential_moves )
+    {
+        // TO DO
+
+        // Remove the castle move option if king or rook has already moved or there are pieces between
+
+        return $potential_moves;
     }
 
     // Just for testing
@@ -322,51 +420,48 @@ class ChessSequel extends Table
 
     function findValidMoves( $piece_id )
     {
+        //$this->printWithJavascript( "findValidMoves called" );
+
         // Check this action is allowed according to the game state
         $this->checkAction( 'findValidMoves' );
 
         $all_piece_data = $this->getAllPieceData();
+        //$this->printWithJavascript( $all_piece_data );
         $active_player_id = $this->getActivePlayerId();
 
         // Check that the player is clicking on their own piece
         if ( $this->getPlayerColorById( $active_player_id ) === $all_piece_data[$piece_id]['piece_color'] )
         {
+            // Gather some information
             $piece_type = $all_piece_data[$piece_id]['piece_type'];
             $board_state = $this->getBoard();
+            //$this->printWithJavascript( $board_state );
 
-            $valid_moves = array();
+            // Call move generation for this piece
+            $generated_moves = $this->moveGeneration( $piece_id, $piece_type, $all_piece_data, $board_state );
+            // Filter out any illegal self-check moves from $generated_moves
+            $generated_moves = $this->filterSelfChecks( $piece_id, $all_piece_data, $board_state, $generated_moves );
 
-            // Call a function to find valid moves for that piece
-            switch ( $piece_type ) {
-                case "pawn":
-                    $this->printWithJavascript( "pawn clicked" );
-                    break;
-                
-                default:
-                    // Returns an array of squares that piece can move to
-                    $potential_moves = $this->findValidNormalPieceMoves( $piece_id, $piece_type, $all_piece_data, $board_state );
-                    $valid_moves = $this->filterOutSelfCheckMoves( $piece_id, $all_piece_data, $board_state, $potential_moves );
-            }
-
-            // TO DO: might move this to another function which calls the findValidMoves function because this could cause issues when filtering illegal moves
             // Updates the player_piece_clicked field in the player database table to the id of the piece clicked
             $sql = "UPDATE player SET player_piece_clicked='$piece_id' WHERE player_id='$active_player_id'";
             self::DbQuery( $sql );
 
+            //$this->printWithJavascript( "generated_moves: " );
+            //$this->printWithJavascript( $generated_moves );
+
             // Send notification with information on which piece was clicked and all squares to which it can legally move
             self::notifyPlayer( $active_player_id, "findValidMoves", "", array( 
                 'piece_clicked' => $piece_id, 
-                'valid_moves' => $valid_moves,
-                'player_id' => $active_player_id ) );
-
-            return $valid_moves;
+                'valid_moves' => $generated_moves,
+                'player_id' => $active_player_id )
+            );
         }
+
+        return $generated_moves;
     }
 
     function movePiece( $target_file, $target_rank )
     {
-        $this->printWithJavascript("movePiece called");
-
         // Check this action is allowed according to the game state
         $this->checkAction( 'movePiece' );
 
@@ -379,14 +474,14 @@ class ChessSequel extends Table
         // If this is a valid move according to findValidMoves
         if ( in_array( [$target_file, $target_rank], $this->findValidMoves( $moving_piece_id ) ) )
         {
+            $this->printWithJavascript("The target location IS in the array of valid moves");
+            
             $if_attacking = "0";
             
             $board_state = $this->getBoard();      
             
             $sql = "SELECT moves_made FROM pieces WHERE piece_id='$moving_piece_id'";
             $moving_piece_updated_moves_made = self::getUniqueValueFromDB( $sql ) + 1;
-
-            $this->printWithJavascript("The target location IS in the valid_moves array");
 
             // Update the database
             $sql = "UPDATE pieces SET board_file=$target_file, board_rank=$target_rank, moves_made=$moving_piece_updated_moves_made WHERE piece_id='$moving_piece_id'";
@@ -395,7 +490,7 @@ class ChessSequel extends Table
             $sql = "UPDATE board SET defending_piece=null WHERE board_file=$moving_piece_starting_location[0] AND board_rank=$moving_piece_starting_location[1]";
             self::DbQuery( $sql );
 
-            // If there is an enemy piece on the square being moved to
+            // If there is an enemy piece on the square being moved to, the moving piece attacks
             if ( $board_state[$target_file][$target_rank]['defending_piece'] != null )
             {
                 $this->printWithJavascript("The target location has an enemy piece");
@@ -428,7 +523,7 @@ class ChessSequel extends Table
         }
         else
         {
-            $this->printWithJavascript("The target location is NOT in the valid_moves array");
+            $this->printWithJavascript("The target location is NOT in the array of valid moves");
         }
     }
 

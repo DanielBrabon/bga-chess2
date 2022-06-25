@@ -180,7 +180,9 @@ $this->all_pieces_possible_moves = array(
 
   "queen" => array( 7, array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1) ),
 
-  "king" => array( 1, array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1) )
+  "king" => array( 1, array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1), array(2, 0), array(-2, 0) ),
+
+  "pawn" => array( 1, array(0, 1), array(0, 2), array(1, 1), array(-1, 1), array(0, -1), array(0, -2), array(1, -1), array(-1, -1) )
 );
 
 /*
