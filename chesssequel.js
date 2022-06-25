@@ -604,6 +604,23 @@ function (dojo, declare) {
             // Disconnect the onclick and remove the piece that got captured
             this.disconnect( $(notif.args.defending_piece_id), 'onclick');
             dojo.query( '#'+notif.args.defending_piece_id ).forEach(dojo.destroy);
+
+            // If the attack was an en passant, move the attacking pawn to the correct location
+            if ( notif.args.if_en_passant === "1" )
+            {
+                var rank_to_use = notif.args.board_rank + 1;
+                if ( notif.args.piece_color === "000000" )
+                {
+                    rank_to_use -= 2;
+                }
+
+                this.gamedatas.pieces[notif.args.attacking_piece_id].board_rank = rank_to_use;
+                this.gamedatas.pieces[notif.args.attacking_piece_id].if_performing_en_passant = "0";
+                this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].defending_piece = null;
+                this.gamedatas.board_state[notif.args.board_file][rank_to_use].defending_piece = notif.args.attacking_piece_id;
+
+                this.slideToObject( notif.args.attacking_piece_id, 'square_'+notif.args.board_file+'_'+rank_to_use ).play();
+            }
         },
 
         notif_printWithJavascript: function( notif )

@@ -56,5 +56,7 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   `moves_made` INT(10) UNSIGNED DEFAULT '0',
   `if_captured` TINYINT(1) UNSIGNED DEFAULT '0',
   `if_attacking` TINYINT(1) UNSIGNED DEFAULT '0',
+  `if_en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT '0',
+  `if_performing_en_passant` TINYINT(1) UNSIGNED DEFAULT '0',
   PRIMARY KEY (`piece_id`)
 ) ENGINE=InnoDB;

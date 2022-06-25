@@ -170,7 +170,7 @@ class ChessSequel extends Table
 
     function getAllPieceData()
     {
-        $sql = "SELECT piece_id, piece_color, piece_type, board_file, board_rank, moves_made, if_captured, if_attacking FROM pieces";
+        $sql = "SELECT piece_id, piece_color, piece_type, board_file, board_rank, moves_made, if_captured, if_attacking, if_en_passant_vulnerable, if_performing_en_passant FROM pieces";
         return self::getCollectionFromDB( $sql );
     }
 
@@ -333,18 +333,92 @@ class ChessSequel extends Table
         return $generated_moves;
     }
 
-    // Removes invalid conditional move options from an array of potential moves for a pawn
-    function filterPawnMoves( $piece_id, $all_piece_data, $board_state, $potential_moves )
+    // Removes invalid conditional move options from an array of generated moves for a pawn
+    function filterPawnMoves( $piece_id, $all_piece_data, $board_state, $generated_moves )
     {
-        // TO DO
+        $illegal_move_indices = array();
 
         // Remove any moves in the wrong direction based on piece colour
+        $piece_color = $all_piece_data[$piece_id]['piece_color'];
+        $piece_rank = $all_piece_data[$piece_id]['board_rank'];
+        $forward_board_unit = 1;
+        if ( $piece_color === "000000" )
+        {
+            $forward_board_unit = -1;
+        }
 
-        // Remove double pawn push if the pawn has already moved or a friendly piece is in front
+        foreach ( $generated_moves as $move_index => $generated_move )
+        {
+            if ( ($generated_move[1] - $piece_rank) * $forward_board_unit < 0 )
+            {
+                $illegal_move_indices[] = $move_index;
+            }
+        }
+        foreach ( $illegal_move_indices as $illegal_move_index )
+        {
+            unset( $generated_moves[$illegal_move_index] );
+        }
+        $generated_moves = array_values($generated_moves);
+        $illegal_move_indices = array();
 
-        // Remove diagonal moves if not capturing
+        // Remove forward captures
+        foreach ( $generated_moves as $move_index => $generated_move )
+        {
+            if ( (string)$generated_move[0] === $all_piece_data[$piece_id]['board_file'] && $board_state[$generated_move[0]][$generated_move[1]]['defending_piece'] != null )
+            {
+                $illegal_move_indices[] = $move_index;
+            }
+        }
+        foreach ( $illegal_move_indices as $illegal_move_index )
+        {
+            unset( $generated_moves[$illegal_move_index] );
+        }
+        $generated_moves = array_values($generated_moves);
+        $illegal_move_indices = array();
 
-        return $potential_moves;
+        // Remove double pawn push if this pawn has already moved or another piece is one square in front of this pawn
+        if ( $all_piece_data[$piece_id]['moves_made'] != "0" || $board_state[$all_piece_data[$piece_id]['board_file']][$all_piece_data[$piece_id]['board_rank'] + $forward_board_unit]['defending_piece'] != null )
+        {
+            foreach ( $generated_moves as $move_index => $generated_move )
+            {
+                if ( ($generated_move[1] - $piece_rank) * $forward_board_unit === 2 )
+                {
+                    $illegal_move_indices[] = $move_index;
+                }
+            }
+        }
+        foreach ( $illegal_move_indices as $illegal_move_index )
+        {
+            unset( $generated_moves[$illegal_move_index] );
+        }
+        $generated_moves = array_values($generated_moves);
+        $illegal_move_indices = array();
+
+        // Remove diagonal moves if not a regular or en passant capture
+        foreach ( $generated_moves as $move_index => $generated_move )
+        {
+            // If it's a diagonal move
+            if ( abs( $generated_move[0] - $all_piece_data[$piece_id]['board_file'] ) === 1 )
+            {
+                // If there isn't an enemy piece on the square 
+                if ( $board_state[$generated_move[0]][$generated_move[1]]['defending_piece'] === null)
+                {
+                    // And there isn't an en passant enabled enemy piece to the side (on the side of the diagonal move)
+                    $side_piece_id = $board_state[$generated_move[0]][$all_piece_data[$piece_id]['board_rank']]['defending_piece'];
+                    if ( $side_piece_id === null || !( $all_piece_data[$side_piece_id]['piece_color'] != $piece_color && $all_piece_data[$side_piece_id]['if_en_passant_vulnerable'] != "0" ) )
+                    {
+                        $illegal_move_indices[] = $move_index;
+                    }
+                }
+            }
+        }
+        foreach ( $illegal_move_indices as $illegal_move_index )
+        {
+            unset( $generated_moves[$illegal_move_index] );
+        }
+        $generated_moves = array_values($generated_moves);
+
+        return $generated_moves;
     }
 
     // Removes invalid conditional move options from an array of potential moves for a king
@@ -478,7 +552,28 @@ class ChessSequel extends Table
             
             $if_attacking = "0";
             
-            $board_state = $this->getBoard();      
+            $board_state = $this->getBoard();
+            $all_piece_data = $this->getAllPieceData();
+            
+            // If the moving piece is a pawn
+            if ( $all_piece_data[$moving_piece_id]['piece_type'] === "pawn" )
+            {
+                // If the moving pawn is making its inital double move, set its if_en_passant_vulnerable value to 2
+                if ( abs($moving_piece_starting_location[1] - $target_rank) === 2 )
+                {
+                    $sql = "UPDATE pieces SET if_en_passant_vulnerable=2 WHERE piece_id='$moving_piece_id'";
+                    self::DbQuery( $sql );
+                }
+
+                // If the moving pawn is instead performing an en passant capture
+                elseif ( abs($moving_piece_starting_location[0] - $target_file) === 1 && $board_state[$target_file][$target_rank]['defending_piece'] === null )
+                {
+                    // Have it attack the square of the piece being captured but with the if_performing_en_passant value telling whereNext how to resolve this attack correctly
+                    $target_rank = $moving_piece_starting_location[1];
+                    $sql = "UPDATE pieces SET if_performing_en_passant=1 WHERE piece_id='$moving_piece_id'";
+                    self::DbQuery( $sql );
+                }
+            }
             
             $sql = "SELECT moves_made FROM pieces WHERE piece_id='$moving_piece_id'";
             $moving_piece_updated_moves_made = self::getUniqueValueFromDB( $sql ) + 1;
@@ -493,9 +588,6 @@ class ChessSequel extends Table
             // If there is an enemy piece on the square being moved to, the moving piece attacks
             if ( $board_state[$target_file][$target_rank]['defending_piece'] != null )
             {
-                $this->printWithJavascript("The target location has an enemy piece");
-                $if_attacking = "1";
-
                 $sql = "UPDATE pieces SET if_attacking='1' WHERE piece_id='$moving_piece_id'";
                 self::DbQuery( $sql );
 
@@ -723,6 +815,8 @@ class ChessSequel extends Table
         // NOTE: Could change this to loop through every piece instead to be slightly quicker to calculate
         $board_state = $this->getBoard();
 
+        $all_piece_data = $this->getAllPieceData();
+
         // Loop through all squares on the board to find any attacking pieces
         for ( $i = 1; $i <= 8; $i++ )
         {
@@ -745,12 +839,35 @@ class ChessSequel extends Table
                     $sql = "UPDATE board SET defending_piece='$attacking_piece_id', attacking_piece=null WHERE board_file=$i AND board_rank=$j";
                     self::DbQuery( $sql );
 
+                    $if_en_passant = $all_piece_data[$attacking_piece_id]['if_performing_en_passant'];
+                    $piece_color = $all_piece_data[$attacking_piece_id]['piece_color'];
+                    
+                    if ( $if_en_passant === "1" )
+                    {
+                        $rank_to_use = $j + 1;
+                        if ( $piece_color === "000000" )
+                        {
+                            $rank_to_use -= 2;
+                        }
+                        
+                        $sql = "UPDATE board SET defending_piece='$attacking_piece_id' WHERE board_file=$i AND board_rank=$rank_to_use";
+                        self::DbQuery( $sql );
+
+                        $sql = "UPDATE board SET defending_piece=null WHERE board_file=$i AND board_rank=$j";
+                        self::DbQuery( $sql );
+
+                        $sql = "UPDATE pieces SET board_rank=$rank_to_use, if_performing_en_passant=0 WHERE piece_id='$attacking_piece_id'";
+                        self::DbQuery( $sql );
+                    }
+
                     // Notify all players about the resolved attack
                     self::notifyAllPlayers( "resolveAttack", "", array( 
                         'defending_piece_id' => $defending_piece_id,
                         'attacking_piece_id' => $attacking_piece_id,
                         'board_file' => $i,
-                        'board_rank' => $j) 
+                        'board_rank' => $j,
+                        'if_en_passant' => $if_en_passant,
+                        'piece_color' => $piece_color) 
                     );
                 }
             }
@@ -758,11 +875,10 @@ class ChessSequel extends Table
 
         // Check for piece promotion and resolve
 
-        // Check for win conditions (in the end it will be checkmate/midline invasion but for testing it's just capturing the king) and resolve
-        $all_piece_data = $this->getAllPieceData();
 
-        foreach( $all_piece_data as $piece_data )
+        foreach( $all_piece_data as $piece_id => $piece_data )
         {
+            // Check for win conditions (in the end it will be checkmate/midline invasion but for testing it's just capturing the king) and resolve
             // Capturing a king is the win condition currently
             if ( $piece_data['piece_type'] === "king" && $piece_data['if_captured'] === "1" )
             {
@@ -772,6 +888,13 @@ class ChessSequel extends Table
                 self::DbQuery( $sql );
 
                 $this->gamestate->nextState( 'gameEnd' );
+            }
+
+            if ( $piece_data['if_en_passant_vulnerable'] != "0" )
+            {
+                $if_en_passant_vulnerable = $piece_data['if_en_passant_vulnerable'] - 1;
+                $sql = "UPDATE pieces SET if_en_passant_vulnerable=$if_en_passant_vulnerable WHERE piece_id='$piece_id'";
+                self::DbQuery( $sql );
             }
         }
 
