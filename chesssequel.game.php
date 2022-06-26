@@ -170,7 +170,7 @@ class ChessSequel extends Table
 
     function getAllPieceData()
     {
-        $sql = "SELECT piece_id, piece_color, piece_type, board_file, board_rank, moves_made, if_captured, if_attacking, if_en_passant_vulnerable, if_performing_en_passant FROM pieces";
+        $sql = "SELECT piece_id, piece_color, piece_type, board_file, board_rank, moves_made, if_captured, if_attacking, if_en_passant_vulnerable, if_performing_en_passant, if_performing_castle FROM pieces";
         return self::getCollectionFromDB( $sql );
     }
 
@@ -286,19 +286,19 @@ class ChessSequel extends Table
             // Change the board state and piece data copies to what they would be if that generated move was made
             $piece_current_file = $all_piece_data[$piece_id]['board_file'];
             $piece_current_rank = $all_piece_data[$piece_id]['board_rank'];
-            $piece_on_move_destination = $board_state_copy[$generated_move[0]][$generated_move[1]]['defending_piece'];
             
             $board_state_copy[$piece_current_file][$piece_current_rank]['defending_piece'] = null;
+
+            $piece_on_move_destination = $board_state_copy[$generated_move[0]][$generated_move[1]]['defending_piece'];
+            if ( $piece_on_move_destination != null )
+            {
+                $all_piece_data_copy[$piece_on_move_destination]['if_captured'] = "1";
+            }
 
             $board_state_copy[$generated_move[0]][$generated_move[1]]['defending_piece'] = $piece_id;
 
             $all_piece_data_copy[$piece_id]['board_file'] = $generated_move[0];
             $all_piece_data_copy[$piece_id]['board_rank'] = $generated_move[1];
-
-            if ( $piece_on_move_destination != null )
-            {
-                $all_piece_data_copy[$piece_on_move_destination]['if_captured'] = "1";
-            }
 
             // For all pieces
             foreach ( $all_piece_data_copy as $piece_data )
@@ -421,14 +421,85 @@ class ChessSequel extends Table
         return $generated_moves;
     }
 
-    // Removes invalid conditional move options from an array of potential moves for a king
-    function filterKingMoves( $piece_id, $all_piece_data, $board_state, $potential_moves )
+    // Removes invalid conditional move options from an array of generated moves for a king
+    function filterKingMoves( $piece_id, $all_piece_data, $board_state, $generated_moves )
     {
-        // TO DO
+        $illegal_move_indices = array();
 
         // Remove the castle move option if king or rook has already moved or there are pieces between
+        foreach ( $generated_moves as $move_index => $generated_move)
+        {
+            $change_in_file = $generated_move[0] - $all_piece_data[$piece_id]['board_file'];
 
-        return $potential_moves;
+            // This is a castle move
+            if ( abs( $change_in_file ) === 2 )
+            {
+                // If the king already moved, this castle move is illegal
+                if ( $all_piece_data[$piece_id]['moves_made'] != "0" )
+                {
+                    $illegal_move_indices[] = $move_index;
+                    continue;
+                }
+
+                // If the king is in check, this castle move is illegal
+                $non_move = array( array($all_piece_data[$piece_id]['board_file'], $all_piece_data[$piece_id]['board_rank']) );
+                $non_move = $this->filterSelfChecks( $piece_id, $all_piece_data, $board_state, $non_move );
+
+                if ( count($non_move) === 0 )
+                {
+                    $illegal_move_indices[] = $move_index;
+                    continue;
+                }
+
+                $castle_direction = $change_in_file / 2;
+
+                // If the king would be moving "through" check, this castle move is illegal
+                $move_one_square = array( array($all_piece_data[$piece_id]['board_file'] + $castle_direction, $all_piece_data[$piece_id]['board_rank']) );
+                $move_one_square = $this->filterSelfChecks( $piece_id, $all_piece_data, $board_state, $move_one_square );
+
+                if ( count($move_one_square) === 0 )
+                {
+                    $illegal_move_indices[] = $move_index;
+                    continue;
+                }
+
+                $square_to_check = array( $all_piece_data[$piece_id]['board_file'] + $castle_direction, $all_piece_data[$piece_id]['board_rank'] );
+
+                // Loop through the squares between the king and the edge of the board in the direction of this generated castle move
+                while ( $square_to_check[0] > 0 && $square_to_check[0] < 9 )
+                {
+                    // If there is a piece on this square
+                    if ( $board_state[$square_to_check[0]][$square_to_check[1]]['defending_piece'] != null )
+                    {
+                        // If this piece is not a friendly, unmoved rook, this castle move is illegal
+                        $piece_on_checking_square = $all_piece_data[$board_state[$square_to_check[0]][$square_to_check[1]]['defending_piece']];
+                        if ( !($piece_on_checking_square['piece_color'] === $all_piece_data[$piece_id]['piece_color'] && $piece_on_checking_square['piece_type'] === "rook" && $piece_on_checking_square['moves_made'] === "0") )
+                        {
+                            $illegal_move_indices[] = $move_index;
+                            break;
+                        }
+                    }
+
+                    // If we have reached the edge of the board without encountering any pieces at all (the rook is gone), this castle move is illegal
+                    if ( ($square_to_check[0] === 8 || $square_to_check[0] === 1) && $board_state[$square_to_check[0]][$square_to_check[1]]['defending_piece'] === null )
+                    {
+                        $illegal_move_indices[] = $move_index;
+                        break;
+                    }
+
+                    $square_to_check[0] += $castle_direction;
+                }
+            }
+        }
+
+        // Remove the illegal castle moves
+        foreach ( $illegal_move_indices as $illegal_move_index )
+        {
+            unset( $generated_moves[$illegal_move_index] );
+        }
+        $generated_moves = array_values($generated_moves);
+
+        return $generated_moves;
     }
 
     // Just for testing
@@ -568,9 +639,21 @@ class ChessSequel extends Table
                 // If the moving pawn is instead performing an en passant capture
                 elseif ( abs($moving_piece_starting_location[0] - $target_file) === 1 && $board_state[$target_file][$target_rank]['defending_piece'] === null )
                 {
+                    $this->printWithJavascript("performing en passant");
                     // Have it attack the square of the piece being captured but with the if_performing_en_passant value telling whereNext how to resolve this attack correctly
                     $target_rank = $moving_piece_starting_location[1];
                     $sql = "UPDATE pieces SET if_performing_en_passant=1 WHERE piece_id='$moving_piece_id'";
+                    self::DbQuery( $sql );
+                }
+            }
+
+            // If the moving piece is a king
+            if ( $all_piece_data[$moving_piece_id]['piece_type'] === "king" )
+            {
+                // If this king is castling
+                if ( abs( $moving_piece_starting_location[0] - $target_file ) === 2 )
+                {
+                    $sql = "UPDATE pieces SET if_performing_castle=1 WHERE piece_id='$moving_piece_id'";
                     self::DbQuery( $sql );
                 }
             }
@@ -809,23 +892,19 @@ class ChessSequel extends Table
 
     function stWhereNext()
     {
-        // Check for attacking pieces on board and resolve (there should be no attacking pieces by the time another move can be made)
-        // I am currently not implementing the duel mechanic and so this just resolves like normal chess
-
-        // NOTE: Could change this to loop through every piece instead to be slightly quicker to calculate
+        // Get the current board and pieces state
         $board_state = $this->getBoard();
-
         $all_piece_data = $this->getAllPieceData();
 
         // Loop through all squares on the board to find any attacking pieces
+        // These attacks currently just resolve like normal chess (no duels)
         for ( $i = 1; $i <= 8; $i++ )
         {
             for ( $j = 1; $j <= 8; $j++ )
             {
+                // If there is an attacking piece on square i, j
                 if ( $board_state[$i][$j]['attacking_piece'] != null )
                 {
-                    // There is an attacking piece on square i, j
-
                     $attacking_piece_id = $board_state[$i][$j]['attacking_piece'];
                     $defending_piece_id = $board_state[$i][$j]['defending_piece'];
 
@@ -842,6 +921,7 @@ class ChessSequel extends Table
                     $if_en_passant = $all_piece_data[$attacking_piece_id]['if_performing_en_passant'];
                     $piece_color = $all_piece_data[$attacking_piece_id]['piece_color'];
                     
+                    // This is an en passant attack so update the database and set $if_en_passant and $piece_color accordingly
                     if ( $if_en_passant === "1" )
                     {
                         $rank_to_use = $j + 1;
@@ -873,13 +953,11 @@ class ChessSequel extends Table
             }
         }
 
-        // Check for piece promotion and resolve
-
-
+        // Loop through all pieces and check for the king being captured, a pawn making its first move, and castling
         foreach( $all_piece_data as $piece_id => $piece_data )
         {
             // Check for win conditions (in the end it will be checkmate/midline invasion but for testing it's just capturing the king) and resolve
-            // Capturing a king is the win condition currently
+            // If a king has been captured, the capturer wins the game
             if ( $piece_data['piece_type'] === "king" && $piece_data['if_captured'] === "1" )
             {
                 // Give the winner a point and end the game
@@ -890,11 +968,54 @@ class ChessSequel extends Table
                 $this->gamestate->nextState( 'gameEnd' );
             }
 
+            // This ticks down the if_en_passant_vulnerable value by 1 at the end of each turn so an en passant capture can only be performed for one turn
             if ( $piece_data['if_en_passant_vulnerable'] != "0" )
             {
                 $if_en_passant_vulnerable = $piece_data['if_en_passant_vulnerable'] - 1;
                 $sql = "UPDATE pieces SET if_en_passant_vulnerable=$if_en_passant_vulnerable WHERE piece_id='$piece_id'";
                 self::DbQuery( $sql );
+            }
+
+            // If a king is castling this turn
+            if ( $piece_data['if_performing_castle'] === "1" )
+            {
+                // Update the pieces database table to no longer have this piece castling
+                $sql = "UPDATE pieces SET if_performing_castle=0 WHERE piece_id='$piece_id'";
+                self::DbQuery( $sql );
+
+                // Find the rook
+                $rook_starting_file = 1;
+                $rook_move_direction = 1;
+                if ( $piece_data['board_file'] === "7" )
+                {
+                    $rook_starting_file = 8;
+                    $rook_move_direction = -1;
+                }
+                $square_with_rook = $board_state[$rook_starting_file][$piece_data['board_rank']];
+                $castling_rook_id = $square_with_rook['defending_piece'];
+
+                $rook_destination_file = $piece_data['board_file'] + $rook_move_direction;
+                $rook_destination_rank = $piece_data['board_rank'];
+
+                // Update the rook's position in the pieces and board database tables
+                $sql = "UPDATE pieces SET board_file=$rook_destination_file, board_rank=$rook_destination_rank WHERE piece_id='$castling_rook_id'";
+                self::DbQuery( $sql );
+
+                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$rook_starting_file' AND board_rank='$rook_destination_rank'";
+                self::DbQuery( $sql );
+
+                $sql = "UPDATE board SET defending_piece='$castling_rook_id' WHERE board_file='$rook_destination_file' AND board_rank='$rook_destination_rank'";
+                self::DbQuery( $sql );
+
+                // Notify all players using the movePiece notification
+                self::notifyAllPlayers( "movePiece", "", array( 
+                    "moving_piece_id" => $castling_rook_id, 
+                    "target_file" => $rook_destination_file, 
+                    "target_rank" => $rook_destination_rank,
+                    "if_attacking" => "0",
+                    "moving_piece_starting_location_file" => $rook_starting_file,
+                    "moving_piece_starting_location_rank" => $rook_destination_rank ) 
+                );
             }
         }
 
@@ -902,7 +1023,7 @@ class ChessSequel extends Table
 
         // Check for extra king move for current player and resolve
 
-        // If none of the above prevented it, just move to nextPlayer
+        // If none of the above prevented it, move to nextPlayer
         $this->gamestate->nextState( 'nextPlayer' );
     }
 
