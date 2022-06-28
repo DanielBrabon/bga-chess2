@@ -298,16 +298,38 @@ class ChessSequel extends Table
             $board_state_copy[$generated_move[0]][$generated_move[1]]['defending_piece'] = $piece_id;
 
             $all_piece_data_copy[$piece_id]['board_file'] = $generated_move[0];
-            $all_piece_data_copy[$piece_id]['board_rank'] = $generated_move[1];
+            $all_piece_data_copy[$piece_id]['board_rank'] = $generated_move[1]; 
+
+            // If the moving piece is a pawn performing an en passant capture
+            if ( $all_piece_data_copy[$piece_id]['piece_type'] === "pawn" && abs( $all_piece_data_copy[$piece_id]['board_file'] - $all_piece_data[$piece_id]['board_file'] ) === 1 && $piece_on_move_destination === null )
+            {
+                $capture_file = $all_piece_data_copy[$piece_id]['board_file'];
+                $capture_rank = $piece_current_rank;
+
+                $all_piece_data_copy[ $board_state_copy[$capture_file][$capture_rank]['defending_piece'] ]['if_captured'] = "1";
+                $board_state_copy[$capture_file][$capture_rank]['defending_piece'] = null;
+            }
 
             // For all pieces
             foreach ( $all_piece_data_copy as $piece_data )
             {
-                // If that piece belongs to the enemy
+                // If it's an active enemy piece
                 if ( $piece_data['piece_color'] != $all_piece_data_copy[$piece_id]['piece_color'] && $piece_data['if_captured'] === "0" )
                 {
-                    // Generate possible moves for this enemy piece
-                    $enemy_piece_moves = $this->moveGeneration( $piece_data['piece_id'], $piece_data['piece_type'], $all_piece_data_copy, $board_state_copy );
+                    // Generate the possible moves for this enemy piece
+                    $enemy_piece_moves = array();
+
+                    if ( $piece_data['piece_type'] === "king" )
+                    {
+                        // Disable castle moves for the enemy king to avoid an infinite loop bug
+                        $all_piece_data_copy_2 = $all_piece_data_copy;
+                        $all_piece_data_copy_2[$piece_data['piece_id']]['moves_made'] = "1";
+                        $enemy_piece_moves = $this->moveGeneration( $piece_data['piece_id'], $piece_data['piece_type'], $all_piece_data_copy_2, $board_state_copy );
+                    }
+                    else
+                    {
+                        $enemy_piece_moves = $this->moveGeneration( $piece_data['piece_id'], $piece_data['piece_type'], $all_piece_data_copy, $board_state_copy );
+                    }
 
                     // For each of these generated enemy moves
                     foreach ( $enemy_piece_moves as $enemy_piece_move )
