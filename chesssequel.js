@@ -116,6 +116,9 @@ function (dojo, declare) {
             
             switch( stateName )
             {
+                case 'playerMove':
+                    this.updateAllLegalMoves( args.args.allLegalMoves, args.args.allCorrespondingCaptures );
+                    break;
             
             /* Example:
             
@@ -262,13 +265,13 @@ function (dojo, declare) {
             }
         },
 
-        pieceAttacking: function( attacking_piece_id, square_file, square_rank )
+        pieceAttacking: function( capturing_piece_id, square_file, square_rank )
         {
             console.log( "pieceAttacking called" );
             // Move the attacking piece off centre on the square so both can be seen, and highlight the square
         },
 
-        pieceNoLongerAttacking: function( attacking_piece_id, square_file, square_rank )
+        pieceNoLongerAttacking: function( capturing_piece_id, square_file, square_rank )
         {
             console.log( "pieceNoLongerAttacking called" );
             // Undo the effect of pieceAttacking
@@ -277,6 +280,22 @@ function (dojo, declare) {
         playerConfirmedArmy: function( player_id, player_name )
         {
             // Could hightlight the board somehow to show that the choice was confirmed
+        },
+
+        updateAllLegalMoves: function( all_legal_moves, all_corresponding_captures )
+        {
+            if ( this.isCurrentPlayerActive() )
+            {
+                this.gamedatas.all_legal_moves = all_legal_moves;
+                this.gamedatas.all_corresponding_captures = all_corresponding_captures;
+            }
+            else
+            {
+                this.gamedatas.all_legal_moves = [];
+                this.gamedatas.all_corresponding_captures = [];
+            }
+
+            console.log( this.gamedatas.all_legal_moves );
         },
 
         ///////////////////////////////////////////////////
@@ -340,18 +359,25 @@ function (dojo, declare) {
             // Otherwise, it can lead to random behavior so it's always a good idea.
             dojo.stopEvent( evt );
 
-            console.log( "pieceClicked called" );
+            var player_id = this.getActivePlayerId();
 
-            // If the player hasn't already clicked a friendly piece on their turn, find the valid moves for that piece and highlight those moves and the piece
+            // If the player doesn't have a highlighted piece, find the valid moves for that piece and highlight those moves and the piece
             if ( dojo.query( '.highlight_piece' ).length === 0 )
             {
                 // If this player is active, and the action is allowed in the current game state, and they click on one of their own pieces
-                if ( this.checkAction( 'findValidMoves', true ) && evt.currentTarget.id.split('_')[0] === this.gamedatas.players[ this.getActivePlayerId() ].color )
+                if ( this.checkAction( 'displayAvailableMoves', true ) && evt.currentTarget.id.split('_')[0] === this.gamedatas.players[ player_id ].color )
                 {
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall( "/chesssequel/chesssequel/findValidMoves.html", {
-                        piece_id:evt.currentTarget.id
-                    }, this, function( result ) {} );
+                    this.gamedatas.players[ player_id ].piece_clicked = evt.currentTarget.id;
+                    dojo.addClass( evt.currentTarget.id, 'highlight_piece' );
+        
+                    var valid_moves = this.gamedatas.all_legal_moves[ evt.currentTarget.id ]
+                    var valid_moves_length = valid_moves.length;
+        
+                    for ( var i = 0; i < valid_moves_length; i++ )
+                    {
+                        dojo.addClass( 'square_'+valid_moves[i][0]+'_'+valid_moves[i][1], 'possible_move' );
+                        // I would also like to make it so that if a player hovers over one of these possible move squares, the corresponding capture squares and indicated
+                    }
                 }
             }
             // If the player clicks the same friendly piece again, deselect it
@@ -359,8 +385,6 @@ function (dojo, declare) {
             {
                 dojo.query( '.highlight_piece' ).removeClass( 'highlight_piece' );
                 dojo.query( '.possible_move' ).removeClass( 'possible_move' );
-
-                // Should I remove the player_piece_clicked from the database here? I think it's fine to only remove it during the transition to the next player's turn
             }
             // If the player has already clicked a friendly piece and then clicks another piece, try to move the first piece to the second
             else
@@ -376,7 +400,8 @@ function (dojo, declare) {
                     // Make a call to the server using BGA "ajaxcall" method
                     this.ajaxcall( "/chesssequel/chesssequel/movePiece.html", {
                         target_file:target_piece_file,
-                        target_rank:target_piece_rank
+                        target_rank:target_piece_rank,
+                        moving_piece_id:this.gamedatas.players[ player_id ].piece_clicked
                     }, this, function( result ) {} );
                 }
             }
@@ -387,8 +412,6 @@ function (dojo, declare) {
             // We stop the propagation of the Javascript "onclick" event. 
             // Otherwise, it can lead to random behavior so it's always a good idea.
             dojo.stopEvent( evt );
-
-            console.log( "squareClicked called" );
 
             // If there is a highlighted friendly piece to move (from pieceClicked), and this player is active, and this move is allowed in this game state
             if ( dojo.query( '.highlight_piece' ).length != 0  && this.checkAction( 'movePiece' ) )
@@ -402,7 +425,8 @@ function (dojo, declare) {
                 // Make a call to the server using BGA "ajaxcall" method
                 this.ajaxcall( "/chesssequel/chesssequel/movePiece.html", {
                     target_file:target_square_file,
-                    target_rank:target_square_rank
+                    target_rank:target_square_rank,
+                    moving_piece_id:this.gamedatas.players[ this.getActivePlayerId() ].piece_clicked
                 }, this, function( result ) {} );
             }
         },
@@ -475,15 +499,15 @@ function (dojo, declare) {
 
             dojo.subscribe( 'confirmArmy', this, "notif_confirmArmy" );
 
-            dojo.subscribe( 'printWithJavascript', this, "notif_printWithJavascript" ); // Just for testing
-
-            dojo.subscribe( 'findValidMoves', this, "notif_findValidMoves" );
-
             dojo.subscribe( 'movePiece', this, "notif_movePiece" );
 
             dojo.subscribe( 'stBoardSetup', this, "notif_stBoardSetup" );
             
             dojo.subscribe( 'resolveAttack', this, "notif_resolveAttack" );
+
+            dojo.subscribe( 'highlightAttackedSquares', this, "notif_highlightAttackedSquares" );
+            
+            dojo.subscribe( 'printWithJavascript', this, "notif_printWithJavascript" );
         },  
         
         // TODO: from this point and below, you can write your game notifications handling methods
@@ -513,7 +537,7 @@ function (dojo, declare) {
 
                 for ( let j = 1; j <= 8; j++ )
                 {
-                    board_state_object[i][j] = {defending_piece: null, attacking_piece: null};
+                    board_state_object[i][j] = {defending_piece: null, capturing_piece: null};
                     board_state_object[i][j].board_file = String(i);
                     board_state_object[i][j].board_rank = String(j);
                 }
@@ -543,19 +567,6 @@ function (dojo, declare) {
             this.gamedatas.pieces = pieces_object;
         },
 
-        notif_findValidMoves: function( notif )
-        {
-            this.gamedatas.players[ notif.args.player_id ].piece_clicked = notif.args.piece_clicked;
-            dojo.addClass( notif.args.piece_clicked, 'highlight_piece' );
-
-            var valid_moves_length = notif.args.valid_moves.length;
-
-            for ( var i = 0; i < valid_moves_length; i++ )
-            {
-                dojo.addClass( 'square_'+notif.args.valid_moves[i][0]+'_'+notif.args.valid_moves[i][1], 'possible_move' );
-            }
-        },
-
         notif_movePiece: function( notif )
         {
             var moving_piece_id = notif.args.moving_piece_id;
@@ -569,7 +580,7 @@ function (dojo, declare) {
             if ( notif.args.if_attacking === "1" )
             {
                 this.gamedatas.pieces[ moving_piece_id ].if_attacking = "1";
-                this.gamedatas.board_state[notif.args.target_file][notif.args.target_rank].attacking_piece = moving_piece_id;
+                this.gamedatas.board_state[notif.args.target_file][notif.args.target_rank].capturing_piece = moving_piece_id;
             }
             else
             {
@@ -594,12 +605,12 @@ function (dojo, declare) {
         {
             // Update the gamedatas for pieces and board state
             this.gamedatas.pieces[notif.args.defending_piece_id].if_captured = "1";
-            this.gamedatas.pieces[notif.args.attacking_piece_id].if_attacking = "0";
-            this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].defending_piece = notif.args.attacking_piece_id;
-            this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].attacking_piece = null;
+            this.gamedatas.pieces[notif.args.capturing_piece_id].if_attacking = "0";
+            this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].defending_piece = notif.args.capturing_piece_id;
+            this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].capturing_piece = null;
 
             // Undo the attacking visual effect
-            this.pieceNoLongerAttacking( notif.args.attacking_piece_id, notif.args.board_file, notif.args.board_rank );
+            this.pieceNoLongerAttacking( notif.args.capturing_piece_id, notif.args.board_file, notif.args.board_rank );
 
             // Disconnect the onclick and remove the piece that got captured
             this.disconnect( $(notif.args.defending_piece_id), 'onclick');
@@ -614,12 +625,33 @@ function (dojo, declare) {
                     rank_to_use -= 2;
                 }
 
-                this.gamedatas.pieces[notif.args.attacking_piece_id].board_rank = rank_to_use;
-                this.gamedatas.pieces[notif.args.attacking_piece_id].if_performing_en_passant = "0";
+                this.gamedatas.pieces[notif.args.capturing_piece_id].board_rank = rank_to_use;
+                this.gamedatas.pieces[notif.args.capturing_piece_id].if_performing_en_passant = "0";
                 this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].defending_piece = null;
-                this.gamedatas.board_state[notif.args.board_file][rank_to_use].defending_piece = notif.args.attacking_piece_id;
+                this.gamedatas.board_state[notif.args.board_file][rank_to_use].defending_piece = notif.args.capturing_piece_id;
 
-                this.slideToObject( notif.args.attacking_piece_id, 'square_'+notif.args.board_file+'_'+rank_to_use ).play();
+                this.slideToObject( notif.args.capturing_piece_id, 'square_'+notif.args.board_file+'_'+rank_to_use ).play();
+            }
+        },
+
+        notif_highlightAttackedSquares: function( notif )
+        {
+            dojo.query( '.attacked_square' ).removeClass( 'attacked_square' );
+            dojo.query( '.semi_attacked_square' ).removeClass( 'semi_attacked_square' );
+
+            for ( var i = 1; i <= 8; i++ )
+            {
+                for ( var j = 1; j <= 8; j++ )
+                {
+                    if ( notif.args.attacked_squares[i][j].length != 0 )
+                    {
+                        dojo.addClass( 'square_'+i+'_'+j, 'attacked_square' );
+                    }
+                    else if ( notif.args.semi_attacked_squares[i][j].length != 0 )
+                    {
+                        dojo.addClass( 'square_'+i+'_'+j, 'semi_attacked_square' );
+                    }
+                }
             }
         },
 

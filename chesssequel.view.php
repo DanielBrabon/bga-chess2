@@ -62,10 +62,7 @@
 
         $this->page->begin_block("chesssequel_chesssequel", "army_buttons");
 
-        //$army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy", "testarmy2"); full army names
-        $army_names = array("classic", "testarmy", "testarmy2"); // Current armies
-        //I am unsure why the line below doesn't work, but the line above is equivalent
-        //$army_names = $this->all_army_names;
+        $army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy", "testarmy2", "testenpassant");
 
         foreach ($army_names as $army_name) {
           $this->page->insert_block("army_buttons", array(

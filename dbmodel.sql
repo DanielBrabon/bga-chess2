@@ -36,14 +36,13 @@
 ALTER TABLE `player` ADD `player_army` VARCHAR(16) NOT NULL DEFAULT 'classic';
 ALTER TABLE `player` ADD `player_stones` TINYINT(1) UNSIGNED NOT NULL DEFAULT '3';
 ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
-ALTER TABLE `player` ADD `player_piece_clicked` VARCHAR(17) DEFAULT NULL;
 ALTER TABLE `player` ADD `player_last_move` VARCHAR(10) DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS `board` (
   `board_file` TINYINT(1) UNSIGNED NOT NULL,
   `board_rank` TINYINT(1) UNSIGNED NOT NULL,
   `defending_piece` VARCHAR(17) DEFAULT NULL,
-  `attacking_piece` VARCHAR(17) DEFAULT NULL,
+  `capturing_piece` VARCHAR(17) DEFAULT NULL,
   PRIMARY KEY (`board_file`,`board_rank`)
 ) ENGINE=InnoDB;
 
