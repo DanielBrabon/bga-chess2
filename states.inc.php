@@ -101,7 +101,14 @@ $machinestates = array(
         "name" => "whereNext",
         "type" => "game",
         "action" => "stWhereNext",
-        "transitions" => array( "nextPlayer" => 4, "playerKingMove" => 7, "promotion" => 8, "duelSetup" => 9, "gameEnd" => 99 )
+        "transitions" => array( "nextPlayer" => 4, "playerKingMove" => 7, "pawnPromotion" => 8, "duelSetup" => 9, "gameEnd" => 99, "resolveCapture" => 69 )
+    ),
+
+    69 => array(
+        "name" => "resolveCapture",
+        "type" => "game",
+        "action" => "stResolveCapture",
+        "transitions" => array( "whereNext" => 6, "nextPlayer" => 4 )
     ),
 
     7 => array(
@@ -113,10 +120,10 @@ $machinestates = array(
     ),
 
     8 => array(
-        "name" => "promotion",
+        "name" => "pawnPromotion",
         "type" => "activeplayer",
-        "possibleactions" => array( "promote" ),
-        "args" => "argPromotion",
+        "possibleactions" => array( "choosePromotion" ),
+        "args" => "argPawnPromotion",
         "transitions" => array( "whereNext" => 6 ),
     ),
 

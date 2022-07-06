@@ -78,9 +78,9 @@ function (dojo, declare) {
                     {
                         this.addPieceOnSquare( piece_info['piece_color'], piece_info['piece_type'], piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank'] );
 
-                        if ( piece_info['if_attacking'] === "1" )
+                        if ( piece_info['if_capturing'] === "1" )
                         {
-                            this.pieceAttacking( piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank'] );
+                            this.pieceCapturing( piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank'] );
                         }
                     }
                 }
@@ -118,6 +118,10 @@ function (dojo, declare) {
             {
                 case 'playerMove':
                     this.updateAllLegalMoves( args.args.allLegalMoves, args.args.allCorrespondingCaptures );
+                    break;
+
+                case 'pawnPromotion':
+                    this.displayPromotionOptions( args.args.pawnToPromote );
                     break;
             
             /* Example:
@@ -265,16 +269,16 @@ function (dojo, declare) {
             }
         },
 
-        pieceAttacking: function( capturing_piece_id, square_file, square_rank )
+        pieceCapturing: function( capturing_piece_id, location )
         {
-            console.log( "pieceAttacking called" );
+            console.log( "pieceCapturing called" );
             // Move the attacking piece off centre on the square so both can be seen, and highlight the square
         },
 
-        pieceNoLongerAttacking: function( capturing_piece_id, square_file, square_rank )
+        pieceNoLongerCapturing: function( capturing_piece_id, location )
         {
-            console.log( "pieceNoLongerAttacking called" );
-            // Undo the effect of pieceAttacking
+            console.log( "pieceNoLongerCapturing called" );
+            // Undo the effect of pieceCapturing
         },
 
         playerConfirmedArmy: function( player_id, player_name )
@@ -296,6 +300,11 @@ function (dojo, declare) {
             }
 
             console.log( this.gamedatas.all_legal_moves );
+        },
+
+        displayPromotionOptions: function( pawn_id )
+        {
+
         },
 
         ///////////////////////////////////////////////////
@@ -354,7 +363,7 @@ function (dojo, declare) {
         },
 
         pieceClicked: function ( evt )
-        {            
+        {
             // We stop the propagation of the Javascript "onclick" event. 
             // Otherwise, it can lead to random behavior so it's always a good idea.
             dojo.stopEvent( evt );
@@ -499,11 +508,17 @@ function (dojo, declare) {
 
             dojo.subscribe( 'confirmArmy', this, "notif_confirmArmy" );
 
-            dojo.subscribe( 'movePiece', this, "notif_movePiece" );
-
             dojo.subscribe( 'stBoardSetup', this, "notif_stBoardSetup" );
-            
-            dojo.subscribe( 'resolveAttack', this, "notif_resolveAttack" );
+
+            dojo.subscribe( 'fillCaptureQueue', this, "notif_fillCaptureQueue" );
+
+            dojo.subscribe( 'updateAllPieceData', this, "notif_updateAllPieceData" );
+
+            dojo.subscribe( 'updateBoardState', this, "notif_updateBoardState" );
+
+            dojo.subscribe( 'deleteFromCaptureQueue', this, "notif_deleteFromCaptureQueue" );
+
+            dojo.subscribe( 'clearHighlights', this, "notif_clearHighlights" );
 
             dojo.subscribe( 'highlightAttackedSquares', this, "notif_highlightAttackedSquares" );
             
@@ -560,78 +575,94 @@ function (dojo, declare) {
                 pieces_object[ pieces_info[piece][0] ].piece_type = pieces_info[piece][2];
                 pieces_object[ pieces_info[piece][0] ].board_file = String(pieces_info[piece][3]);
                 pieces_object[ pieces_info[piece][0] ].board_rank = String(pieces_info[piece][4]);
-                pieces_object[ pieces_info[piece][0] ].if_attacking = String(0);
+                pieces_object[ pieces_info[piece][0] ].if_capturing = String(0);
                 pieces_object[ pieces_info[piece][0] ].if_captured = String(0);
                 pieces_object[ pieces_info[piece][0] ].moves_made = String(0);
             }
             this.gamedatas.pieces = pieces_object;
         },
 
-        notif_movePiece: function( notif )
+        notif_fillCaptureQueue: function( notif )
         {
-            var moving_piece_id = notif.args.moving_piece_id;
+            this.gamedatas.capture_queue = {};
             
-            // Update pieces info in gamedatas
-            this.gamedatas.pieces[ moving_piece_id ].board_file = notif.args.target_file;
-            this.gamedatas.pieces[ moving_piece_id ].board_rank = notif.args.target_rank;
-            
-            // Update board_state info in gamedatas
-            this.gamedatas.board_state[notif.args.moving_piece_starting_location_file][notif.args.moving_piece_starting_location_rank].defending_piece = null;
-            if ( notif.args.if_attacking === "1" )
+            var capture_queue = notif.args.capture_queue;
+            for ( var i = 0; i < capture_queue.length; i++ )
             {
-                this.gamedatas.pieces[ moving_piece_id ].if_attacking = "1";
-                this.gamedatas.board_state[notif.args.target_file][notif.args.target_rank].capturing_piece = moving_piece_id;
-            }
-            else
-            {
-                this.gamedatas.board_state[notif.args.target_file][notif.args.target_rank].defending_piece = moving_piece_id;
+                this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)] = { "capture_id": capture_queue[i].substring(2, 3) };
+                this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_file = capture_queue[i].substring(6, 7);
+                this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_rank = capture_queue[i].substring(10, 11);
             }
 
-            // Animate the piece moving
-            this.slideToObject( moving_piece_id, 'square_'+notif.args.target_file+'_'+notif.args.target_rank ).play();
-
-            // Applies some extra visual changes if the piece is attacking
-            if ( this.gamedatas.pieces[moving_piece_id].if_attacking === "1" )
-            {
-                this.pieceAttacking( notif.args.moving_piece_id, notif.args.target_file, notif.args.target_file );
-            }
-
-            // Removes the highlights on the board
-            dojo.query( '.highlight_piece' ).removeClass( 'highlight_piece' );
-            dojo.query( '.possible_move' ).removeClass( 'possible_move' );
+            console.log(this.gamedatas.capture_queue);
         },
 
-        notif_resolveAttack: function( notif )
+        notif_updateAllPieceData: function( notif )
         {
-            // Update the gamedatas for pieces and board state
-            this.gamedatas.pieces[notif.args.defending_piece_id].if_captured = "1";
-            this.gamedatas.pieces[notif.args.capturing_piece_id].if_attacking = "0";
-            this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].defending_piece = notif.args.capturing_piece_id;
-            this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].capturing_piece = null;
-
-            // Undo the attacking visual effect
-            this.pieceNoLongerAttacking( notif.args.capturing_piece_id, notif.args.board_file, notif.args.board_rank );
-
-            // Disconnect the onclick and remove the piece that got captured
-            this.disconnect( $(notif.args.defending_piece_id), 'onclick');
-            dojo.query( '#'+notif.args.defending_piece_id ).forEach(dojo.destroy);
-
-            // If the attack was an en passant, move the attacking pawn to the correct location
-            if ( notif.args.if_en_passant === "1" )
+            for ( var field in notif.args.values_updated )
             {
-                var rank_to_use = notif.args.board_rank + 1;
-                if ( notif.args.piece_color === "000000" )
+                switch ( field )
                 {
-                    rank_to_use -= 2;
+                    case "location":
+                        this.gamedatas.pieces[notif.args.piece_id]['board_file'] = String(notif.args.values_updated[field][0]);
+                        this.gamedatas.pieces[notif.args.piece_id]['board_rank'] = String(notif.args.values_updated[field][1]);
+
+                        this.slideToObject( notif.args.piece_id, 'square_'+notif.args.values_updated[field][0]+'_'+notif.args.values_updated[field][1] ).play();
+                        break;
+
+                    case "if_captured":
+                        this.disconnect( $(notif.args.piece_id), 'onclick');
+                        dojo.query( '#'+notif.args.piece_id ).forEach(dojo.destroy);
+                        break;
+
+                    case "if_capturing":
+                        if ( notif.args.values_updated[field] === "1" )
+                        {
+                            this.pieceCapturing( notif.args.piece_id, notif.args.location );
+                        }
+                        else
+                        {
+                            this.pieceNoLongerCapturing( notif.args.piece_id, notif.args.location );
+                        }
+                        break;
+
+                    case "piece_type":
+                        var previous_type = this.gamedatas.pieces[notif.args.piece_id]['piece_type'];
+
+                        dojo.query( '#'+notif.args.piece_id ).removeClass( 'piecetype_'+previous_type );
+                        dojo.query( '#'+notif.args.piece_id ).addClass( 'piecetype_'+notif.args.values_updated['piece_type'] );
+                        break;
                 }
 
-                this.gamedatas.pieces[notif.args.capturing_piece_id].board_rank = rank_to_use;
-                this.gamedatas.pieces[notif.args.capturing_piece_id].if_performing_en_passant = "0";
-                this.gamedatas.board_state[notif.args.board_file][notif.args.board_rank].defending_piece = null;
-                this.gamedatas.board_state[notif.args.board_file][rank_to_use].defending_piece = notif.args.capturing_piece_id;
-
-                this.slideToObject( notif.args.capturing_piece_id, 'square_'+notif.args.board_file+'_'+rank_to_use ).play();
+                if ( field != "location" )
+                {
+                    this.gamedatas.pieces[notif.args.piece_id][field] = notif.args.values_updated[field];
+                }
             }
+
+            console.log(this.gamedatas.pieces);
+        },
+
+        notif_updateBoardState: function( notif )
+        {
+            for ( var field in notif.args.values_updated )
+            {
+                this.gamedatas.board_state[notif.args.square[0]][notif.args.square[1]][field] = notif.args.values_updated[field];
+            }
+
+            console.log(this.gamedatas.board_state);
+        },
+
+        notif_deleteFromCaptureQueue: function( notif )
+        {
+            delete this.gamedatas.capture_queue[notif.args.capture_id];
+            console.log(this.gamedatas.capture_queue);
+        },
+
+        notif_clearHighlights: function( notif )
+        {
+            dojo.query( '.highlight_piece' ).removeClass( 'highlight_piece' );
+            dojo.query( '.possible_move' ).removeClass( 'possible_move' );
         },
 
         notif_highlightAttackedSquares: function( notif )

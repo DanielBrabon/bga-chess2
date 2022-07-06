@@ -113,14 +113,17 @@ class ChessSequel extends Table
         // Get information about players
         // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
         $sql = "SELECT player_id id, player_color color, player_score score, player_stones stones, 
-        player_king_move_available king_move_available, player_army army FROM player ";
+        player_king_move_available king_move_available, player_army army, player_king_id king_id, player_king_id_2 king_id_2 FROM player ";
         $result['players'] = self::getCollectionFromDb( $sql );
 
         // Get information needed to show board state
-        $result['board_state'] = $this->getBoard();
+        $result['board_state'] = $this->getBoardState();
 
         // Get information about all pieces
         $result['pieces'] = $this->getAllPieceData();
+
+        // Get information about the capture queue
+        $result['capture_queue'] = $this->getCaptureQueue();
   
         // Gathering variables from material.inc.php
         $result['all_army_names'] = $this->all_army_names;
@@ -158,7 +161,31 @@ class ChessSequel extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
-    function getBoard()
+    function sqlUpdate( $table, $set_columns_to_values, $where_columns_to_conditions )
+    {
+        $sql = "UPDATE $table SET ";
+
+        foreach ( $set_columns_to_values as $column => $value )
+        {
+            $sql .= "$column='$value',";
+        }
+        $sql = rtrim($sql, ',');
+
+        if ( count( $where_columns_to_conditions ) != 0 )
+        {
+            $sql .= " WHERE";
+            
+            foreach ( $where_columns_to_conditions as $column => $condition )
+            {
+                $sql .= " $column='$condition' AND";
+            }
+            $sql = rtrim($sql, ' AND');
+        }
+        
+        self::DbQuery( $sql );
+    }
+
+    function getBoardState()
     {
         //return self::getDoubleKeyCollectionFromDB( "SELECT board_x x, board_y y, board_player player
         //                                               FROM board", true );
@@ -171,19 +198,27 @@ class ChessSequel extends Table
     function getAllPieceData()
     {
         $sql = "SELECT piece_id, piece_color, piece_type, board_file, board_rank, moves_made, if_captured, 
-        if_attacking, if_en_passant_vulnerable, if_performing_en_passant, if_performing_castle FROM pieces";
+        if_capturing, if_en_passant_vulnerable, if_performing_castle FROM pieces";
         return self::getCollectionFromDB( $sql );
     }
 
-    function getLocationOfPiece( $piece_id )
+    function getCaptureQueue()
     {
-        $piece_data = $this->getAllPieceData()[$piece_id];
-        return array( $piece_data['board_file'], $piece_data['board_rank'] );
+        $sql = "SELECT capture_id, board_file, board_rank FROM capture_queue";
+        return self::getCollectionFromDB( $sql );
     }
 
-    function getPlayerArmyId( $player_id )
+    function getPlayerKingIds( $player_id )
     {
+        $sql = "SELECT player_king_id, player_king_id_2 FROM player WHERE player_id='$player_id'";
+        $king_ids = self::getObjectFromDB( $sql );
 
+        if ( $king_ids['player_king_id_2'] === null )
+        {
+            unset( $king_ids['player_king_id_2'] );
+        }
+
+        return $king_ids;
     }
 
     function generateAllMovesForPlayer( $player_id, $all_piece_data, $board_state )
@@ -199,6 +234,8 @@ class ChessSequel extends Table
             $enemy_player_color = "ffffff";
         }
 
+        $friendly_king_ids = $this->getPlayerKingIds( $player_id );
+
         $all_enemy_attacked_squares = $this->getAllAttackedSquares( $enemy_player_color, $all_piece_data, $board_state );
 
         /*self::notifyPlayer( $active_player_id, "highlightAttackedSquares", "", array( 
@@ -210,7 +247,7 @@ class ChessSequel extends Table
         {
             if ( $piece_data['piece_color'] === $player_color && $piece_data['if_captured'] === "0" )
             {
-                $possible_moves_and_corresponding_captures = $this->generateMoves( $piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares );
+                $possible_moves_and_corresponding_captures = $this->generateMoves( $piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares );
                 $possible_moves = $possible_moves_and_corresponding_captures['possible_moves'];
                 $corresponding_captures = $possible_moves_and_corresponding_captures['corresponding_captures'];
 
@@ -223,7 +260,7 @@ class ChessSequel extends Table
     }
 
     // Returns an array of the squares of all current possible moves for this piece (the squares the player can click on to make the move)
-    function generateMoves( $piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares )
+    function generateMoves( $piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares )
     {
         $possible_moves = array();
 
@@ -268,7 +305,7 @@ class ChessSequel extends Table
         $possible_moves = $this->removeIllegalCaptures( $piece_id, $all_piece_data, $board_state, $possible_moves );
         $corresponding_captures = $this->getCorrespondingCaptures( $piece_id, $all_piece_data, $board_state, $possible_moves );
 
-        $possible_moves_and_corresponding_captures = $this->removeSelfChecks( $piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares, $possible_moves, $corresponding_captures );
+        $possible_moves_and_corresponding_captures = $this->removeSelfChecks( $piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares, $possible_moves, $corresponding_captures );
 
         //$this->printWithJavascript( $possible_moves_and_corresponding_captures );
         return $possible_moves_and_corresponding_captures;
@@ -687,25 +724,19 @@ class ChessSequel extends Table
     }
 
     // Takes an array of possible moves and returns the same array but with any options removed that would leave the player's own king in check 
-    function removeSelfChecks( $moving_piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares, $possible_moves, $corresponding_captures )
+    function removeSelfChecks( $moving_piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares, $possible_moves, $corresponding_captures )
     {
         $move_piece_location = array( (int)$all_piece_data[$moving_piece_id]['board_file'], (int)$all_piece_data[$moving_piece_id]['board_rank'] );
         $move_piece_type = $all_piece_data[$moving_piece_id]['piece_type'];
 
         $king_locations = array();
-        $king_ids = array();
 
-        // Loop through pieces to find friendly kings
-        foreach ( $all_piece_data as $piece_id => $piece_data )
+        foreach ( $friendly_king_ids as $friendly_king_id )
         {
-            if ( $piece_data['piece_color'] === $all_piece_data[$moving_piece_id]['piece_color'] && ( $piece_data['piece_type'] === "king" || $piece_data['piece_type'] === "warriorking" ) )
-            {
-                $king_locations[] = array( (int)$all_piece_data[$piece_id]['board_file'], (int)$all_piece_data[$piece_id]['board_rank'] );
-                $king_ids[] = $piece_id;
-            }
+            $king_locations[$friendly_king_id] = array( (int)$all_piece_data[$friendly_king_id]['board_file'], (int)$all_piece_data[$friendly_king_id]['board_rank'] );
         }
 
-        foreach ( $king_locations as $king_index => $king_location )
+        foreach ( $king_locations as $king_id => $king_location )
         {
             $enemies_attacking_king_location = $all_enemy_attacked_squares['attacked_squares'][$king_location[0]][$king_location[1]];
             $enemies_semi_attacking_king_location = $all_enemy_attacked_squares['semi_attacked_squares'][$king_location[0]][$king_location[1]];
@@ -757,7 +788,7 @@ class ChessSequel extends Table
                 $simulated_move = $this->simulatePossibleMove( $moving_piece_id, $all_piece_data, $board_state, $possible_move, $corresponding_captures[$move_index] );
                 $all_piece_data_sim = $simulated_move['all_piece_data_sim'];
                 $board_state_sim = $simulated_move['board_state_sim'];
-                $king_location_sim = array( (int)$all_piece_data_sim[$king_ids[$king_index]]['board_file'], (int)$all_piece_data_sim[$king_ids[$king_index]]['board_rank'] );
+                $king_location_sim = array( (int)$all_piece_data_sim[$king_id]['board_file'], (int)$all_piece_data_sim[$king_id]['board_rank'] );
 
                 if ( count( $enemies_attacking_king_location ) != 0 && $this->arePiecesAttackingSquare( $all_piece_data_sim, $board_state_sim, $enemies_attacking_king_location, $king_location_sim ) )
                 {
@@ -842,9 +873,15 @@ class ChessSequel extends Table
         return false;
     }
 
+    function resolveCastle( $piece_id, $all_piece_data )
+    {
+
+    }
+
     // Can be called anywhere in the game.php, just calls console.log on the client side with whatever argument you pass in
     function printWithJavascript( $x )
     {
+        //echo( $x );
         self::notifyAllPlayers( "printWithJavascript", "", array( 'x' => $x ) );
     }
 
@@ -908,116 +945,161 @@ class ChessSequel extends Table
         // Check this action is allowed according to the game state
         $this->checkAction( 'movePiece' );
 
+        //$this->printWithJavascript( "movePiece called");
+
         // Get some information
         $player_id = $this->getActivePlayerId();
         $player_color = $this->getPlayerColorById( $player_id );
-        $enemy_player_color = "000000";
-        if ( $player_color === "000000" )
-        {
-            $enemy_player_color = "ffffff";
-        }
-
-        $moving_piece_starting_location = $this->getLocationOfPiece($moving_piece_id);
+ 
         $all_piece_data = $this->getAllPieceData();
-        $board_state = $this->getBoard();
-        $all_enemy_attacked_squares = $this->getAllAttackedSquares( $enemy_player_color, $all_piece_data, $board_state );
-
-        /*self::notifyPlayer( $active_player_id, "highlightAttackedSquares", "", array( 
-            'attacked_squares' => $all_enemy_attacked_squares['attacked_squares'], 
-            'semi_attacked_squares' => $all_enemy_attacked_squares['semi_attacked_squares'] )
-        );*/
 
         // Check that the player is trying to move their own piece
         if ( $all_piece_data[$moving_piece_id]['piece_color'] != $player_color )
         {
             return;
         }
-        
-        $possible_moves_and_corresponding_captures = $this->generateMoves( $moving_piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares );
+
+        $enemy_player_color = "000000";
+        if ( $player_color === "000000" )
+        {
+            $enemy_player_color = "ffffff";
+        }
+
+        $board_state = $this->getBoardState();
+        $all_enemy_attacked_squares = $this->getAllAttackedSquares( $enemy_player_color, $all_piece_data, $board_state );
+        $friendly_king_ids = $this->getPlayerKingIds( $player_id );
+
+        //$this->printWithJavascript($all_enemy_attacked_squares);
+        //$this->printWithJavascript($friendly_king_ids);
+
+        $possible_moves_and_corresponding_captures = $this->generateMoves( $moving_piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares );
         $possible_moves = $possible_moves_and_corresponding_captures['possible_moves'];
         $corresponding_captures = $possible_moves_and_corresponding_captures['corresponding_captures'];
 
-        // If this is a valid move according to generateMoves
-        if ( in_array( [$target_file, $target_rank], $possible_moves ) )
+        //$this->printWithJavascript($possible_moves);
+        //$this->printWithJavascript($corresponding_captures);
+
+        $target_location = array((int)$target_file, (int)$target_rank);
+
+        //$this->printWithJavascript($target_location);
+
+        foreach ( $possible_moves as $move_index => $move )
         {
-            $this->printWithJavascript("The target location IS in the array of valid moves");
-            
-            $if_attacking = "0";
-            
-            // If the moving piece is a pawn
-            if ( $all_piece_data[$moving_piece_id]['piece_type'] === "pawn" )
-            {
-                // If the moving pawn is making its inital double move, set its if_en_passant_vulnerable value to 2
-                if ( abs($moving_piece_starting_location[1] - $target_rank) === 2 )
+            //$this->printWithJavascript($move_index);
+            //$this->printWithJavascript($move);
+
+            // If the attempted move is found in the array of possible moves
+            if ( $move === $target_location )
+            {        
+                $this->printWithJavascript("The target location IS in the array of possible moves");
+
+                $moving_piece_starting_location = array( $all_piece_data[$moving_piece_id]['board_file'], $all_piece_data[$moving_piece_id]['board_rank'] );
+
+                // If the moving piece is a pawn making its initial double move, set its if_en_passant_vulnerable value to 2
+                if ( $all_piece_data[$moving_piece_id]['piece_type'] === "pawn" && abs($moving_piece_starting_location[1] - $target_location[1]) === 2 )
                 {
-                    $sql = "UPDATE pieces SET if_en_passant_vulnerable=2 WHERE piece_id='$moving_piece_id'";
+                    //$this->printWithJavascript("double pawn push");
+                    $pieces_values_to_set['if_en_passant_vulnerable'] = "2";
+                }
+                // If the moving piece is a castling king
+                elseif ( $all_piece_data[$moving_piece_id]['piece_type'] === "king" && abs( $moving_piece_starting_location[0] - $target_location[0] ) === 2 )
+                {
+                    $pieces_values_to_set['if_performing_castle'] = "1";
+                }
+
+                $capture_queue = array();
+
+                $counter = 0;
+                foreach ( $corresponding_captures[$move_index] as $corresponding_capture_square )
+                {
+                    if ( $board_state[$corresponding_capture_square[0]][$corresponding_capture_square[1]]['defending_piece'] != null )
+                    {
+                        if ( $all_piece_data[$moving_piece_id]['piece_type'] === "tiger" )
+                        {
+                            $target_location[0] = $moving_piece_starting_location[0];
+                            $target_location[1] = $moving_piece_starting_location[1];
+                        }
+
+                        $pieces_values_to_set['if_capturing'] = "1";
+
+                        $counter++;
+                        $capture_queue[] = "('$counter','$corresponding_capture_square[0]','$corresponding_capture_square[1]')";
+                    }
+                }
+
+                $location_value_to_set = array();
+                $if_capturing_at_target_location = $board_state[$target_location[0]][$target_location[1]]['defending_piece'] != null;
+                if ( $if_capturing_at_target_location )
+                {
+                    $location_value_to_set['capturing_piece'] = (string) $moving_piece_id;
+                }
+                else
+                {
+                    $location_value_to_set['defending_piece'] = (string) $moving_piece_id;
+                }
+
+                $sql = "SELECT moves_made FROM pieces WHERE piece_id='$moving_piece_id'";
+                $pieces_values_to_set['moves_made'] = (string) (self::getUniqueValueFromDB( $sql ) + 1);
+
+                $pieces_values_to_set_notif = $pieces_values_to_set;
+                $pieces_values_to_set_notif['location'] = $target_location;
+
+                $pieces_values_to_set['board_file'] = (string) $target_location[0];
+                $pieces_values_to_set['board_rank'] = (string) $target_location[1];
+
+                //$this->printWithJavascript($pieces_values_to_set);
+
+                if ( count( $capture_queue ) != 0 )
+                {
+                    $sql = "INSERT INTO capture_queue (capture_id,board_file,board_rank) VALUES ";
+                    $sql .= implode( ',', $capture_queue );
                     self::DbQuery( $sql );
                 }
 
-                // If the moving pawn is instead performing an en passant capture
-                elseif ( abs($moving_piece_starting_location[0] - $target_file) === 1 && $board_state[$target_file][$target_rank]['defending_piece'] === null )
+                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$moving_piece_starting_location[0]' AND board_rank='$moving_piece_starting_location[1]'";
+                self::DbQuery( $sql );
+
+                $this->sqlUpdate( "board", $location_value_to_set, array( "board_file" => $target_location[0], "board_rank" => $target_location[1] ) );
+
+                $this->sqlUpdate( "pieces", $pieces_values_to_set, array( "piece_id" => $moving_piece_id ) );
+
+                // Send notifications
+                if ( count( $capture_queue ) != 0 )
                 {
-                    $this->printWithJavascript("performing en passant");
-                    // Have it attack the square of the piece being captured but with the if_performing_en_passant value telling whereNext how to resolve this attack correctly
-                    $target_rank = $moving_piece_starting_location[1];
-                    $sql = "UPDATE pieces SET if_performing_en_passant=1 WHERE piece_id='$moving_piece_id'";
-                    self::DbQuery( $sql );
+                    self::notifyAllPlayers( "fillCaptureQueue", "", array( "capture_queue" => $capture_queue ) );
                 }
+
+                self::notifyAllPlayers( "updateAllPieceData", "", array(
+                    "piece_id" => $moving_piece_id,
+                    "values_updated" => $pieces_values_to_set_notif ) 
+                );
+
+                self::notifyAllPlayers( "updateBoardState", "", array( 
+                    "square" => $moving_piece_starting_location, 
+                    "values_updated" => array( "defending_piece" => null ) ) );
+
+                self::notifyAllPlayers( "updateBoardState", "", array( 
+                    "square" => $target_location, 
+                    "values_updated" => $location_value_to_set ) );
+
+                self::notifyAllPlayers( "clearHighlights", "", array() );
+
+                // Change player state
+                $this->gamestate->nextState( 'whereNext' );
+                return;
             }
-
-            // If the moving piece is a king
-            if ( $all_piece_data[$moving_piece_id]['piece_type'] === "king" )
-            {
-                // If this king is castling
-                if ( abs( $moving_piece_starting_location[0] - $target_file ) === 2 )
-                {
-                    $sql = "UPDATE pieces SET if_performing_castle=1 WHERE piece_id='$moving_piece_id'";
-                    self::DbQuery( $sql );
-                }
-            }
-            
-            $sql = "SELECT moves_made FROM pieces WHERE piece_id='$moving_piece_id'";
-            $moving_piece_updated_moves_made = self::getUniqueValueFromDB( $sql ) + 1;
-
-            // Update the database
-            $sql = "UPDATE pieces SET board_file=$target_file, board_rank=$target_rank, moves_made=$moving_piece_updated_moves_made WHERE piece_id='$moving_piece_id'";
-            self::DbQuery( $sql );
-
-            $sql = "UPDATE board SET defending_piece=null WHERE board_file=$moving_piece_starting_location[0] AND board_rank=$moving_piece_starting_location[1]";
-            self::DbQuery( $sql );
-
-            // If there is an enemy piece on the square being moved to, the moving piece attacks
-            if ( $board_state[$target_file][$target_rank]['defending_piece'] != null )
-            {
-                $sql = "UPDATE pieces SET if_attacking='1' WHERE piece_id='$moving_piece_id'";
-                self::DbQuery( $sql );
-
-                $sql = "UPDATE board SET capturing_piece='$moving_piece_id' WHERE board_file=$target_file AND board_rank=$target_rank";
-                self::DbQuery( $sql );
-            }
-            else
-            {
-                $sql = "UPDATE board SET defending_piece='$moving_piece_id' WHERE board_file=$target_file AND board_rank=$target_rank";
-                self::DbQuery( $sql );
-            }
-
-            // Send notifications
-            self::notifyAllPlayers( "movePiece", clienttranslate( 'Move made' ), array( 
-                "moving_piece_id" => $moving_piece_id, 
-                "target_file" => $target_file, 
-                "target_rank" => $target_rank,
-                "if_attacking" => $if_attacking,
-                "moving_piece_starting_location_file" => $moving_piece_starting_location[0],
-                "moving_piece_starting_location_rank" => $moving_piece_starting_location[1] ) 
-            );
-
-            // Change player state
-            $this->gamestate->nextState( 'whereNext' );
         }
-        else
-        {
-            $this->printWithJavascript("The target location is NOT in the array of valid moves");
-        }
+
+        $this->printWithJavascript( "The target location is NOT in the array of possible moves" );
+    }
+
+    function promoteToQueen( $piece_id )
+    {
+        $this->sqlUpdate( "pieces", array( "piece_type" => "queen" ), array( "piece_id" => $piece_id ) );
+
+        self::notifyAllPlayers( "updateAllPieceData", "", array(
+            "piece_id" => $piece_id,
+            "values_updated" => array( "piece_type" => "queen" ) ) );
     }
 
     // The possible action during the duel state
@@ -1033,32 +1115,6 @@ class ChessSequel extends Table
 
         // Deactivate player. If none left, transition to 'resolveDuel' state
         $this->gamestate->setPlayerNonMultiactive($player_id, 'resolveDuel');
-    }
-
-    // A possible action during the playerTurn state
-    function promote( $piece_id )
-    {
-        // Check this move is allowed according to the game state
-        $this->checkAction( 'promote' );
-
-        // Get the id of the active player
-        $player_id = $this->getActivePlayerId();
-
-        // Get the board state
-        $board = $this->getBoard();
-
-        // Get the army id of the active player
-        $active_army_id = $this->getPlayerArmyId( $player_id );
-    }
-
-    // A possible action during the playerTurn state
-    function pass()
-    {
-        // Check this move is allowed according to the game state
-        $this->checkAction( 'pass' );
-
-        // Get the id of the active player
-        $player_id = $this->getActivePlayerId();        
     }
 
     /*
@@ -1102,13 +1158,34 @@ class ChessSequel extends Table
     {
         $active_player_id = $this->getActivePlayerId();
         $all_piece_data = $this->getAllPieceData();
-        $board_state = $this->getboard();
+        $board_state = $this->getBoardState();
 
         $all_legal_moves_and_corresponding_captures = $this->generateAllMovesForPlayer( $active_player_id, $all_piece_data, $board_state );
         $all_legal_moves = $all_legal_moves_and_corresponding_captures['all_moves'];
         $all_corresponding_captures = $all_legal_moves_and_corresponding_captures['all_corresponding_captures'];
 
         return array( "allLegalMoves" => $all_legal_moves, "allCorrespondingCaptures" => $all_corresponding_captures );
+    }
+
+    function argPawnPromotion()
+    {
+        $all_piece_data = $this->getAllPieceData();
+
+        $pawn_id = 0;
+
+        foreach( $all_piece_data as $piece_id => $piece_data )
+        {
+            if ( $piece_data['piece_type'] === "pawn" || $piece_data['piece_type'] === "nemesispawn" )
+            {
+                if ( ($piece_data['piece_color'] === "000000" && $piece_data['board_rank'] === "8") || ($piece_data['piece_color'] === "ffffff" && $piece_data['board_rank'] === "1") )
+                {
+                    $pawn_id = $piece_id;
+                    break;
+                }
+            }
+        }
+
+        return array( "pawnToPromote" => $pawn_id );
     }
 
     /*
@@ -1165,6 +1242,8 @@ class ChessSequel extends Table
         $sql = "INSERT INTO pieces (piece_id,piece_color,piece_type,board_file,board_rank) VALUES ";
         $sql_values = array();
 
+        $all_king_ids = array();
+
         // For each player
         foreach( $all_datas['players'] as $player_data )
         {
@@ -1191,6 +1270,11 @@ class ChessSequel extends Table
                 $pieces_table_update_information[] = array( $piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_rank );
 
                 $board_table_update_information[] = array( $piece_info[0], $piece_rank, $piece_id );
+
+                if ( $piece_info[2] === "king" || $piece_info[2] === "warriorking" )
+                {
+                    $all_king_ids[$player_data['id']][] = $piece_id;
+                }
             }
         }
 
@@ -1198,11 +1282,22 @@ class ChessSequel extends Table
         $sql .= implode( ',', $sql_values );
         self::DbQuery( $sql );
 
+        foreach ( $all_king_ids as $player_id => $king_ids )
+        {
+            $update_values = array( "player_king_id" => $king_ids[0] );
+
+            if ( count( $king_ids ) === 2 )
+            {
+                $update_values["player_king_id_2"] = $king_ids[1];
+            }
+
+            $this->sqlUpdate( "player", $update_values, array( "player_id" => $player_id ) );
+        }
+
         // Adding the starting pieces into the board table
         foreach( $board_table_update_information as $value )
         {
-            $sql = "UPDATE board SET defending_piece='$value[2]' WHERE board_file='$value[0]' AND board_rank='$value[1]'";
-            self::DbQuery( $sql );
+            $this->sqlUpdate( "board", array( "defending_piece" => $value[2] ), array( "board_file" => $value[0], "board_rank" => $value[1] ) );
         }
 
         // Notifying players of the changes to gamedatas
@@ -1223,67 +1318,62 @@ class ChessSequel extends Table
 
     function stWhereNext()
     {
-        // Get the current board and pieces state
-        $board_state = $this->getBoard();
         $all_piece_data = $this->getAllPieceData();
 
-        // Loop through all squares on the board to find any attacking pieces
-        // These attacks currently just resolve like normal chess (no duels)
-        for ( $i = 1; $i <= 8; $i++ )
+        foreach( $all_piece_data as $piece_id => $piece_data )
         {
-            for ( $j = 1; $j <= 8; $j++ )
+            // If the piece is capturing
+            if ( $piece_data['if_capturing'] === "1" )
             {
-                // If there is an attacking piece on square i, j
-                if ( $board_state[$i][$j]['capturing_piece'] != null )
+                $this->gamestate->nextState( 'resolveCapture' );
+                return;
+            }
+
+            // If any pawns can promote
+            if ( $piece_data['piece_type'] === "pawn" || $piece_data['piece_type'] === "nemesispawn" )
+            {
+                if ( ($piece_data['piece_color'] === "000000" && $piece_data['board_rank'] === "1") || ($piece_data['piece_color'] === "ffffff" && $piece_data['board_rank'] === "8") )
                 {
-                    $capturing_piece_id = $board_state[$i][$j]['capturing_piece'];
-                    $defending_piece_id = $board_state[$i][$j]['defending_piece'];
+                    $this->printWithJavascript( "Pawn ".$piece_id." is promoting" );
+                    // What I should actually do
+                    //$this->gamestate->nextState( 'pawnPromotion' );
+                    // return;
 
-                    // Update the database to remove the defending piece and set the attacking piece as the new defender on that square
-                    $sql = "UPDATE pieces SET if_captured='1' WHERE piece_id='$defending_piece_id'";
-                    self::DbQuery( $sql );
-
-                    $sql = "UPDATE pieces SET if_attacking='0' WHERE piece_id='$capturing_piece_id'";
-                    self::DbQuery( $sql );
-
-                    $sql = "UPDATE board SET defending_piece='$capturing_piece_id', capturing_piece=null WHERE board_file=$i AND board_rank=$j";
-                    self::DbQuery( $sql );
-
-                    $if_en_passant = $all_piece_data[$capturing_piece_id]['if_performing_en_passant'];
-                    $piece_color = $all_piece_data[$capturing_piece_id]['piece_color'];
-                    
-                    // This is an en passant attack so update the database and set $if_en_passant and $piece_color accordingly
-                    if ( $if_en_passant === "1" )
-                    {
-                        $rank_to_use = $j + 1;
-                        if ( $piece_color === "000000" )
-                        {
-                            $rank_to_use -= 2;
-                        }
-                        
-                        $sql = "UPDATE board SET defending_piece='$capturing_piece_id' WHERE board_file=$i AND board_rank=$rank_to_use";
-                        self::DbQuery( $sql );
-
-                        $sql = "UPDATE board SET defending_piece=null WHERE board_file=$i AND board_rank=$j";
-                        self::DbQuery( $sql );
-
-                        $sql = "UPDATE pieces SET board_rank=$rank_to_use, if_performing_en_passant=0 WHERE piece_id='$capturing_piece_id'";
-                        self::DbQuery( $sql );
-                    }
-
-                    // Notify all players about the resolved attack
-                    self::notifyAllPlayers( "resolveAttack", "", array( 
-                        'defending_piece_id' => $defending_piece_id,
-                        'capturing_piece_id' => $capturing_piece_id,
-                        'board_file' => $i,
-                        'board_rank' => $j,
-                        'if_en_passant' => $if_en_passant,
-                        'piece_color' => $piece_color) 
-                    );
+                    // Temporary easier solution
+                    $this->promoteToQueen( $piece_id );
                 }
+            }
+
+            // If a king is castling this turn
+            if ( $piece_data['if_performing_castle'] === "1" )
+            {
+                $this->resolveCastle( $piece_id, $all_piece_data );
             }
         }
 
+        foreach( $all_piece_data as $piece_id => $piece_data )
+        {
+            // Tick down the if_en_passant_vulnerable value by 1 at the end of each turn so an en passant capture is only available for one turn
+            if ( $piece_data['if_en_passant_vulnerable'] != "0" )
+            {
+                $if_en_passant_vulnerable = $piece_data['if_en_passant_vulnerable'] - 1;
+                $sql = "UPDATE pieces SET if_en_passant_vulnerable=$if_en_passant_vulnerable WHERE piece_id='$piece_id'";
+                self::DbQuery( $sql );
+
+                self::notifyAllPlayers( "updateAllPieceData", "", array( 
+                    "piece_id" => $piece_id, 
+                    "values_updated" => array( "if_en_passant_vulnerable" => (string) $if_en_passant_vulnerable ) ) );
+            }
+        }
+
+        // If win or draw condition met
+
+        // If king move available
+
+        $this->gamestate->nextState( 'nextPlayer' );
+        return;
+
+        /*
         // Loop through all pieces and check for the king being captured, a pawn making its first move, and castling
         foreach( $all_piece_data as $piece_id => $piece_data )
         {
@@ -1297,15 +1387,7 @@ class ChessSequel extends Table
                 self::DbQuery( $sql );
 
                 $this->gamestate->nextState( 'gameEnd' );
-            }
-
-            // This ticks down the if_en_passant_vulnerable value by 1 at the end of each turn so an en passant capture can only be performed for one turn
-            if ( $piece_data['if_en_passant_vulnerable'] != "0" )
-            {
-                $if_en_passant_vulnerable = $piece_data['if_en_passant_vulnerable'] - 1;
-                $sql = "UPDATE pieces SET if_en_passant_vulnerable=$if_en_passant_vulnerable WHERE piece_id='$piece_id'";
-                self::DbQuery( $sql );
-            }
+            }            
 
             // If a king is castling this turn
             if ( $piece_data['if_performing_castle'] === "1" )
@@ -1343,7 +1425,7 @@ class ChessSequel extends Table
                     "moving_piece_id" => $castling_rook_id, 
                     "target_file" => $rook_destination_file, 
                     "target_rank" => $rook_destination_rank,
-                    "if_attacking" => "0",
+                    "if_capturing" => "0",
                     "moving_piece_starting_location_file" => $rook_starting_file,
                     "moving_piece_starting_location_rank" => $rook_destination_rank ) 
                 );
@@ -1354,8 +1436,80 @@ class ChessSequel extends Table
 
         // Check for extra king move for current player and resolve
 
-        // If none of the above prevented it, move to nextPlayer
-        $this->gamestate->nextState( 'nextPlayer' );
+        */
+    }
+
+    function stResolveCapture()
+    {
+        $all_piece_data = $this->getAllPieceData();
+        $board_state = $this->getBoardState(); 
+        $capture_queue = $this->getCaptureQueue();
+        //$this->printWithJavascript($capture_queue);
+        //$this->printWithJavascript($capturing_piece_id);
+
+        $capturing_piece_id = 0;
+        foreach( $all_piece_data as $piece_id => $piece_data )
+        {
+            // If the piece is capturing
+            if ( $piece_data['if_capturing'] === "1" )
+            {
+                $capturing_piece_id = $piece_id;
+                break;
+            }
+        }
+
+        $capture_id = 0;
+        $capture_square = array();
+        for ( $i = 1; $i <= 8; $i++ )
+        {
+            if ( array_key_exists( $i, $capture_queue ) )
+            {
+                $capture_id = $i;
+                $capture_square = array( (int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank'] );
+            }
+        }
+
+        $defending_piece_id = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+        
+        $this->sqlUpdate( "pieces", array( "if_captured " => 1 ), array( "piece_id" => $defending_piece_id ) );
+        self::notifyAllPlayers( "updateAllPieceData", "", array( 
+            "piece_id" => $defending_piece_id, 
+            "values_updated" => array( "if_captured" => "1" ) ) );
+
+        if ( $board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id )
+        {
+            $sql = "UPDATE board SET defending_piece='$capturing_piece_id', capturing_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
+            self::DbQuery( $sql );
+
+            self::notifyAllPlayers( "updateBoardState", "", array( 
+                "square" => $capture_square, 
+                "values_updated" => array( "defending_piece" => $capturing_piece_id, "capturing_piece" => null ) ) );
+        }
+        else
+        {
+            $sql = "UPDATE board SET defending_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
+            self::DbQuery( $sql );
+
+            self::notifyAllPlayers( "updateBoardState", "", array( 
+                "square" => $capture_square, 
+                "values_updated" => array( "defending_piece" => null ) ) );
+        }
+
+        if ( count( $capture_queue ) === 1 )
+        {
+            $this->sqlUpdate( "pieces", array( "if_capturing" => 0 ), array( "piece_id" => $capturing_piece_id ) );
+            self::notifyAllPlayers( "updateAllPieceData", "", array( 
+                "piece_id" => $capturing_piece_id,
+                "values_updated" => array( "if_capturing" => "0" ) ) );
+        }
+
+        $sql = "DELETE FROM capture_queue WHERE capture_id='$capture_id'";
+        self::DbQuery( $sql );
+        
+        self::notifyAllPlayers( "deleteFromCaptureQueue", "", array( "capture_id" => $capture_id ) );
+
+        $this->gamestate->nextState( 'whereNext' );
+        return;
     }
 
     /*

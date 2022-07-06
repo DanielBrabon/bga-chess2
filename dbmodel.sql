@@ -36,7 +36,8 @@
 ALTER TABLE `player` ADD `player_army` VARCHAR(16) NOT NULL DEFAULT 'classic';
 ALTER TABLE `player` ADD `player_stones` TINYINT(1) UNSIGNED NOT NULL DEFAULT '3';
 ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
-ALTER TABLE `player` ADD `player_last_move` VARCHAR(10) DEFAULT NULL;
+ALTER TABLE `player` ADD `player_king_id` VARCHAR(17) DEFAULT NULL;
+ALTER TABLE `player` ADD `player_king_id_2` VARCHAR(17) DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS `board` (
   `board_file` TINYINT(1) UNSIGNED NOT NULL,
@@ -54,9 +55,15 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   `board_rank` TINYINT(1) UNSIGNED,
   `moves_made` INT(10) UNSIGNED DEFAULT '0',
   `if_captured` TINYINT(1) UNSIGNED DEFAULT '0',
-  `if_attacking` TINYINT(1) UNSIGNED DEFAULT '0',
+  `if_capturing` TINYINT(1) UNSIGNED DEFAULT '0',
   `if_en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT '0',
-  `if_performing_en_passant` TINYINT(1) UNSIGNED DEFAULT '0',
   `if_performing_castle` TINYINT(1) UNSIGNED DEFAULT '0',
   PRIMARY KEY (`piece_id`)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS `capture_queue` (
+  `capture_id` INT(10) UNSIGNED NOT NULL,
+  `board_file` TINYINT(1) UNSIGNED NOT NULL,
+  `board_rank` TINYINT(1) UNSIGNED NOT NULL,
+  PRIMARY KEY (`capture_id`)
 ) ENGINE=InnoDB;
