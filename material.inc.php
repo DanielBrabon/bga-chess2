@@ -22,7 +22,7 @@
 // The variables defined here are accessible everywhere in your game logic file (and also view.php file)
 
 // All valid army names
-$this->all_army_names = array( "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy", "testenpassant" );
+$this->all_army_names = array( "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy", "testarmy2", "testenpassant" );
 
 // The starting board layouts for all armies on white side
 $this->all_armies_starting_layout = array(
@@ -149,6 +149,25 @@ $this->all_armies_starting_layout = array(
     "queen_1" => array( 6, 4, "queen" ),
     "queen_2" => array( 6, 1, "queen" ),
     "queen_3" => array( 8, 1, "queen" )
+  ),
+
+  "testarmy2" => array(
+    "pawn_1" => array( 1, 2, "pawn" ), 
+    "pawn_2" => array( 2, 2, "pawn" ),
+    "pawn_3" => array( 3, 2, "pawn" ),
+    "pawn_4" => array( 4, 2, "pawn" ),
+    "pawn_5" => array( 5, 2, "pawn" ),
+    "pawn_6" => array( 6, 2, "pawn" ),
+    "pawn_7" => array( 7, 2, "pawn" ),
+    "pawn_8" => array( 8, 2, "pawn" ),
+    "rook_1" => array( 1, 1, "rook" ),
+    "rook_2" => array( 8, 1, "rook" ),
+    "knight_1" => array( 2, 1, "knight" ),
+    "knight_2" => array( 7, 1, "knight" ),
+    "bishop_1" => array( 3, 1, "bishop" ),
+    "bishop_2" => array( 6, 1, "bishop" ),
+    "queen" => array( 4, 1, "queen" ),
+    "king" => array( 5, 1, "king" )
   ),
 
   "testenpassant" => array(

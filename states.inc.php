@@ -77,14 +77,7 @@ $machinestates = array(
         "name" => "boardSetup",
         "type" => "game",
         "action" => "stBoardSetup",
-        "transitions" => array( "nextPlayer" => 4 )
-    ),
-
-    4 => array(
-        "name" => "nextPlayer",
-        "type" => "game",
-        "action" => "stNextPlayer",
-        "transitions" => array( "playerMove" => 5 )
+        "transitions" => array( "whereNext" => 6 )
     ),
 
     5 => array(
@@ -92,7 +85,6 @@ $machinestates = array(
         "type" => "activeplayer",
     	"description" => clienttranslate('${actplayer} must choose a move'),
     	"descriptionmyturn" => clienttranslate('${you} must choose a move'),
-        "args" => "argPlayerMove",
         "possibleactions" => array( "displayAvailableMoves", "movePiece" ),
         "transitions" => array( "whereNext" => 6 )
     ),
@@ -101,7 +93,7 @@ $machinestates = array(
         "name" => "whereNext",
         "type" => "game",
         "action" => "stWhereNext",
-        "transitions" => array( "nextPlayer" => 4, "playerKingMove" => 7, "pawnPromotion" => 8, "duelSetup" => 9, "gameEnd" => 99, "resolveCapture" => 69 )
+        "transitions" => array( "playerMove" => 5, "playerKingMove" => 7, "pawnPromotion" => 8, "duelSetup" => 9, "gameEnd" => 99, "resolveCapture" => 69 )
     ),
 
     69 => array(

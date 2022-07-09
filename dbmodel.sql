@@ -61,6 +61,14 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   PRIMARY KEY (`piece_id`)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS `legal_moves` (
+  `move_id` INT(10) UNSIGNED NOT NULL,
+  `moving_piece_id` VARCHAR(17) NOT NULL,
+  `board_file` TINYINT(1) UNSIGNED NOT NULL,
+  `board_rank` TINYINT(1) UNSIGNED NOT NULL,
+  PRIMARY KEY (`move_id`)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS `capture_queue` (
   `capture_id` INT(10) UNSIGNED NOT NULL,
   `board_file` TINYINT(1) UNSIGNED NOT NULL,

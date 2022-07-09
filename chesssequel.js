@@ -56,7 +56,7 @@ function (dojo, declare) {
             }
 
             // Placing pieces on the board
-            if ( gamedatas.board_state.length === 0) // We're in armySelect and pieces haven't been added to the database yet
+            if ( gamedatas.board_state.length === 0 ) // We're in armySelect and pieces haven't been added to the database yet
             {
                 for( var player_id in gamedatas.players )
                 {                
@@ -116,10 +116,6 @@ function (dojo, declare) {
             
             switch( stateName )
             {
-                case 'playerMove':
-                    this.updateAllLegalMoves( args.args.allLegalMoves, args.args.allCorrespondingCaptures );
-                    break;
-
                 case 'pawnPromotion':
                     this.displayPromotionOptions( args.args.pawnToPromote );
                     break;
@@ -286,22 +282,6 @@ function (dojo, declare) {
             // Could hightlight the board somehow to show that the choice was confirmed
         },
 
-        updateAllLegalMoves: function( all_legal_moves, all_corresponding_captures )
-        {
-            if ( this.isCurrentPlayerActive() )
-            {
-                this.gamedatas.all_legal_moves = all_legal_moves;
-                this.gamedatas.all_corresponding_captures = all_corresponding_captures;
-            }
-            else
-            {
-                this.gamedatas.all_legal_moves = [];
-                this.gamedatas.all_corresponding_captures = [];
-            }
-
-            console.log( this.gamedatas.all_legal_moves );
-        },
-
         displayPromotionOptions: function( pawn_id )
         {
 
@@ -364,8 +344,7 @@ function (dojo, declare) {
 
         pieceClicked: function ( evt )
         {
-            // We stop the propagation of the Javascript "onclick" event. 
-            // Otherwise, it can lead to random behavior so it's always a good idea.
+            // We stop the propagation of the Javascript "onclick" event to avoid random behaviour
             dojo.stopEvent( evt );
 
             var player_id = this.getActivePlayerId();
@@ -378,14 +357,15 @@ function (dojo, declare) {
                 {
                     this.gamedatas.players[ player_id ].piece_clicked = evt.currentTarget.id;
                     dojo.addClass( evt.currentTarget.id, 'highlight_piece' );
-        
-                    var valid_moves = this.gamedatas.all_legal_moves[ evt.currentTarget.id ]
-                    var valid_moves_length = valid_moves.length;
-        
-                    for ( var i = 0; i < valid_moves_length; i++ )
+
+                    for ( var move_index in this.gamedatas.legal_moves )
                     {
-                        dojo.addClass( 'square_'+valid_moves[i][0]+'_'+valid_moves[i][1], 'possible_move' );
-                        // I would also like to make it so that if a player hovers over one of these possible move squares, the corresponding capture squares and indicated
+                        var move_object = this.gamedatas.legal_moves[move_index];
+
+                        if ( move_object['moving_piece_id'] === evt.currentTarget.id )
+                        {
+                            dojo.addClass( 'square_'+move_object['board_file']+'_'+move_object['board_rank'], 'possible_move' );
+                        }
                     }
                 }
             }
@@ -510,6 +490,8 @@ function (dojo, declare) {
 
             dojo.subscribe( 'stBoardSetup', this, "notif_stBoardSetup" );
 
+            dojo.subscribe( 'updateLegalMovesTable', this, "notif_updateLegalMovesTable" );
+
             dojo.subscribe( 'fillCaptureQueue', this, "notif_fillCaptureQueue" );
 
             dojo.subscribe( 'updateAllPieceData', this, "notif_updateAllPieceData" );
@@ -582,6 +564,25 @@ function (dojo, declare) {
             this.gamedatas.pieces = pieces_object;
         },
 
+        notif_updateLegalMovesTable: function( notif )
+        {
+            this.gamedatas.legal_moves = [];
+
+            for ( var piece_id in notif.args.moves_added )
+            {
+                var moves_for_piece = notif.args.moves_added[piece_id];
+
+                for ( move_index in moves_for_piece )
+                {
+                    move = moves_for_piece[move_index];
+
+                    this.gamedatas.legal_moves.push( { 'moving_piece_id': piece_id, 'board_file': String(move[0]), 'board_rank': String(move[1]) } );
+                }
+            }
+
+            //console.log(this.gamedatas.legal_moves);
+        },
+
         notif_fillCaptureQueue: function( notif )
         {
             this.gamedatas.capture_queue = {};
@@ -594,7 +595,7 @@ function (dojo, declare) {
                 this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_rank = capture_queue[i].substring(10, 11);
             }
 
-            console.log(this.gamedatas.capture_queue);
+            //console.log(this.gamedatas.capture_queue);
         },
 
         notif_updateAllPieceData: function( notif )
@@ -640,7 +641,7 @@ function (dojo, declare) {
                 }
             }
 
-            console.log(this.gamedatas.pieces);
+            //console.log(this.gamedatas.pieces);
         },
 
         notif_updateBoardState: function( notif )
@@ -650,13 +651,13 @@ function (dojo, declare) {
                 this.gamedatas.board_state[notif.args.square[0]][notif.args.square[1]][field] = notif.args.values_updated[field];
             }
 
-            console.log(this.gamedatas.board_state);
+            //console.log(this.gamedatas.board_state);
         },
 
         notif_deleteFromCaptureQueue: function( notif )
         {
             delete this.gamedatas.capture_queue[notif.args.capture_id];
-            console.log(this.gamedatas.capture_queue);
+            //console.log(this.gamedatas.capture_queue);
         },
 
         notif_clearHighlights: function( notif )
