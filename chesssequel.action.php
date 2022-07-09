@@ -60,22 +60,14 @@
       self::ajaxResponse( );
     }
 
-    public function findValidMoves()
-    {
-      // We call a corresponding "findValidMoves" method in game.php
-      self::setAjaxMode();
-      $piece_id = self::getArg( "piece_id", AT_alphanum, true );     
-      $result = $this->game->findValidMoves( $piece_id );
-      self::ajaxResponse( );
-    }
-
     public function movePiece()
     {
       // We call a corresponding "movePiece" method in game.php
       self::setAjaxMode();
       $target_file = self::getArg( "target_file", AT_posint, true ); 
-      $target_rank = self::getArg( "target_rank", AT_posint, true );    
-      $result = $this->game->movePiece( $target_file, $target_rank );
+      $target_rank = self::getArg( "target_rank", AT_posint, true );   
+      $moving_piece_id = self::getArg( "moving_piece_id", AT_alphanum, true ); 
+      $result = $this->game->movePiece( $target_file, $target_rank, $moving_piece_id );
       self::ajaxResponse( );
     }
 

@@ -142,3 +142,17 @@
 .btn_container {
     border: 3px solid #000000;
 }
+
+.attacked_square {
+    background-color: darkred;
+    opacity: 0.8;
+    filter:alpha(opacity=20); /* For IE8 and earlier */  
+    cursor: pointer;  
+}
+
+.semi_attacked_square {
+    background-color: darkorange;
+    opacity: 0.8;
+    filter:alpha(opacity=20); /* For IE8 and earlier */  
+    cursor: pointer;  
+}
