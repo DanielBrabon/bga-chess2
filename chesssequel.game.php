@@ -351,15 +351,23 @@ class ChessSequel extends Table
                 break;
 
             case "wildhorse":
+                $possible_moves = $this->getAttackingMoveSquares( $piece_id, $all_piece_data, $board_state )['attacking_squares'];
                 break;
 
             case "tiger":
+                $possible_moves = $this->getAttackingMoveSquares( $piece_id, $all_piece_data, $board_state )['attacking_squares'];
+                $possible_moves = $this->removeFriendlyOccupiedSquares( $piece_id, $all_piece_data, $board_state, $possible_moves );
                 break;
 
             case "elephant":
+                $possible_moves = $this->getAttackingMoveSquares( $piece_id, $all_piece_data, $board_state )['attacking_squares'];
+                $available_short_moves = $this->getNonCapturingMoveSquares( $piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares );
+                $possible_moves = array_merge( $possible_moves, $available_short_moves );
                 break;
 
             case "junglequeen":
+                $possible_moves = $this->getAttackingMoveSquares( $piece_id, $all_piece_data, $board_state )['attacking_squares'];
+                $possible_moves = $this->removeFriendlyOccupiedSquares( $piece_id, $all_piece_data, $board_state, $possible_moves );
                 break;
         }
 
@@ -391,7 +399,6 @@ class ChessSequel extends Table
                 $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 1);
                 $attacking_squares = $attacks[0];
                 $semi_attacking_squares = $attacks[1];
-
                 break;
 
             case "bishop":
@@ -399,7 +406,6 @@ class ChessSequel extends Table
                 $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 7);
                 $attacking_squares = $attacks[0];
                 $semi_attacking_squares = $attacks[1];
-
                 break;
             
             case "rook":
@@ -407,7 +413,6 @@ class ChessSequel extends Table
                 $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 7);
                 $attacking_squares = $attacks[0];
                 $semi_attacking_squares = $attacks[1];
-
                 break;
             
             case "queen":
@@ -415,7 +420,6 @@ class ChessSequel extends Table
                 $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 7);
                 $attacking_squares = $attacks[0];
                 $semi_attacking_squares = $attacks[1];
-
                 break;
 
             case "pawn":
@@ -428,7 +432,6 @@ class ChessSequel extends Table
                 $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 1);
                 $attacking_squares = $attacks[0];
                 $semi_attacking_squares = $attacks[1];
-
                 break;
 
             case "king":
@@ -489,20 +492,72 @@ class ChessSequel extends Table
                 break;
 
             case "wildhorse":
+                $attack_steps = array( array(2, 1), array(1, 2), array(2, -1), array(1, -2), array(-2, 1), array(-1, 2), array(-2, -1), array(-1, -2) );
+                $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 1);
+                $attacking_squares = $attacks[0];
+                $semi_attacking_squares = $attacks[1];
                 break;
 
             case "tiger":
+                $attack_steps = array( array(1, 1), array(-1, 1), array(-1, -1), array(1, -1) );
+                $attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $attack_steps, 2);
+                $attacking_squares = $attacks[0];
+                $semi_attacking_squares = $attacks[1];
                 break;
 
             case "elephant":
+                $attacking_squares = $this->getElephantAttackingMoveSquares( $piece_id, $all_piece_data, $board_state );
                 break;
 
             case "junglequeen":
+                $rook_attack_steps = array( array(1, 0), array(-1, 0), array(0, 1), array(0, -1) );
+                $rook_attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $rook_attack_steps, 7);
+                $knight_attack_steps = array( array(2, 1), array(1, 2), array(2, -1), array(1, -2), array(-2, 1), array(-1, 2), array(-2, -1), array(-1, -2) );
+                $knight_attacks = $this->getSeenSquares( $piece_id, $all_piece_data, $board_state, $knight_attack_steps, 1);
+                $attacking_squares = array_merge( $rook_attacks[0], $knight_attacks[0] );
+                $semi_attacking_squares = array_merge( $rook_attacks[1], $knight_attacks[1] );
                 break;
 
         }
 
         return array( "attacking_squares" => $attacking_squares, "semi_attacking_squares" => $semi_attacking_squares );
+    }
+
+    function getElephantAttackingMoveSquares( $elephant_id, $all_piece_data, $board_state )
+    {
+        $attacking_move_squares = array();
+
+        $elephant_location = array( (int) $all_piece_data[$elephant_id]['board_file'], (int) $all_piece_data[$elephant_id]['board_rank'] );
+
+        $directions = array( array(1, 0), array(0, 1), array(-1, 0), array(0, -1) );
+
+        foreach ( $directions as $direction_index => $direction )
+        {
+            $square = $elephant_location;
+
+            for ( $i = 1; $i <= 3; $i++ )
+            {
+                $square[0] += $direction[0];
+                $square[1] += $direction[1];
+
+                if ( $square[0] < 1 || $square[0] > 8 || $square[1] < 1 || $square[1] > 8 )
+                {
+                    break;
+                }
+
+                $piece_on_square = $board_state[$square[0]][$square[1]]['defending_piece'];
+                if ( $piece_on_square != null && $all_piece_data[$piece_on_square]['piece_color'] === $all_piece_data[$elephant_id]['piece_color'] && $all_piece_data[$piece_on_square]['piece_type'] === "king" )
+                {
+                    $attacking_move_squares[$direction_index] = 0;
+                    unset( $attacking_move_squares[$direction_index] );
+                    break;
+                }
+
+                $attacking_move_squares[$direction_index] = $square;
+            }
+        }
+        $attacking_move_squares = array_values($attacking_move_squares);
+        return $attacking_move_squares;
     }
 
     function getNonCapturingMoveSquares( $piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares )
@@ -541,6 +596,40 @@ class ChessSequel extends Table
                         {
                             $move_squares[] = array( $i, $j );
                         }
+                    }
+                }
+                break;
+
+            case "elephant":
+                $elephant_location = array( (int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank'] );
+        
+                $directions = array( array(1, 0), array(0, 1), array(-1, 0), array(0, -1) );
+        
+                foreach ( $directions as $direction )
+                {
+                    $square = $elephant_location;
+                    
+                    $change_axis = 0;
+                    if ( $direction[0] === 0 )
+                    {
+                        $change_axis = 1;
+                    }
+        
+                    for ( $i = 1; $i <= 2; $i++ )
+                    {
+                        $square[0] += $direction[0];
+                        $square[1] += $direction[1];
+        
+                        if ( $square[$change_axis] < 2 || $square[$change_axis] > 7 )
+                        {
+                            break;
+                        }
+                        if ( $board_state[$square[0]][$square[1]]['defending_piece'] != null )
+                        {
+                            break;
+                        }
+        
+                        $move_squares[] = $square;
                     }
                 }
                 break;
@@ -858,6 +947,37 @@ class ChessSequel extends Table
                 break;
 
             case "elephant":
+                $elephant_location = array( (int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank'] );
+
+                foreach( $possible_moves as $move_index => $possible_move )
+                {
+                    $corresponding_captures[$move_index] = array();
+
+                    $difference = array( $possible_move[0] - $elephant_location[0], $possible_move[1] - $elephant_location[1] );
+
+                    $difference_magnitude = abs( $difference[0] );
+                    if ( $difference_magnitude === 0 )
+                    {
+                        $difference_magnitude = abs( $difference[1] );
+                    }
+
+                    $direction = array( $difference[0] / $difference_magnitude , $difference[1] / $difference_magnitude  );
+                    
+                    $square = $elephant_location;
+
+                    for ( $i = 1; $i <= 3; $i++ )
+                    {
+                        $square[0] += $direction[0];
+                        $square[1] += $direction[1];
+
+                        $corresponding_captures[$move_index][] = $square;
+
+                        if ( $square === $possible_move )
+                        {
+                            break;
+                        }
+                    }
+                }
                 break;
 
             default:
