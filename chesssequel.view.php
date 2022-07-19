@@ -60,16 +60,16 @@
             }
         }
 
-        $this->page->begin_block("chesssequel_chesssequel", "army_buttons");
+        /*$this->page->begin_block("chesssequel_chesssequel", "army_buttons");
 
-        $army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy", "testarmy2", "testenpassant");
+        $army_names = array( "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy" );
 
         foreach ($army_names as $army_name) {
           $this->page->insert_block("army_buttons", array(
-            "BTN_ID" => "btn_".$army_name,
+            "BTN_ID" => "btn_2_".$army_name,
             "ARMY_ID" => $army_name
           ));
-        }
+        }*/
   
   
 

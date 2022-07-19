@@ -40,18 +40,6 @@
 
     <div id="info_panel">
 
-        <div id="army_btn_container" class="btn_container">
-            <!-- BEGIN army_buttons -->
-            <button id="{BTN_ID}" class="bgabutton bgabutton_blue army_button" type="button">{ARMY_ID}</button>
-            <!-- END army_buttons -->
-
-            <button id="btn_confirm_army" class="bgabutton bgabutton_red" type="button">Confirm Army</button>
-        </div>
-
-        <div id="king_move_btn_container" class="btn_container">
-            <button id="btn_pass_king_move" class="bgabutton bgabutton_red" type="button">Pass King Move</button>
-        </div>
-
         <div id="duel_offer_btn_container" class="btn_container">
             <button id="btn_start_duel" class="bgabutton bgabutton_beddac_temp" type="button">Start Duel</button>
             <button id="btn_do_not_start_duel" class="bgabutton bgabutton_beddac_temp" type="button">Do Not Start Duel</button>

@@ -106,15 +106,18 @@ $machinestates = array(
     7 => array(
         "name" => "playerKingMove",
         "type" => "activeplayer",
-        "possibleactions" => array( "moveWarriorKing" ),
-        "args" => "argPlayerKingMove",
+        "description" => clienttranslate('${actplayer} must choose a king move or pass'),
+    	"descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
+        "possibleactions" => array( "displayAvailableMoves", "movePiece", "passKingMove" ),
         "transitions" => array( "whereNext" => 6 ),
     ),
 
     8 => array(
         "name" => "pawnPromotion",
         "type" => "activeplayer",
-        "possibleactions" => array( "choosePromotion" ),
+        "description" => clienttranslate('${actplayer} must choose the pawn promotion'),
+    	"descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
+        "possibleactions" => array( "promotePawn" ),
         "args" => "argPawnPromotion",
         "transitions" => array( "whereNext" => 6 ),
     ),

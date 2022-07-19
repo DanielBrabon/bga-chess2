@@ -92,10 +92,10 @@ function (dojo, declare) {
             this.setupNotifications();
 
             // When an element with the army_button class is clicked, call pickArmy
-            dojo.query( '.army_button' ).connect( 'onclick', this, 'pickArmy' );
+            //dojo.query( '.army_button' ).connect( 'onclick', this, 'pickArmy' );
 
             // When the confirm army button is clicked, call confirmArmy
-            dojo.query( '#btn_confirm_army' ).connect( 'onclick', this, 'confirmArmy' );
+            //dojo.query( '#btn_confirm_army' ).connect( 'onclick', this, 'confirmArmy' );
 
             // Any time an empty square is clicked, call squareClicked
             dojo.query( '.square' ).connect( 'onclick', this, 'squareClicked' );
@@ -116,9 +116,7 @@ function (dojo, declare) {
             
             switch( stateName )
             {
-                case 'pawnPromotion':
-                    this.displayPromotionOptions( args.args.pawnToPromote );
-                    break;
+            
             
             /* Example:
             
@@ -173,6 +171,43 @@ function (dojo, declare) {
             {            
                 switch( stateName )
                 {
+                    case 'armySelect':
+                        const army_names = [ "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy" ];
+
+                        for ( var army_index in army_names )
+                        {
+                            var army_name = army_names[army_index];
+                            this.addActionButton( 'btn_'+army_name, _(army_name), 'pickArmy' );
+                        }
+
+                        this.addActionButton( 'btn_confirm_army', _('Confirm Army'), 'confirmArmy', null, false, 'red' );
+
+                        break;
+
+                    case 'playerMove':
+                        if ( this.gamedatas.players[ this.getActivePlayerId() ].army === "twokings" )
+                        {
+                            this.addActionButton( 'btn_whirlwind', _('Whirlwind Attack'), 'whirlwindClicked' );
+                        }
+
+                        break;
+
+                    case 'playerKingMove':
+                        this.addActionButton( 'btn_whirlwind', _('Whirlwind Attack'), 'whirlwindClicked' );
+                        this.addActionButton( 'btn_pass_king_move', _('Pass King Move'), 'passKingMove', null, false, 'red' );
+
+                        break;
+
+                    case 'pawnPromotion':
+                        var player_army = this.gamedatas.players[this.getActivePlayerId()]['army'];
+                        
+                        for ( var piece_type_index in args.promoteOptions[player_army] )
+                        {
+                            var piece_type = args.promoteOptions[player_army][piece_type_index];
+                            this.addActionButton( 'btn_promote_'+piece_type, _(piece_type), 'choosePromotion' );
+                        }
+
+                        break;
 /*               
                  Example:
  
@@ -280,11 +315,6 @@ function (dojo, declare) {
         playerConfirmedArmy: function( player_id, player_name )
         {
             // Could hightlight the board somehow to show that the choice was confirmed
-        },
-
-        displayPromotionOptions: function( pawn_id )
-        {
-
         },
 
         ///////////////////////////////////////////////////
@@ -419,6 +449,59 @@ function (dojo, declare) {
                 }, this, function( result ) {} );
             }
         },
+
+        whirlwindClicked: function( evt )
+        {
+            // We stop the propagation of the Javascript "onclick" event. 
+            // Otherwise, it can lead to random behavior so it's always a good idea.
+            dojo.stopEvent( evt );
+
+            var player_id = this.getActivePlayerId();
+
+            if ( dojo.query( '.highlight_piece' ).length != 0 && this.gamedatas.pieces[this.gamedatas.players[ player_id ].piece_clicked]['piece_type'] === "warriorking" && this.checkAction( 'movePiece' ) )
+            {
+                // Find the location of the piece being clicked on
+                var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[ player_id ].piece_clicked]['board_file'];
+                var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[ player_id ].piece_clicked]['board_rank'];
+
+                // Make a call to the server using BGA "ajaxcall" method
+                this.ajaxcall( "/chesssequel/chesssequel/movePiece.html", {
+                    target_file:target_piece_file,
+                    target_rank:target_piece_rank,
+                    moving_piece_id:this.gamedatas.players[ player_id ].piece_clicked
+                }, this, function( result ) {} );
+            }
+        },
+
+        passKingMove: function( evt )
+        {
+            // We stop the propagation of the Javascript "onclick" event. 
+            // Otherwise, it can lead to random behavior so it's always a good idea.
+            dojo.stopEvent( evt );
+
+            if ( this.checkAction( 'passKingMove' ) )
+            {
+                // Make a call to the server using BGA "ajaxcall" method
+                this.ajaxcall( "/chesssequel/chesssequel/passKingMove.html", {}, this, function( result ) {} );
+            }
+        },
+
+        choosePromotion: function( evt )
+        {
+            // We stop the propagation of the Javascript "onclick" event. 
+            // Otherwise, it can lead to random behavior so it's always a good idea.
+            dojo.stopEvent( evt );
+
+            if ( this.checkAction( 'promotePawn' ) )
+            {
+                var chosen_promotion = evt.currentTarget.id.split('_')[2];
+
+                // Make a call to the server using BGA "ajaxcall" method
+                this.ajaxcall( "/chesssequel/chesssequel/promotePawn.html", {
+                    chosen_promotion:chosen_promotion
+                }, this, function( result ) {} );
+            }
+        },
         
         /* Example:
         
@@ -513,6 +596,7 @@ function (dojo, declare) {
         {   
             // Call a function that places the starting pieces for that army_name on the board for that player_id
             this.placeStartingPiecesOnBoard( notif.args.army_name, notif.args.player_color );
+            this.gamedatas.players[ notif.args.player_id ]['army'] = notif.args.army_name;
         },
 
         notif_confirmArmy: function( notif )

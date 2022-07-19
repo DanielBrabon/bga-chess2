@@ -22,7 +22,7 @@
 // The variables defined here are accessible everywhere in your game logic file (and also view.php file)
 
 // All valid army names
-$this->all_army_names = array( "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy", "testarmy2", "testenpassant" );
+$this->all_army_names = array( "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy" );
 
 // The starting board layouts for all armies on white side
 $this->all_armies_starting_layout = array(
@@ -149,224 +149,22 @@ $this->all_armies_starting_layout = array(
     "queen_1" => array( 6, 4, "queen" ),
     "queen_2" => array( 6, 1, "queen" ),
     "queen_3" => array( 8, 1, "queen" )
-  ),
-
-  "testarmy2" => array(
-    "pawn_1" => array( 1, 2, "pawn" ), 
-    "pawn_2" => array( 2, 2, "pawn" ),
-    "pawn_3" => array( 3, 2, "pawn" ),
-    "pawn_4" => array( 4, 2, "pawn" ),
-    "pawn_5" => array( 5, 2, "pawn" ),
-    "pawn_6" => array( 6, 2, "pawn" ),
-    "pawn_7" => array( 7, 2, "pawn" ),
-    "pawn_8" => array( 8, 2, "pawn" ),
-    "rook_1" => array( 1, 1, "rook" ),
-    "rook_2" => array( 8, 1, "rook" ),
-    "knight_1" => array( 2, 1, "knight" ),
-    "knight_2" => array( 7, 1, "knight" ),
-    "bishop_1" => array( 3, 1, "bishop" ),
-    "bishop_2" => array( 6, 1, "bishop" ),
-    "queen" => array( 4, 1, "queen" ),
-    "king" => array( 5, 1, "king" )
-  ),
-
-  "testenpassant" => array(
-    "pawn_1" => array( 5, 5, "pawn" ),
-    "pawn_2" => array( 6, 2, "pawn" ),
-    "pawn_3" => array( 4, 2, "pawn" ),
-    "king" => array( 2, 3, "king" ),
-    "rook" => array( 7, 3, "rook" ),
   )
 );
 
-$this->all_pieces_possible_moves = array(
-  "rook" => array( 7, array(1, 0), array(-1, 0), array(0, 1), array(0, -1) ),
-
-  "knight" => array( 1, array(2, 1), array(1, 2), array(2, -1), array(1, -2), array(-2, 1), array(-1, 2), array(-2, -1), array(-1, -2) ),
-  
-  "bishop" => array( 7, array(1, 1), array(-1, 1), array(1, -1), array(-1, -1) ),
-
-  "queen" => array( 7, array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1) ),
-
-  "king" => array( 1, array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1), array(2, 0), array(-2, 0) ),
-
-  "pawn" => array( 1, array(0, 1), array(0, 2), array(1, 1), array(-1, 1), array(0, -1), array(0, -2), array(1, -1), array(-1, -1) )
+$this->all_armies_promote_options = array( 
+  "classic" => array( "knight", "bishop", "rook", "queen" ), 
+  "nemesis" => array( "knight", "bishop", "rook", "nemesis" ), 
+  "empowered" => array( "empoweredknight", "empoweredbishop", "empoweredrook", "empoweredqueen" ), 
+  "reaper" => array( "knight", "bishop", "ghost", "reaper" ), 
+  "twokings" => array( "knight", "bishop", "rook" ), 
+  "animal" => array( "wildhorse", "tiger", "elephant", "junglequeen" ), 
+  "testarmy" => array( "knight", "bishop", "rook", "queen" ) 
 );
 
-/*
-  "pawn" => array(
-    "target_square_empty" => array( array(0, 1) => 1 ),
-    "first_move_+_target_square_empty" => array( array(0, 1) => 2 ),
-    "target_square_enemy" => array( 
-      array(1, 1) => 1, 
-      array(-1, 1) => 1 
-    ),
-    "en_passant" => array( 
-      array(1, 1) => 1, 
-      array(-1, 1) => 1 
-    )
-  ),
+$this->button_labels = array(
 
-  "nemesispawn" => array(
-    "target_square_empty" => array( array(0, 1) => 1 ),
-    "target_square_empty_and_closer_to_enemy_king" => array( 
-      array(1, 0) => 1, 
-      array(1, 1) => 1, 
-      array(0, 1) => 1, 
-      array(-1, 1) => 1, 
-      array(-1, 0) => 1, 
-      array(-1, -1) => 1, 
-      array(0, -1) => 1, 
-      array(1, -1) => 1
-    ),
-    "target_square_enemy" => array( 
-      array(1, 1) => 1, 
-      array(-1, 1) => 1 
-    ),
-    "en_passant" => array( 
-      array(1, 1) => 1, 
-      array(-1, 1) => 1 
-    )
-  ),
-
-  "nemesis" => array(
-    "target_square_empty" => array( 
-      array(1, 0) => 7, 
-      array(1, 1) => 7, 
-      array(0, 1) => 7, 
-      array(-1, 1) => 7,
-      array(-1, 0) => 7, 
-      array(-1, -1) => 7, 
-      array(0, -1) => 7, 
-      array(1, -1) => 7 
-    )
-  ),
-
-  "empoweredrook" => array(
-    "" => array( 
-      array(1, 0) => 7, 
-      array(-1, 0) => 7, 
-      array(0, 1) => 7, 
-      array(0, -1) => 7 
-    ),
-    "orthogonal_adjacent_square_friendly_empowered_knight" => array( 
-      array(2, 1) => 1, 
-      array(1, 2) => 1, 
-      array(2, -1) => 1, 
-      array(1, -2) => 1, 
-      array(-2, 1) => 1, 
-      array(-1, 2) => 1, 
-      array(-2, -1) => 1, 
-      array(-1, -2) => 1 
-    ),
-    "orthogonal_adjacent_square_friendly_empowered_bishop" => array( 
-      array(1, 1) => 7, 
-      array(-1, 1) => 7, 
-      array(1, -1) => 7, 
-      array(-1, -1) => 7, 
-    )
-  ),
-
-  "empoweredknight" => array(
-    "" => array( 
-      array(2, 1) => 1, 
-      array(1, 2) => 1, 
-      array(2, -1) => 1, 
-      array(1, -2) => 1, 
-      array(-2, 1) => 1, 
-      array(-1, 2) => 1, 
-      array(-2, -1) => 1, 
-      array(-1, -2) => 1 
-    ),
-    "orthogonal_adjacent_square_friendly_empowered_bishop" => array( 
-      array(1, 1) => 7, 
-      array(-1, 1) => 7, 
-      array(1, -1) => 7, 
-      array(-1, -1) => 7, 
-    ),
-    "orthogonal_adjacent_square_friendly_empowered_rook" => array( 
-      array(1, 0) => 7, 
-      array(-1, 0) => 7, 
-      array(0, 1) => 7, 
-      array(0, -1) => 7 
-    )
-  ),
-
-  "empoweredbishop" => array(
-    "" => array( 
-      array(1, 1) => 7, 
-      array(-1, 1) => 7, 
-      array(1, -1) => 7, 
-      array(-1, -1) => 7, 
-    ),
-    "orthogonal_adjacent_square_friendly_empowered_knight" => array( 
-      array(2, 1) => 1, 
-      array(1, 2) => 1, 
-      array(2, -1) => 1, 
-      array(1, -2) => 1, 
-      array(-2, 1) => 1, 
-      array(-1, 2) => 1, 
-      array(-2, -1) => 1, 
-      array(-1, -2) => 1 
-    ),
-    "orthogonal_adjacent_square_friendly_empowered_rook" => array( 
-      array(1, 0) => 7, 
-      array(-1, 0) => 7, 
-      array(0, 1) => 7, 
-      array(0, -1) => 7 
-    )
-  ),
-
-  "empoweredqueen" => array(
-    "" => array( 
-      array(1, 0) => 1, 
-      array(1, 1) => 1, 
-      array(0, 1) => 1, 
-      array(-1, 1) => 1, 
-      array(-1, 0) => 1, 
-      array(-1, -1) => 1, 
-      array(0, -1) => 1, 
-      array(1, -1) => 1
-    )
-  ),
-
-  "ghost" => array(
-    "target_square_empty" => "all_squares"
-  ),
-
-  "reaper" => array(
-    "target_square_not_enemy_back_rank_not_enemy_king" => "all_squares"
-  ),
-
-  "warriorking" => array(
-    "" => array( 
-      array(1, 0) => 1, 
-      array(1, 1) => 1, 
-      array(0, 1) => 1, 
-      array(-1, 1) => 1, 
-      array(-1, 0) => 1, 
-      array(-1, -1) => 1, 
-      array(0, -1) => 1, 
-      array(1, -1) => 1
-    )
-  ),
-
-  "elephant" => array(
-    // TO DO
-  ),
-
-  "wildhorse" => array(
-    // TO DO
-  ),
-
-  "tiger" => array(
-    // TO DO
-  ),
-
-  "junglequeen" => array(
-    // TO DO
-  )
-  */
+);
 
 /*
 

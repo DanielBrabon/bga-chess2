@@ -71,6 +71,23 @@
       self::ajaxResponse( );
     }
 
+    public function passKingMove()
+    {
+      // We call a corresponding "passKingMove" method in game.php
+      self::setAjaxMode();
+      $result = $this->game->passKingMove();
+      self::ajaxResponse( );
+    }
+
+    public function promotePawn()
+    {
+      // We call a corresponding "promotePawn" method in game.php
+      self::setAjaxMode();
+      $chosen_promotion = self::getArg( "chosen_promotion", AT_alphanum, true ); 
+      $result = $this->game->promotePawn( $chosen_promotion );
+      self::ajaxResponse( );
+    }
+
     /*
     
     Example:
