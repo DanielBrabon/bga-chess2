@@ -38,23 +38,6 @@
 
     </div>
 
-    <div id="info_panel">
-
-        <div id="duel_offer_btn_container" class="btn_container">
-            <button id="btn_start_duel" class="bgabutton bgabutton_beddac_temp" type="button">Start Duel</button>
-            <button id="btn_do_not_start_duel" class="bgabutton bgabutton_beddac_temp" type="button">Do Not Start Duel</button>
-            <button id="btn_confirm_duel_offer" class="bgabutton bgabutton_red" type="button">Confirm Choice</button>
-        </div>
-
-        <div id="duel_bid_btn_container" class="btn_container">
-            <button id="btn_bid_zero" class="bgabutton bgabutton_green" type="button">Bid 0</button>
-            <button id="btn_bid_one" class="bgabutton bgabutton_green" type="button">Bid 1</button>
-            <button id="btn_bid_two" class="bgabutton bgabutton_green" type="button">Bid 2</button>
-            <button id="btn_confirm_duel_bid" class="bgabutton bgabutton_red" type="button">Confirm Bid</button>
-        </div>
-
-    </div>
-
 </div>
 
 

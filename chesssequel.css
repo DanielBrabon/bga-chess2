@@ -73,11 +73,7 @@
     height: 520px;
     background-image: url('img/board.jpg');
     position: relative;
-    float: left;
-}
-
-#info_panel {
-    float: right;
+    margin: 0 auto;
 }
 
 .square {
@@ -111,14 +107,19 @@
 .piecetype_empoweredknight { background-position: -480px 0px; }
 .piecetype_empoweredbishop { background-position: -540px 0px; }
 .piecetype_empoweredrook { background-position: -600px 0px; }
-.piecetype_reaper { background-position: -660px 0px; }
-.piecetype_ghost { background-position: -720px 0px; }
-.piecetype_warriorking { background-position: -780px 0px; }
-.piecetype_wildhorse { background-position: -840px 0px; }
-.piecetype_tiger { background-position: -900px 0px; }
-.piecetype_elephant { background-position: -960px 0px; }
-.piecetype_junglequeen { background-position: -1020px 0px; }
-.piecetype_empoweredqueen { background-position: -1080px 0px; } /* Doesn't have a graphic right now */
+.piecetype_empoweredqueen { background-position: -660px 0px; }
+.piecetype_reaper { background-position: -720px 0px; }
+.piecetype_ghost { background-position: -780px 0px; }
+.piecetype_warriorking { background-position: -840px 0px; }
+.piecetype_wildhorse { background-position: -900px 0px; }
+.piecetype_tiger { background-position: -960px 0px; }
+.piecetype_elephant { background-position: -1020px 0px; }
+.piecetype_junglequeen { background-position: -1080px 0px; }
+
+
+.flipped {
+    transform: rotate(180deg);
+}
 
 .possible_move {
     background-color: white;
@@ -132,15 +133,6 @@
     opacity: 0.2;
     filter:alpha(opacity=20); /* For IE8 and earlier */  
     cursor: pointer; 
-}
-
-.bgabutton_beddac_temp {
-    background: #beddac;
-    border: 1px solid #000000;
-}
-
-.btn_container {
-    border: 3px solid #000000;
 }
 
 .attacked_square {

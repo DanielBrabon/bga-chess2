@@ -63,7 +63,6 @@ function (dojo, declare) {
                     var player = gamedatas.players[player_id];
 
                     this.placeStartingPiecesOnBoard(player.army, player.color);
-                    // TO DO: Call an animation to put a pulsating glow on their side of the board, later removed when confirming army
                 }
             }
             else // Players have confirmed their armies and their pieces have been added to the database
@@ -86,16 +85,14 @@ function (dojo, declare) {
                 }
             }
 
-            // TODO: Set up your game interface here, according to "gamedatas"
+            if ( gamedatas.players[this.player_id].color === "000000" )
+            {
+                dojo.addClass( 'board', 'flipped' );
+                dojo.query( '.piece' ).addClass( 'flipped' );
+            }
 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
-
-            // When an element with the army_button class is clicked, call pickArmy
-            //dojo.query( '.army_button' ).connect( 'onclick', this, 'pickArmy' );
-
-            // When the confirm army button is clicked, call confirmArmy
-            //dojo.query( '#btn_confirm_army' ).connect( 'onclick', this, 'confirmArmy' );
 
             // Any time an empty square is clicked, call squareClicked
             dojo.query( '.square' ).connect( 'onclick', this, 'squareClicked' );
@@ -253,14 +250,10 @@ function (dojo, declare) {
             this.placeOnObject( piece_id, 'square_'+file+'_'+rank );
         },
 
-        placePiecesOnBoard: function( pieces )
-        {
-            // pieces should be an array of all pieces to place on the board
-            // Format: { piece_id: { file: file, rank: rank, type: type, color: color }, ... }
-        },
-
         placeStartingPiecesOnBoard: function( army_name, player_color )
         {
+            dojo.query( '.flipped' ).removeClass( 'flipped' );
+
             // Gets an array of starting pieces for that army type where:
             // Keys are a name for the piece e.g. "pawn_1"
             // Values are the array [ file, rank, type ] for that piece (on white side)
@@ -595,8 +588,16 @@ function (dojo, declare) {
         notif_pickArmy: function( notif )
         {   
             // Call a function that places the starting pieces for that army_name on the board for that player_id
+            dojo.query( '.flipped' ).removeClass( 'flipped' );
+
             this.placeStartingPiecesOnBoard( notif.args.army_name, notif.args.player_color );
             this.gamedatas.players[ notif.args.player_id ]['army'] = notif.args.army_name;
+
+            if ( this.gamedatas.players[this.player_id].color === "000000" )
+            {
+                dojo.addClass( 'board', 'flipped' );
+                dojo.query( '.piece' ).addClass( 'flipped' );
+            }
         },
 
         notif_confirmArmy: function( notif )
@@ -692,7 +693,15 @@ function (dojo, declare) {
                         this.gamedatas.pieces[notif.args.piece_id]['board_file'] = String(notif.args.values_updated[field][0]);
                         this.gamedatas.pieces[notif.args.piece_id]['board_rank'] = String(notif.args.values_updated[field][1]);
 
+                        dojo.query( '.flipped' ).removeClass( 'flipped' );
+                        
                         this.slideToObject( notif.args.piece_id, 'square_'+notif.args.values_updated[field][0]+'_'+notif.args.values_updated[field][1] ).play();
+                        
+                        if ( this.gamedatas.players[this.player_id].color === "000000" )
+                        {
+                            dojo.addClass( 'board', 'flipped' );
+                            dojo.query( '.piece' ).addClass( 'flipped' );
+                        }
                         break;
 
                     case "if_captured":
