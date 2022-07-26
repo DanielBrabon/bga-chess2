@@ -62,7 +62,6 @@ $machinestates = array(
     ),
     
     // Both players simultaneously pick their armies from the 6 options
-
     2 => array(
     	"name" => "armySelect",
     	"description" => clienttranslate('${actplayer} must select an army'),
@@ -73,109 +72,87 @@ $machinestates = array(
     	"transitions" => array( "boardSetup" => 3 )
     ),
 
+    // The board is initialised with pieces
     3 => array(
         "name" => "boardSetup",
         "type" => "game",
         "action" => "stBoardSetup",
-        "transitions" => array( "whereNext" => 6 )
+        "transitions" => array( "whereNext" => 5 )
     ),
 
-    5 => array(
+    // A regular turn for a player
+    4 => array(
         "name" => "playerMove",
         "type" => "activeplayer",
     	"description" => clienttranslate('${actplayer} must choose a move'),
     	"descriptionmyturn" => clienttranslate('${you} must choose a move'),
         "possibleactions" => array( "displayAvailableMoves", "movePiece" ),
-        "transitions" => array( "whereNext" => 6 )
+        "transitions" => array( "whereNext" => 5 )
     ),
 
-    6 => array(
+    // The game decides which state to transition to next and calcualtes legal moves for the next turn
+    5 => array(
         "name" => "whereNext",
         "type" => "game",
         "action" => "stWhereNext",
-        "transitions" => array( "playerMove" => 5, "playerKingMove" => 7, "pawnPromotion" => 8, "duelSetup" => 9, "gameEnd" => 99, "resolveCapture" => 69 )
+        "transitions" => array( "playerMove" => 4, "whereNext" => 5, "playerKingMove" => 6, "pawnPromotion" => 7, "duelOffer" => 8, "gameEnd" => 99 )
     ),
 
-    69 => array(
-        "name" => "resolveCapture",
-        "type" => "game",
-        "action" => "stResolveCapture",
-        "transitions" => array( "whereNext" => 6, "nextPlayer" => 4 )
-    ),
-
-    7 => array(
+    // A two kings player can move with a warrior king or pass
+    6 => array(
         "name" => "playerKingMove",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose a king move or pass'),
     	"descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
         "possibleactions" => array( "displayAvailableMoves", "movePiece", "passKingMove" ),
-        "transitions" => array( "whereNext" => 6 ),
+        "transitions" => array( "whereNext" => 5 ),
     ),
 
-    8 => array(
+    // A player choses the promotion for their pawn
+    7 => array(
         "name" => "pawnPromotion",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose the pawn promotion'),
     	"descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
         "possibleactions" => array( "promotePawn" ),
         "args" => "argPawnPromotion",
-        "transitions" => array( "whereNext" => 6 ),
+        "transitions" => array( "whereNext" => 5 ),
     ),
 
-    9 => array(
-        "name" => "duelSetup",
-        "type" => "game",
-        "action" => "stDuelSetup",
-        "transitions" => array( "duelOffer" => 10 ),
-    ),
-
-    10 => array(
+    // A player choses whether to initialise a duel
+    8 => array(
         "name" => "duelOffer",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose whether to duel'),
         "descriptionmyturn" => clienttranslate('${you} must choose whether to duel'),
         "possibleactions" => array( "acceptDuel", "rejectDuel" ),
-        "transitions" => array( "duel" => 11, "resolveDuel" => 12 ),
+        "transitions" => array( "whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 11 ),
     ),
 
-    11 => array(
-        "name" => "duel",
+    // Both players simultaneously choose how many stones to bid
+    9 => array(
+        "name" => "duelBidding",
         "type" => "multipleactiveplayer",
         "description" => clienttranslate('${actplayer} must choose how many stones to bid'),
         "descriptionmyturn" => clienttranslate('${you} must choose how many stones to bid'),
-        "possibleactions" => array( "pickBidAmount" ),
-        "transitions" => array( "resolveDuel" => 12 ),
+        "action" => "stMakeEveryoneActive",
+        "possibleactions" => array( "pickBid" ),
+        "transitions" => array( "resolveDuel" => 10 ),
     ),
 
-    12 => array(
+    10 => array(
         "name" => "resolveDuel",
         "type" => "game",
         "action" => "stResolveDuel",
-        "transitions" => array( "whereNext" => 6 ),
+        "transitions" => array( "whereNext" => 5 )
     ),
-    
-/*
-    Examples:
-    
-    2 => array(
+
+    11 => array(
         "name" => "nextPlayer",
-        "description" => '',
         "type" => "game",
         "action" => "stNextPlayer",
-        "updateGameProgression" => true,   
-        "transitions" => array( "endGame" => 99, "nextPlayer" => 10 )
+        "transitions" => array( "whereNext" => 5 )
     ),
-    
-    10 => array(
-        "name" => "playerTurn",
-        "description" => clienttranslate('${actplayer} must play a card or pass'),
-        "descriptionmyturn" => clienttranslate('${you} must play a card or pass'),
-        "type" => "activeplayer",
-        "possibleactions" => array( "playCard", "pass" ),
-        "transitions" => array( "playCard" => 2, "pass" => 2 )
-    ), 
-
-*/    
    
     // Final state.
     // Please do not modify (and do not overload action/args methods).

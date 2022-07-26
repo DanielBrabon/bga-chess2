@@ -79,6 +79,31 @@
       self::ajaxResponse( );
     }
 
+    public function acceptDuel()
+    {
+      // We call a corresponding "acceptDuel" method in game.php
+      self::setAjaxMode();
+      $result = $this->game->acceptDuel();
+      self::ajaxResponse( );
+    }
+
+    public function rejectDuel()
+    {
+      // We call a corresponding "rejectDuel" method in game.php
+      self::setAjaxMode();
+      $result = $this->game->rejectDuel();
+      self::ajaxResponse( );
+    }
+    
+    public function pickBid()
+    {
+      // We call a corresponding "pickBid" method in game.php
+      self::setAjaxMode();
+      $bid_amount = self::getArg( "bid_amount", AT_alphanum, true ); 
+      $result = $this->game->pickBid( $bid_amount );
+      self::ajaxResponse( );
+    }
+
     public function promotePawn()
     {
       // We call a corresponding "promotePawn" method in game.php

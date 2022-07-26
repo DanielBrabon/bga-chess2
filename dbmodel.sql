@@ -35,6 +35,7 @@
 
 ALTER TABLE `player` ADD `player_army` VARCHAR(16) NOT NULL DEFAULT 'classic';
 ALTER TABLE `player` ADD `player_stones` TINYINT(1) UNSIGNED NOT NULL DEFAULT '3';
+ALTER TABLE `player` ADD `player_bid` TINYINT(1) UNSIGNED DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
 ALTER TABLE `player` ADD `player_king_id` VARCHAR(17) DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_id_2` VARCHAR(17) DEFAULT NULL;

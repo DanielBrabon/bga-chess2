@@ -62,6 +62,7 @@ dojo.place( this.format_block( 'jstpl_piece', {
 } ), 'pieces' );
 
 */
+
 var jstpl_piece='<div class="piece piececolor_${color} piecetype_${type}" id="${piece_id}"></div>';
 
 </script>  

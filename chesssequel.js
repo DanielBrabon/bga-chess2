@@ -50,8 +50,7 @@ function (dojo, declare) {
             
             // Setting up player boards
             for( var player_id in gamedatas.players )
-            {                
-                // Setting up players boards
+            {
                 var player = gamedatas.players[player_id];
             }
 
@@ -66,9 +65,7 @@ function (dojo, declare) {
                 }
             }
             else // Players have confirmed their armies and their pieces have been added to the database
-            {
-                // TO DO: gamedatas.pieces example
-                
+            {                
                 for ( var piece_id in gamedatas.pieces )
                 {
                     var piece_info = gamedatas.pieces[piece_id];
@@ -193,6 +190,17 @@ function (dojo, declare) {
                         this.addActionButton( 'btn_whirlwind', _('Whirlwind Attack'), 'whirlwindClicked' );
                         this.addActionButton( 'btn_pass_king_move', _('Pass King Move'), 'passKingMove', null, false, 'red' );
 
+                        break;
+                    
+                    case 'duelOffer':
+                        this.addActionButton( 'btn_accept_duel', _('Accept Duel'), 'acceptDuel' );
+                        this.addActionButton( 'btn_reject_duel', _('Reject Duel'), 'rejectDuel' );
+                        break;
+
+                    case 'duelBidding':
+                        this.addActionButton( 'btn_bid_zero', _('Bid 0 Stones'), 'pickBid' );
+                        this.addActionButton( 'btn_bid_one', _('Bid 1 Stone'), 'pickBid' );
+                        this.addActionButton( 'btn_bid_two', _('Bid 2 Stones'), 'pickBid' );
                         break;
 
                     case 'pawnPromotion':
@@ -479,6 +487,69 @@ function (dojo, declare) {
             }
         },
 
+        acceptDuel: function( evt )
+        {
+            // We stop the propagation of the Javascript "onclick" event. 
+            // Otherwise, it can lead to random behavior so it's always a good idea.
+            dojo.stopEvent( evt );
+
+            if ( this.checkAction( 'acceptDuel' ) )
+            {
+                // Make a call to the server using BGA "ajaxcall" method
+                this.ajaxcall( "/chesssequel/chesssequel/acceptDuel.html", {
+                }, this, function( result ) {} );
+            }
+        },
+
+        rejectDuel: function( evt )
+        {
+            // We stop the propagation of the Javascript "onclick" event. 
+            // Otherwise, it can lead to random behavior so it's always a good idea.
+            dojo.stopEvent( evt );
+
+            if ( this.checkAction( 'rejectDuel' ) )
+            {
+                // Make a call to the server using BGA "ajaxcall" method
+                this.ajaxcall( "/chesssequel/chesssequel/rejectDuel.html", {
+                }, this, function( result ) {} );
+            }
+        },
+
+        pickBid: function( evt )
+        {
+            // We stop the propagation of the Javascript "onclick" event. 
+            // Otherwise, it can lead to random behavior so it's always a good idea.
+            dojo.stopEvent( evt );
+
+            console.log("bid chosen: "+evt.currentTarget.id.split('_')[2]);
+            var bid_amount = 0;
+
+            switch ( evt.currentTarget.id.split('_')[2] )
+            {
+                case 'zero':
+                    break;
+                
+                case 'one':
+                    bid_amount = 1;
+                    break;
+                
+                case 'two':
+                    bid_amount = 2;
+                    break;
+                
+                default:
+                    return;
+            }
+
+            if ( this.checkAction( 'pickBid' ) )
+            {       
+                // Make a call to the server using BGA "ajaxcall" method with argument army_name.
+                this.ajaxcall( "/chesssequel/chesssequel/pickBid.html", {
+                    bid_amount:bid_amount
+                }, this, function( result ) {} );
+            }   
+        },
+
         choosePromotion: function( evt )
         {
             // We stop the propagation of the Javascript "onclick" event. 
@@ -573,6 +644,8 @@ function (dojo, declare) {
             dojo.subscribe( 'updateAllPieceData', this, "notif_updateAllPieceData" );
 
             dojo.subscribe( 'updateBoardState', this, "notif_updateBoardState" );
+
+            dojo.subscribe( 'updatePlayerData', this, "notif_updatePlayerData" )
 
             dojo.subscribe( 'deleteFromCaptureQueue', this, "notif_deleteFromCaptureQueue" );
 
@@ -745,6 +818,16 @@ function (dojo, declare) {
             }
 
             //console.log(this.gamedatas.board_state);
+        },
+
+        notif_updatePlayerData: function( notif )
+        {
+            for ( var field in notif.args.values_updated )
+            {
+                this.gamedatas.players[notif.args.player_id][field] = notif.args.values_updated[field];
+            }
+
+            console.log(this.gamedatas.players);
         },
 
         notif_deleteFromCaptureQueue: function( notif )

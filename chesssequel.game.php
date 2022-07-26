@@ -1505,6 +1505,294 @@ class ChessSequel extends Table
         return false;
     }
 
+    function generateAllKingMovesForPlayer( $active_player_id, $all_piece_data )
+    {
+        $board_state = $this->getBoardState();
+
+        $sql = "DELETE FROM legal_moves";
+        self::DbQuery( $sql );
+        
+        $all_legal_king_moves = array();
+
+        $player_color = $this->getPlayerColorById( $active_player_id );
+
+        $enemy_player_color = "000000";
+        if ( $player_color === "000000" )
+        {
+            $enemy_player_color = "ffffff";
+        }
+
+        $friendly_king_ids = $this->getPlayerKingIds( $active_player_id );
+
+        $all_enemy_attacked_squares = $this->getAllAttackedSquares( $enemy_player_color, $all_piece_data, $board_state );
+ 
+        foreach ( $friendly_king_ids as $friendly_king_id )
+        {
+            $possible_moves_and_corresponding_captures = $this->generateMoves( $friendly_king_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares );
+            $all_legal_king_moves[$friendly_king_id] = $possible_moves_and_corresponding_captures['possible_moves'];
+        }
+
+        $sql = "INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES ";
+        $moves = array();
+        
+        $has_legal_moves = false;
+
+        $counter = 0;
+        foreach ( $all_legal_king_moves as $piece_id => $moves_for_piece )
+        {
+            foreach( $moves_for_piece as $move_square )
+            {
+                $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]')";
+                $counter++;
+            }
+
+            if ( !$has_legal_moves && count( $moves_for_piece ) != 0 )
+            {
+                $has_legal_moves = true;
+            }
+        }
+
+        if ( $has_legal_moves )
+        {
+            $sql .= implode( ',', $moves );
+            self::DbQuery( $sql );
+        }
+
+        self::notifyAllPlayers( "updateLegalMovesTable", "", array( "moves_added" => $all_legal_king_moves ) );
+
+        return $has_legal_moves;
+    }
+
+    function resolveNextCapture( $both_pieces_capture, $all_piece_data = null, $board_state = null, $capture_queue = null )
+    {
+        if ( $all_piece_data === null )
+        {
+            $all_piece_data = $this->getAllPieceData();
+        }
+        
+        if ( $board_state === null )
+        {
+            $board_state = $this->getBoardState(); 
+        }
+        
+        if ( $capture_queue === null )
+        {
+            $capture_queue = $this->getCaptureQueue();
+        }
+
+        $capturing_piece_id = 0;
+        foreach( $all_piece_data as $piece_id => $piece_data )
+        {
+            // If the piece is capturing
+            if ( $piece_data['if_capturing'] === "1" )
+            {
+                $capturing_piece_id = $piece_id;
+                break;
+            }
+        }
+
+        if ( $both_pieces_capture )
+        {
+            $capture_ids = array();
+            $capture_squares = array();
+            for ( $i = 1; $i <= 8; $i++ )
+            {
+                if ( array_key_exists( $i, $capture_queue ) )
+                {
+                    $capture_ids[] = $i;
+                    $capture_squares[] = array( (int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank'] );
+                }
+            }
+
+            $defending_piece_id = $board_state[$capture_squares[0][0]][$capture_squares[0][1]]['defending_piece'];
+
+            // Update piece data for defending piece
+            $this->sqlUpdate( "pieces", array( "if_captured " => 1 ), array( "piece_id" => $defending_piece_id ) );
+            self::notifyAllPlayers( "updateAllPieceData", "", array( 
+                "piece_id" => $defending_piece_id, 
+                "values_updated" => array( "if_captured" => "1" ) ) 
+            );
+
+            if ( $all_piece_data[$defending_piece_id]['piece_type'] === "pawn" || $all_piece_data[$defending_piece_id]['piece_type'] === "nemesispawn" )
+            {
+                if ( $all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color'] )
+                {
+                    // Player with the color of the capturing piece gets a stone
+                    $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
+                    $new_capturing_player_stones = self::getUniqueValueFromDB( "SELECT player_stones FROM player WHERE player_color='$capturing_color'" ) + 1;
+
+                    $sql = "UPDATE player SET player_stones=$new_capturing_player_stones WHERE player_color='$capturing_color'";
+                    self::DbQuery( $sql );
+
+                    $player_ids = self::getCollectionFromDB( "SELECT player_color, player_id FROM player", true );
+
+                    self::notifyAllPlayers( "updatePlayerData", "", array( 
+                        "player_id" => $player_ids[$capturing_color], 
+                        "values_updated" => array( "stones" => (string) $new_capturing_player_stones ) ) 
+                    );
+                }
+            }
+
+            // Update piece data for capturing piece
+            $this->sqlUpdate( "pieces", array( "if_captured " => 1, "if_capturing" => 0 ), array( "piece_id" => $capturing_piece_id ) );
+            self::notifyAllPlayers( "updateAllPieceData", "", array( 
+                "piece_id" => $capturing_piece_id, 
+                "values_updated" => array( "if_captured" => "1", "if_capturing" => "0" ) ) 
+            );
+
+            if ( $all_piece_data[$capturing_piece_id]['piece_type'] === "pawn" || $all_piece_data[$capturing_piece_id]['piece_type'] === "nemesispawn" )
+            {
+                if ( $all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color'] )
+                {
+                    // Player with the color of the defending piece gets a stone
+                    $defending_color = $all_piece_data[$defending_piece_id]['piece_color'];
+                    $new_defending_player_stones = self::getUniqueValueFromDB( "SELECT player_stones FROM player WHERE player_color='$defending_color'" ) + 1;
+
+                    $sql = "UPDATE player SET player_stones=$new_defending_player_stones WHERE player_color='$defending_color'";
+                    self::DbQuery( $sql );
+
+                    $player_ids = self::getCollectionFromDB( "SELECT player_color, player_id FROM player", true );
+
+                    self::notifyAllPlayers( "updatePlayerData", "", array( 
+                        "player_id" => $player_ids[$defending_color], 
+                        "values_updated" => array( "stones" => (string) $new_defending_player_stones ) ) 
+                    );
+                }
+            }
+
+            // Update board state
+            $capture_square = $capture_squares[0];
+            if ( $board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id )
+            {
+                $sql = "UPDATE board SET defending_piece=null, capturing_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
+                self::DbQuery( $sql );
+
+                self::notifyAllPlayers( "updateBoardState", "", array( 
+                    "square" => $capture_square, 
+                    "values_updated" => array( "defending_piece" => null, "capturing_piece" => null ) ) 
+                );
+            }
+            else
+            {
+                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
+                self::DbQuery( $sql );
+
+                self::notifyAllPlayers( "updateBoardState", "", array( 
+                    "square" => $capture_square, 
+                    "values_updated" => array( "defending_piece" => null ) ) 
+                );
+
+                $location_of_capturing_piece = array( (int) $all_piece_data[$capturing_piece_id]['board_file'], (int) $all_piece_data[$capturing_piece_id]['board_rank'] );
+                if ( $board_state[$location_of_capturing_piece[0]][$location_of_capturing_piece[1]]['defending_piece'] === $capturing_piece_id )
+                {
+                    $sql = "UPDATE board SET defending_piece=null WHERE board_file='$location_of_capturing_piece[0]' AND board_rank='$location_of_capturing_piece[1]'";
+                    self::DbQuery( $sql );
+
+                    self::notifyAllPlayers( "updateBoardState", "", array( 
+                        "square" => $location_of_capturing_piece, 
+                        "values_updated" => array( "defending_piece" => null ) ) 
+                    );
+                }
+                else
+                {
+                    $sql = "UPDATE board SET capturing_piece=null WHERE board_file='$location_of_capturing_piece[0]' AND board_rank='$location_of_capturing_piece[1]'";
+                    self::DbQuery( $sql );
+
+                    self::notifyAllPlayers( "updateBoardState", "", array( 
+                        "square" => $location_of_capturing_piece, 
+                        "values_updated" => array( "capturing_piece" => null ) ) 
+                    );
+                }
+            }
+
+            // Clear entire capture queue
+            foreach ( $capture_ids as $capture_id )
+            {
+                $sql = "DELETE FROM capture_queue WHERE capture_id='$capture_id'";
+                self::DbQuery( $sql );
+                
+                self::notifyAllPlayers( "deleteFromCaptureQueue", "", array( "capture_id" => $capture_id ) );
+            }
+        }
+        else
+        {
+            $capture_id = 0;
+            $capture_square = array();
+            for ( $i = 1; $i <= 8; $i++ )
+            {
+                if ( array_key_exists( $i, $capture_queue ) )
+                {
+                    $capture_id = $i;
+                    $capture_square = array( (int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank'] );
+                    break;
+                }
+            }
+
+            $defending_piece_id = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+            
+            $this->sqlUpdate( "pieces", array( "if_captured " => 1 ), array( "piece_id" => $defending_piece_id ) );
+            self::notifyAllPlayers( "updateAllPieceData", "", array( 
+                "piece_id" => $defending_piece_id, 
+                "values_updated" => array( "if_captured" => "1" ) ) 
+            );
+
+            if ( $all_piece_data[$defending_piece_id]['piece_type'] === "pawn" || $all_piece_data[$defending_piece_id]['piece_type'] === "nemesispawn" )
+            {
+                if ( $all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color'] )
+                {
+                    // Player with the color of the capturing piece gets a stone
+                    $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
+                    $new_capturing_player_stones = self::getUniqueValueFromDB( "SELECT player_stones FROM player WHERE player_color='$capturing_color'" ) + 1;
+
+                    $sql = "UPDATE player SET player_stones=$new_capturing_player_stones WHERE player_color='$capturing_color'";
+                    self::DbQuery( $sql );
+
+                    $player_ids = self::getCollectionFromDB( "SELECT player_color, player_id FROM player", true );
+
+                    self::notifyAllPlayers( "updatePlayerData", "", array( 
+                        "player_id" => $player_ids[$capturing_color], 
+                        "values_updated" => array( "stones" => (string) $new_capturing_player_stones ) ) 
+                    );
+                }
+            }
+
+            if ( $board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id )
+            {
+                $sql = "UPDATE board SET defending_piece='$capturing_piece_id', capturing_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
+                self::DbQuery( $sql );
+
+                self::notifyAllPlayers( "updateBoardState", "", array( 
+                    "square" => $capture_square, 
+                    "values_updated" => array( "defending_piece" => $capturing_piece_id, "capturing_piece" => null ) ) 
+                );
+            }
+            else
+            {
+                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
+                self::DbQuery( $sql );
+
+                self::notifyAllPlayers( "updateBoardState", "", array( 
+                    "square" => $capture_square, 
+                    "values_updated" => array( "defending_piece" => null ) ) 
+                );
+            }
+
+            if ( count( $capture_queue ) === 1 )
+            {
+                $this->sqlUpdate( "pieces", array( "if_capturing" => 0 ), array( "piece_id" => $capturing_piece_id ) );
+                self::notifyAllPlayers( "updateAllPieceData", "", array( 
+                    "piece_id" => $capturing_piece_id,
+                    "values_updated" => array( "if_capturing" => "0" ) ) 
+                );
+            }
+
+            $sql = "DELETE FROM capture_queue WHERE capture_id='$capture_id'";
+            self::DbQuery( $sql );
+            
+            self::notifyAllPlayers( "deleteFromCaptureQueue", "", array( "capture_id" => $capture_id ) );
+        }
+    }
+
     function resolveCastle( $king_id, $all_piece_data )
     {
         $king_data = $all_piece_data[$king_id];
@@ -1566,60 +1854,6 @@ class ChessSequel extends Table
         self::DbQuery( $sql );
 
         $this->gamestate->nextState( 'gameEnd' );
-    }
-
-    function generateAllKingMovesForPlayer( $active_player_id, $all_piece_data )
-    {
-        $board_state = $this->getBoardState();
-
-        $sql = "DELETE FROM legal_moves";
-        self::DbQuery( $sql );
-        
-        $all_legal_king_moves = array();
-
-        $player_color = $this->getPlayerColorById( $active_player_id );
-
-        $enemy_player_color = "000000";
-        if ( $player_color === "000000" )
-        {
-            $enemy_player_color = "ffffff";
-        }
-
-        $friendly_king_ids = $this->getPlayerKingIds( $active_player_id );
-
-        $all_enemy_attacked_squares = $this->getAllAttackedSquares( $enemy_player_color, $all_piece_data, $board_state );
- 
-        foreach ( $friendly_king_ids as $friendly_king_id )
-        {
-            $possible_moves_and_corresponding_captures = $this->generateMoves( $friendly_king_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares );
-            $all_legal_king_moves[$friendly_king_id] = $possible_moves_and_corresponding_captures['possible_moves'];
-        }
-
-        $sql = "INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES ";
-        $moves = array();
-        
-        $has_legal_moves = false;
-
-        $counter = 0;
-        foreach ( $all_legal_king_moves as $piece_id => $moves_for_piece )
-        {
-            foreach( $moves_for_piece as $move_square )
-            {
-                $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]')";
-                $counter++;
-            }
-
-            if ( !$has_legal_moves && count( $moves_for_piece ) != 0 )
-            {
-                $has_legal_moves = true;
-            }
-        }
-
-        $sql .= implode( ',', $moves );
-        self::DbQuery( $sql );
-        self::notifyAllPlayers( "updateLegalMovesTable", "", array( "moves_added" => $all_legal_king_moves ) );
-
-        return $has_legal_moves;
     }
 
     // Can be called anywhere in the game.php, just calls console.log on the client side with whatever argument you pass in
@@ -1829,6 +2063,53 @@ class ChessSequel extends Table
         return;
     }
 
+    function acceptDuel()
+    {
+        $this->checkAction( 'acceptDuel' );
+
+        $this->gamestate->nextState( 'duelBidding' );
+        return;
+    }
+
+    function rejectDuel()
+    {
+        $this->checkAction( 'rejectDuel' );
+
+        $this->resolveNextCapture( false );
+
+        $this->gamestate->nextState( 'nextPlayer' );
+        return;
+    }
+
+    function pickBid( $bid_amount )
+    {
+        // Check this action is allowed according to the game state
+        $this->checkAction( 'pickBid' );
+
+        // Get the id of the CURRENT player (there are multiple active players in armySelect)
+        // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
+        $player_id = $this->getCurrentPlayerId();
+
+        $sql = "SELECT player_stones FROM player WHERE player_id='$player_id'";
+        $player_stones = self::getUniqueValueFromDB( $sql );
+
+        if ( in_array( $bid_amount, [0, 1, 2] ) && $bid_amount <= $player_stones )
+        {
+            // Update the current player's bid in the database
+            $sql = "UPDATE player SET player_bid = '$bid_amount' WHERE player_id = $player_id";
+            self::DbQuery( $sql );
+
+            // Notify?
+
+            // Deactivate player. If none left, transition to 'resolveDuel' state
+            $this->gamestate->setPlayerNonMultiactive($player_id, 'resolveDuel');
+        }
+        else
+        {
+            throw new BgaSystemException( "Invalid bid amount" );
+        }
+    }
+
     function promotePawn( $chosen_promotion )
     {
         // Check this action is allowed according to the game state
@@ -1867,21 +2148,6 @@ class ChessSequel extends Table
 
         $this->gamestate->nextState( 'whereNext' );
         return;
-    }
-
-    // The possible action during the duel state
-    function pickBidAmount( $bid_amount )
-    {
-        // Check this move is allowed according to the game state
-        $this->checkAction( 'pickBidAmount' );
-
-        // Get the id of the CURRENT player (there are multiple active players in pickBidAmount)
-        $player_id = $this->getCurrentPlayerId();
-
-        // Some logic to process and validate bidding stones
-
-        // Deactivate player. If none left, transition to 'resolveDuel' state
-        $this->gamestate->setPlayerNonMultiactive($player_id, 'resolveDuel');
     }
 
     /*
@@ -2123,8 +2389,58 @@ class ChessSequel extends Table
             // If the piece is capturing
             if ( $piece_data['if_capturing'] === "1" )
             {
-                $this->gamestate->nextState( 'resolveCapture' );
-                return;
+                if ( $piece_data['piece_type'] === "king" || $piece_data['piece_type'] === "warriorking" )
+                {
+                    $this->resolveNextCapture( false, $all_piece_data );
+                    $this->gamestate->nextState( 'whereNext' );
+                    return;
+                }
+
+                $board_state = $this->getBoardState();
+                $capture_queue = $this->getCaptureQueue();
+                
+                $capture_square = array();
+                for ( $i = 1; $i <= 8; $i++ )
+                {
+                    if ( array_key_exists( $i, $capture_queue ) )
+                    {
+                        $capture_square = array( (int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank'] );
+                        break;
+                    }
+                }
+        
+                // The id of the first piece in the capture queue
+                $defending_piece_id = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+
+                // If it's a friendly piece
+                if ( $all_piece_data[$defending_piece_id]['piece_color'] === $all_piece_data[$piece_id]['piece_color'] )
+                {
+                    $this->resolveNextCapture( false, $all_piece_data, $board_state, $capture_queue );
+                    $this->gamestate->nextState( 'whereNext' );
+                    return;
+                }
+                else
+                {
+                    $this->activeNextPlayer();
+
+                    $active_player_id = $this->getActivePlayerId();
+                    
+                    $sql = "SELECT player_stones FROM player WHERE player_id='$active_player_id'";
+                    $player_stones = self::getUniqueValueFromDB( $sql );
+
+                    if ( $player_stones > 0 )
+                    {
+                        $this->gamestate->nextState( 'duelOffer' );
+                        return;
+                    }
+                    else
+                    {
+                        $this->activeNextPlayer();
+                        $this->resolveNextCapture( false, $all_piece_data, $board_state, $capture_queue );
+                        $this->gamestate->nextState( 'whereNext' );
+                        return;
+                    }
+                }
             }
 
             // If a pawn can promote
@@ -2231,82 +2547,61 @@ class ChessSequel extends Table
 
         // Check for threefold repetition, 50 turn rule(?), out of resources and resolve
 
-        // Check for extra king move for current player and resolve
-
         */
     }
 
-    function stResolveCapture()
+    function stResolveDuel()
     {
-        $all_piece_data = $this->getAllPieceData();
-        $board_state = $this->getBoardState(); 
-        $capture_queue = $this->getCaptureQueue();
-        //$this->printWithJavascript($capture_queue);
-        //$this->printWithJavascript($capturing_piece_id);
-
-        $capturing_piece_id = 0;
-        foreach( $all_piece_data as $piece_id => $piece_data )
+        // Get bid amounts and the piece colors from the database
+        $player_bids = self::getCollectionFromDB( "SELECT player_color, player_bid FROM player", true );
+        $capturing_piece_color = self::getUniqueValueFromDB( "SELECT piece_color FROM pieces WHERE if_capturing='1'" );
+        $other_color = "000000";
+        if ( $capturing_piece_color === "000000" )
         {
-            // If the piece is capturing
-            if ( $piece_data['if_capturing'] === "1" )
-            {
-                $capturing_piece_id = $piece_id;
-                break;
-            }
+            $other_color = "ffffff";
         }
 
-        $capture_id = 0;
-        $capture_square = array();
-        for ( $i = 1; $i <= 8; $i++ )
-        {
-            if ( array_key_exists( $i, $capture_queue ) )
-            {
-                $capture_id = $i;
-                $capture_square = array( (int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank'] );
-            }
-        }
+        // Determine outcome of duel and resolve capture
+        $both_pieces_capture = false;
 
-        $defending_piece_id = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+        if ( $player_bids[$capturing_piece_color] < $player_bids[$other_color] )
+        {
+            $both_pieces_capture = true;
+        }
         
-        $this->sqlUpdate( "pieces", array( "if_captured " => 1 ), array( "piece_id" => $defending_piece_id ) );
-        self::notifyAllPlayers( "updateAllPieceData", "", array( 
-            "piece_id" => $defending_piece_id, 
-            "values_updated" => array( "if_captured" => "1" ) ) );
+        $this->resolveNextCapture( $both_pieces_capture );
 
-        if ( $board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id )
-        {
-            $sql = "UPDATE board SET defending_piece='$capturing_piece_id', capturing_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
-            self::DbQuery( $sql );
-
-            self::notifyAllPlayers( "updateBoardState", "", array( 
-                "square" => $capture_square, 
-                "values_updated" => array( "defending_piece" => $capturing_piece_id, "capturing_piece" => null ) ) );
-        }
-        else
-        {
-            $sql = "UPDATE board SET defending_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
-            self::DbQuery( $sql );
-
-            self::notifyAllPlayers( "updateBoardState", "", array( 
-                "square" => $capture_square, 
-                "values_updated" => array( "defending_piece" => null ) ) );
-        }
-
-        if ( count( $capture_queue ) === 1 )
-        {
-            $this->sqlUpdate( "pieces", array( "if_capturing" => 0 ), array( "piece_id" => $capturing_piece_id ) );
-            self::notifyAllPlayers( "updateAllPieceData", "", array( 
-                "piece_id" => $capturing_piece_id,
-                "values_updated" => array( "if_capturing" => "0" ) ) );
-        }
-
-        $sql = "DELETE FROM capture_queue WHERE capture_id='$capture_id'";
+        // Update bids database
+        $sql = "UPDATE player SET player_bid = null";
         self::DbQuery( $sql );
-        
-        self::notifyAllPlayers( "deleteFromCaptureQueue", "", array( "capture_id" => $capture_id ) );
 
+        // Update player stones in database and notify
+        $player_stones = self::getCollectionFromDB( "SELECT player_color, player_stones FROM player", true );
+        $player_ids = self::getCollectionFromDB( "SELECT player_color, player_id FROM player", true );
+
+        foreach ( $player_stones as $player_color => $stones_for_player )
+        {
+            $new_stones = $stones_for_player - $player_bids[$player_color];
+
+            $sql = "UPDATE player SET player_stones=$new_stones WHERE player_color='$player_color'";
+            self::DbQuery( $sql );
+
+            self::notifyAllPlayers( "updatePlayerData", "", array( 
+                "player_id" => $player_ids[$player_color], 
+                "values_updated" => array( "stones" => (string) $new_stones ) ) 
+            );
+        }
+
+        // Transition to whereNext
+        $this->activeNextPlayer();
         $this->gamestate->nextState( 'whereNext' );
         return;
+    }
+    
+    function stNextPlayer()
+    {
+        $this->activeNextPlayer();
+        $this->gamestate->nextState( 'whereNext' );
     }
 
     /*
