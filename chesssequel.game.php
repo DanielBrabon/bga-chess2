@@ -1890,14 +1890,25 @@ class ChessSequel extends Table
             $sql = "UPDATE player SET player_army = '$army_name' WHERE player_id = $player_id";
             self::DbQuery( $sql );
             
-            // Deactivate player. If none left, transition to 'boardSetup' state
-            $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
+            if (self::getUniqueValueFromDB( "SELECT player_is_multiactive FROM player WHERE player_id != '$player_id'" ) == 1) {
+                // Deactivate player (other player still active)
+                $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
+                $deactivate_second = false;
+            }
+            else {
+                $deactivate_second = true;
+            }
 
             // Send notification
-            self::notifyAllPlayers( "confirmArmy", clienttranslate( '${player_name} has confirmed their army choice.' ), array( 
+            self::notifyAllPlayers( "confirmArmy", clienttranslate( '${player_name} has confirmed their army choice' ), array( 
                 'player_id' => $player_id,
                 'player_name' => $this->getCurrentPlayerName()
             ));
+
+            if ($deactivate_second) {
+                // Deactivate player and transition to 'boardSetup' state
+                $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
+            }
         }
         else
             throw new BgaSystemException( "Invalid army selection" );
