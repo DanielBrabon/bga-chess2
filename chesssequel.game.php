@@ -125,6 +125,7 @@ class ChessSequel extends Table
         // Gathering variables from material.inc.php
         $result['all_army_names'] = $this->all_army_names;
         $result['all_armies_starting_layout'] = $this->all_armies_starting_layout;
+        $result['button_labels'] = $this->button_labels;
 
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
         // Will need to involve full current board state and piece state
@@ -1873,10 +1874,10 @@ class ChessSequel extends Table
         (note: each method below must match an input method in chesssequel.action.php)
     */
 
-    function pickArmy( $army_name )
+    function confirmArmy( $army_name )
     {
         // Check this action is allowed according to the game state
-        $this->checkAction( 'pickArmy' );
+        $this->checkAction( 'confirmArmy' );
 
         // Check it's a valid army name according to the array in material.inc.php
         if (in_array( $army_name, $this->all_army_names ))
@@ -1886,36 +1887,20 @@ class ChessSequel extends Table
             $player_id = $this->getCurrentPlayerId();
 
             // Updates the current player's army in the database
-            $sql = "UPDATE player 
-            SET player_army = '$army_name'
-            WHERE player_id = $player_id";
-            
+            $sql = "UPDATE player SET player_army = '$army_name' WHERE player_id = $player_id";
             self::DbQuery( $sql );
 
-            $player_color = $this->getCurrentPlayerColor();
+            // Send notification
+            self::notifyAllPlayers( "confirmArmy", clienttranslate( '${player_name} has confirmed their army choice.' ), array( 
+                'player_id' => $player_id,
+                'player_name' => $this->getCurrentPlayerName()
+            ));
 
-            // Send notification to that player with information about choosing that army
-            self::notifyAllPlayers( "pickArmy", "", array( 'army_name' => $army_name, 'player_id' => $player_id, 'player_color' => $player_color ) );
+            // Deactivate player. If none left, transition to 'boardSetup' state
+            $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
         }
         else
             throw new BgaSystemException( "Invalid army selection" );
-    }
-
-    function confirmArmy()
-    {
-        // Check this action is allowed according to the game state
-        $this->checkAction( 'confirmArmy' );
-
-        // Get the id of the CURRENT player (there are multiple active players in armySelect)
-        // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
-        $player_id = $this->getCurrentPlayerId();
-
-        // Send notification
-        self::notifyAllPlayers( "confirmArmy", clienttranslate( '${player_name} has confirmed their army choice.' ), 
-        array( 'player_id' => $player_id, 'player_name' => $this->getCurrentPlayerName() ) );
-
-        // Deactivate player. If none left, transition to 'boardSetup' state
-        $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
     }
 
     function movePiece( $target_file, $target_rank, $moving_piece_id )

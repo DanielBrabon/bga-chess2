@@ -41,22 +41,13 @@
   	
   	// TODO: defines your action entry points there
 
-    // Manage the "pickArmy" action on the server side
-    public function pickArmy()
-    {
-      // We get the arguments from the javascript call and call a corresponding "pickArmy" method in game.php
-      self::setAjaxMode();     
-      $army_name = self::getArg( "army_name", AT_alphanum, true );
-      $result = $this->game->pickArmy( $army_name );
-      self::ajaxResponse( );
-    }
-
     // Manage the "confirmArmy" action on the server side
     public function confirmArmy()
     {
       // We call a corresponding "confirmArmy" method in game.php
-      self::setAjaxMode();     
-      $result = $this->game->confirmArmy();
+      self::setAjaxMode();
+      $army_name = self::getArg( "army_name", AT_alphanum, true );
+      $result = $this->game->confirmArmy( $army_name );
       self::ajaxResponse( );
     }
 

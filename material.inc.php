@@ -163,7 +163,13 @@ $this->all_armies_promote_options = array(
 );
 
 $this->button_labels = array(
-
+  "classic" => clienttranslate("Classic"),
+  "nemesis" => clienttranslate("Nemesis"),
+  "empowered" => clienttranslate("Empowered"),
+  "reaper" => clienttranslate("Reaper"),
+  "twokings" => clienttranslate("Two Kings"),
+  "animal" => clienttranslate("Animal"),
+  "testarmy" => clienttranslate("Test Army")
 );
 
 /*

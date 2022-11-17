@@ -68,7 +68,7 @@ $machinestates = array(
     	"descriptionmyturn" => clienttranslate('${you} must select an army'),
     	"type" => "multipleactiveplayer",
         "action" => "stMakeEveryoneActive",
-    	"possibleactions" => array( "pickArmy", "confirmArmy" ),
+    	"possibleactions" => array( "confirmArmy" ),
     	"transitions" => array( "boardSetup" => 3 )
     ),
 
