@@ -82,8 +82,7 @@ define([
                 if (this.isCurrentPlayerActive()) {
                     switch (stateName) {
                         case 'armySelect':
-                            $('pagemaintitletext').innerHTML = "<span class='playername' style='color:#" + this.gamedatas.players[this.player_id].color +
-                                ";'>You</span> must choose your army<br>Current selection: Classic<br>";
+                            this.updateArmySelectTitleText("Classic");
                             break;
 
                         /* Example:
@@ -234,6 +233,16 @@ define([
                 }
             },
 
+            updateArmySelectTitleText: function (army) {
+                if (this.gamedatas.players[this.player_id].color === "ffffff") {
+                    var you = '<span style="font-weight:bold;color:#ffffff;background-color:#bbbbbb;">You</span>';
+                }
+                else {
+                    var you = '<span style="font-weight:bold;color:#000000;">You</span>';
+                }
+                $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
+            },
+
             addPieceOnSquare: function (color, type, piece_id, file, rank) {
                 // The color argument is as a hex code, either 000000 or ffffff
                 // The type argument is like "queen" or "nemesispawn"
@@ -340,8 +349,7 @@ define([
                         dojo.query('.piece').addClass('flipped');
                     }
 
-                    $('pagemaintitletext').innerHTML = "<span class='playername' style='color:#" + this.gamedatas.players[this.player_id].color +
-                        ";'>You</span> must choose your army<br>Current selection: " + this.gamedatas.button_labels[army_name] + "<br>";
+                    this.updateArmySelectTitleText(this.gamedatas.button_labels[army_name]);
                 }
             },
 
@@ -620,7 +628,12 @@ define([
             // TODO: from this point and below, you can write your game notifications handling methods
 
             notif_confirmArmy: function (notif) {
-                this.playerConfirmedArmy(notif.args.player_id, notif.args.player_name);
+                if (this.player_id != notif.args.player_id) {
+                    this.updateArmySelectTitleText(this.gamedatas.button_labels[this.gamedatas.players[this.player_id].army]);
+                }
+                
+                // Not implemented yet:
+                // this.playerConfirmedArmy(notif.args.player_id, notif.args.player_name);
             },
 
             notif_stBoardSetup: function (notif) {
