@@ -48,17 +48,21 @@ define([
                 console.log("Starting game setup");
 
                 // Setting up player boards
-                for (var player_id in gamedatas.players) {
-                    var player = gamedatas.players[player_id];
-                }
+                // for (var player_id in gamedatas.players) {
+                //     var player = gamedatas.players[player_id];
+                // }
 
                 // Placing pieces on the board
                 if (gamedatas.board_state.length === 0) // We're in armySelect and pieces haven't been added to the database yet
                 {
                     for (var player_id in gamedatas.players) {
-                        var player = gamedatas.players[player_id];
-
-                        this.placeStartingPiecesOnBoard("classic", player.color);
+                        if (player_id == this.player_id) {
+                            var army = "classic";
+                        }
+                        else {
+                            var army = "empty";
+                        }
+                        this.placeStartingPiecesOnBoard(army, gamedatas.players[player_id].color);
                     }
                 }
                 else // Players have confirmed their armies and their pieces have been added to the database
@@ -104,7 +108,7 @@ define([
                     switch (stateName) {
                         case 'armySelect':
                             $('pagemaintitletext').innerHTML = "<span class='playername' style='color:#" + this.gamedatas.players[this.player_id].color +
-                            ";'>You</span> must choose your army<br>Current selection: Classic<br>";
+                                ";'>You</span> must choose your army<br>Current selection: Classic<br>";
                             break;
 
                         /* Example:
@@ -118,7 +122,7 @@ define([
                         */
 
                         case 'dummmy':
-                        break;
+                            break;
                     }
                 }
             },
@@ -333,7 +337,7 @@ define([
                     }
 
                     $('pagemaintitletext').innerHTML = "<span class='playername' style='color:#" + this.gamedatas.players[this.player_id].color +
-                    ";'>You</span> must choose your army<br>Current selection: " + this.gamedatas.button_labels[army_name] + "<br>";
+                        ";'>You</span> must choose your army<br>Current selection: " + this.gamedatas.button_labels[army_name] + "<br>";
                 }
             },
 

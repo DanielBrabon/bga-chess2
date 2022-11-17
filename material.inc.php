@@ -140,6 +140,25 @@ $this->all_armies_starting_layout = array(
     "king" => array( 5, 1, "king" )
   ),
 
+  "empty" => array(
+    "empty_1" => array( 1, 2, "empty" ), 
+    "empty_2" => array( 2, 2, "empty" ),
+    "empty_3" => array( 3, 2, "empty" ),
+    "empty_4" => array( 4, 2, "empty" ),
+    "empty_5" => array( 5, 2, "empty" ),
+    "empty_6" => array( 6, 2, "empty" ),
+    "empty_7" => array( 7, 2, "empty" ),
+    "empty_8" => array( 8, 2, "empty" ),
+    "empty_9" => array( 1, 1, "empty" ),
+    "empty_10" => array( 8, 1, "empty" ),
+    "empty_11" => array( 2, 1, "empty" ),
+    "empty_12" => array( 7, 1, "empty" ),
+    "empty_13" => array( 3, 1, "empty" ),
+    "empty_14" => array( 6, 1, "empty" ),
+    "empty_15" => array( 4, 1, "empty" ),
+    "empty_16" => array( 5, 1, "empty" )
+  ),
+
   "testarmy" => array(
     "pawn" => array( 1, 2, "pawn" ),
     "knight" => array( 3, 4, "knight" ),
