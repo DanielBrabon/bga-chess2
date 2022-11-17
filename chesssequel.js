@@ -53,32 +53,7 @@ define([
                 // }
 
                 // Placing pieces on the board
-                if (gamedatas.board_state.length === 0) // We're in armySelect and pieces haven't been added to the database yet
-                {
-                    for (var player_id in gamedatas.players) {
-                        if (player_id == this.player_id) {
-                            var army = "classic";
-                        }
-                        else {
-                            var army = "empty";
-                        }
-                        this.placeStartingPiecesOnBoard(army, gamedatas.players[player_id].color);
-                    }
-                }
-                else // Players have confirmed their armies and their pieces have been added to the database
-                {
-                    for (var piece_id in gamedatas.pieces) {
-                        var piece_info = gamedatas.pieces[piece_id];
-
-                        if (piece_info['if_captured'] === "0") {
-                            this.addPieceOnSquare(piece_info['piece_color'], piece_info['piece_type'], piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
-
-                            if (piece_info['if_capturing'] === "1") {
-                                this.pieceCapturing(piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
-                            }
-                        }
-                    }
-                }
+                this.populateBoard();
 
                 if (gamedatas.players[this.player_id].color === "000000") {
                     dojo.addClass('board', 'flipped');
@@ -229,6 +204,35 @@ define([
                 script.
             
             */
+
+            populateBoard: function () {
+                if (this.gamedatas.board_state.length === 0) // We're in armySelect and pieces haven't been added to the database yet
+                {
+                    for (var player_id in this.gamedatas.players) {
+                        if (player_id == this.player_id) {
+                            var army = "classic";
+                        }
+                        else {
+                            var army = "empty";
+                        }
+                        this.placeStartingPiecesOnBoard(army, this.gamedatas.players[player_id].color);
+                    }
+                }
+                else // Players have confirmed their armies and their pieces have been added to the database
+                {
+                    for (var piece_id in this.gamedatas.pieces) {
+                        var piece_info = this.gamedatas.pieces[piece_id];
+
+                        if (piece_info['if_captured'] === "0") {
+                            this.addPieceOnSquare(piece_info['piece_color'], piece_info['piece_type'], piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
+
+                            if (piece_info['if_capturing'] === "1") {
+                                this.pieceCapturing(piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
+                            }
+                        }
+                    }
+                }
+            },
 
             addPieceOnSquare: function (color, type, piece_id, file, rank) {
                 // The color argument is as a hex code, either 000000 or ffffff
@@ -656,6 +660,11 @@ define([
                     pieces_object[pieces_info[piece][0]].moves_made = String(0);
                 }
                 this.gamedatas.pieces = pieces_object;
+
+                for (var player_id in notif.args.player_armies) {
+                    this.gamedatas.players[player_id].army = notif.args.player_armies[player_id];
+                    this.placeStartingPiecesOnBoard(this.gamedatas.players[player_id].army, this.gamedatas.players[player_id].color);
+                }
             },
 
             notif_updateLegalMovesTable: function (notif) {

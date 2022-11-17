@@ -2305,11 +2305,14 @@ class ChessSequel extends Table
             $this->sqlUpdate( "board", array( "defending_piece" => $value[2] ), array( "board_file" => $value[0], "board_rank" => $value[1] ) );
         }
 
+        
+
         // Notifying players of the changes to gamedatas
-        self::notifyAllPlayers( "stBoardSetup", "", array( 
+        self::notifyAllPlayers( "stBoardSetup", "", array(
             'pieces_table_update_information' => $pieces_table_update_information,
-            'board_table_update_information' => $board_table_update_information) 
-        );
+            'board_table_update_information' => $board_table_update_information,
+            'player_armies' => self::getCollectionFromDB( "SELECT player_id, player_army FROM player", true )
+        ));
 
         $this->gamestate->nextState( 'whereNext' );
     }
