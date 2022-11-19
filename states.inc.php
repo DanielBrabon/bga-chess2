@@ -1,4 +1,5 @@
 <?php
+
 /**
  *------
  * BGA framework: © Gregory Isabelli <gisabelli@boardgamearena.com> & Emmanuel Colin <ecolin@boardgamearena.com>
@@ -49,7 +50,7 @@
 
 //    !! It is not a good idea to modify this file when a game is running !!
 
- 
+
 $machinestates = array(
 
     // The initial state. Please do not modify.
@@ -58,18 +59,18 @@ $machinestates = array(
         "description" => "",
         "type" => "manager",
         "action" => "stGameSetup",
-        "transitions" => array( "" => 2 )
+        "transitions" => array("" => 2)
     ),
-    
+
     // Both players simultaneously pick their armies from the 6 options
     2 => array(
-    	"name" => "armySelect",
-    	"description" => clienttranslate('${actplayer} must select an army'),
-    	"descriptionmyturn" => clienttranslate('${you} must select an army'),
-    	"type" => "multipleactiveplayer",
+        "name" => "armySelect",
+        "description" => clienttranslate('${actplayer} must select an army'),
+        "descriptionmyturn" => clienttranslate('${you} must select an army'),
+        "type" => "multipleactiveplayer",
         "action" => "stMakeEveryoneActive",
-    	"possibleactions" => array( "confirmArmy" ),
-    	"transitions" => array( "boardSetup" => 3 )
+        "possibleactions" => array("confirmArmy"),
+        "transitions" => array("boardSetup" => 3)
     ),
 
     // The board is initialised with pieces
@@ -77,17 +78,17 @@ $machinestates = array(
         "name" => "boardSetup",
         "type" => "game",
         "action" => "stBoardSetup",
-        "transitions" => array( "whereNext" => 5 )
+        "transitions" => array("whereNext" => 5)
     ),
 
     // A regular turn for a player
     4 => array(
         "name" => "playerMove",
         "type" => "activeplayer",
-    	"description" => clienttranslate('${actplayer} must choose a move'),
-    	"descriptionmyturn" => clienttranslate('${you} must choose a move'),
-        "possibleactions" => array( "displayAvailableMoves", "movePiece" ),
-        "transitions" => array( "whereNext" => 5 )
+        "description" => clienttranslate('${actplayer} must choose a move'),
+        "descriptionmyturn" => clienttranslate('${you} must choose a move'),
+        "possibleactions" => array("displayAvailableMoves", "movePiece"),
+        "transitions" => array("whereNext" => 5)
     ),
 
     // The game decides which state to transition to next and calcualtes legal moves for the next turn
@@ -95,7 +96,7 @@ $machinestates = array(
         "name" => "whereNext",
         "type" => "game",
         "action" => "stWhereNext",
-        "transitions" => array( "playerMove" => 4, "whereNext" => 5, "playerKingMove" => 6, "pawnPromotion" => 7, "duelOffer" => 8, "gameEnd" => 99 )
+        "transitions" => array("playerMove" => 4, "whereNext" => 5, "playerKingMove" => 6, "pawnPromotion" => 7, "duelOffer" => 8, "gameEnd" => 99)
     ),
 
     // A two kings player can move with a warrior king or pass
@@ -103,9 +104,9 @@ $machinestates = array(
         "name" => "playerKingMove",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose a king move or pass'),
-    	"descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
-        "possibleactions" => array( "displayAvailableMoves", "movePiece", "passKingMove" ),
-        "transitions" => array( "whereNext" => 5 ),
+        "descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
+        "possibleactions" => array("displayAvailableMoves", "movePiece", "passKingMove"),
+        "transitions" => array("whereNext" => 5),
     ),
 
     // A player choses the promotion for their pawn
@@ -113,10 +114,10 @@ $machinestates = array(
         "name" => "pawnPromotion",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose the pawn promotion'),
-    	"descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
-        "possibleactions" => array( "promotePawn" ),
+        "descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
+        "possibleactions" => array("promotePawn"),
         "args" => "argPawnPromotion",
-        "transitions" => array( "whereNext" => 5 ),
+        "transitions" => array("whereNext" => 5),
     ),
 
     // A player choses whether to initialise a duel
@@ -125,8 +126,8 @@ $machinestates = array(
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose whether to duel'),
         "descriptionmyturn" => clienttranslate('${you} must choose whether to duel'),
-        "possibleactions" => array( "acceptDuel", "rejectDuel" ),
-        "transitions" => array( "whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 11 ),
+        "possibleactions" => array("acceptDuel", "rejectDuel"),
+        "transitions" => array("whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 11),
     ),
 
     // Both players simultaneously choose how many stones to bid
@@ -136,24 +137,24 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose how many stones to bid'),
         "descriptionmyturn" => clienttranslate('${you} must choose how many stones to bid'),
         "action" => "stMakeEveryoneActive",
-        "possibleactions" => array( "pickBid" ),
-        "transitions" => array( "resolveDuel" => 10 ),
+        "possibleactions" => array("pickBid"),
+        "transitions" => array("resolveDuel" => 10),
     ),
 
     10 => array(
         "name" => "resolveDuel",
         "type" => "game",
         "action" => "stResolveDuel",
-        "transitions" => array( "whereNext" => 5 )
+        "transitions" => array("whereNext" => 5)
     ),
 
     11 => array(
         "name" => "nextPlayer",
         "type" => "game",
         "action" => "stNextPlayer",
-        "transitions" => array( "whereNext" => 5 )
+        "transitions" => array("whereNext" => 5)
     ),
-   
+
     // Final state.
     // Please do not modify (and do not overload action/args methods).
     99 => array(
@@ -165,6 +166,3 @@ $machinestates = array(
     )
 
 );
-
-
-

@@ -1,4 +1,5 @@
 <?php
+
 /**
  *------
  * BGA framework: © Gregory Isabelli <gisabelli@boardgamearena.com> & Emmanuel Colin <ecolin@boardgamearena.com>
@@ -20,91 +21,88 @@
  * this.ajaxcall( "/chesssequel/chesssequel/myAction.html", ...)
  *
  */
-  
-  
-  class action_chesssequel extends APP_GameAction
-  { 
-    // Constructor: please do not modify
-   	public function __default()
-  	{
-  	    if( self::isArg( 'notifwindow') )
-  	    {
-            $this->view = "common_notifwindow";
-  	        $this->viewArgs['table'] = self::getArg( "table", AT_posint, true );
-  	    }
-  	    else
-  	    {
-            $this->view = "chesssequel_chesssequel";
-            self::trace( "Complete reinitialization of board game" );
-      }
-  	} 
-  	
-  	// TODO: defines your action entry points there
 
-    // Manage the "confirmArmy" action on the server side
-    public function confirmArmy()
-    {
-      // We call a corresponding "confirmArmy" method in game.php
-      self::setAjaxMode();
-      $army_name = self::getArg( "army_name", AT_alphanum, true );
-      $result = $this->game->confirmArmy( $army_name );
-      self::ajaxResponse( );
-    }
 
-    public function movePiece()
-    {
-      // We call a corresponding "movePiece" method in game.php
-      self::setAjaxMode();
-      $target_file = self::getArg( "target_file", AT_posint, true ); 
-      $target_rank = self::getArg( "target_rank", AT_posint, true );   
-      $moving_piece_id = self::getArg( "moving_piece_id", AT_alphanum, true ); 
-      $result = $this->game->movePiece( $target_file, $target_rank, $moving_piece_id );
-      self::ajaxResponse( );
+class action_chesssequel extends APP_GameAction
+{
+  // Constructor: please do not modify
+  public function __default()
+  {
+    if (self::isArg('notifwindow')) {
+      $this->view = "common_notifwindow";
+      $this->viewArgs['table'] = self::getArg("table", AT_posint, true);
+    } else {
+      $this->view = "chesssequel_chesssequel";
+      self::trace("Complete reinitialization of board game");
     }
+  }
 
-    public function passKingMove()
-    {
-      // We call a corresponding "passKingMove" method in game.php
-      self::setAjaxMode();
-      $result = $this->game->passKingMove();
-      self::ajaxResponse( );
-    }
+  // TODO: defines your action entry points there
 
-    public function acceptDuel()
-    {
-      // We call a corresponding "acceptDuel" method in game.php
-      self::setAjaxMode();
-      $result = $this->game->acceptDuel();
-      self::ajaxResponse( );
-    }
+  // Manage the "confirmArmy" action on the server side
+  public function confirmArmy()
+  {
+    // We call a corresponding "confirmArmy" method in game.php
+    self::setAjaxMode();
+    $army_name = self::getArg("army_name", AT_alphanum, true);
+    $result = $this->game->confirmArmy($army_name);
+    self::ajaxResponse();
+  }
 
-    public function rejectDuel()
-    {
-      // We call a corresponding "rejectDuel" method in game.php
-      self::setAjaxMode();
-      $result = $this->game->rejectDuel();
-      self::ajaxResponse( );
-    }
-    
-    public function pickBid()
-    {
-      // We call a corresponding "pickBid" method in game.php
-      self::setAjaxMode();
-      $bid_amount = self::getArg( "bid_amount", AT_alphanum, true ); 
-      $result = $this->game->pickBid( $bid_amount );
-      self::ajaxResponse( );
-    }
+  public function movePiece()
+  {
+    // We call a corresponding "movePiece" method in game.php
+    self::setAjaxMode();
+    $target_file = self::getArg("target_file", AT_posint, true);
+    $target_rank = self::getArg("target_rank", AT_posint, true);
+    $moving_piece_id = self::getArg("moving_piece_id", AT_alphanum, true);
+    $result = $this->game->movePiece($target_file, $target_rank, $moving_piece_id);
+    self::ajaxResponse();
+  }
 
-    public function promotePawn()
-    {
-      // We call a corresponding "promotePawn" method in game.php
-      self::setAjaxMode();
-      $chosen_promotion = self::getArg( "chosen_promotion", AT_alphanum, true ); 
-      $result = $this->game->promotePawn( $chosen_promotion );
-      self::ajaxResponse( );
-    }
+  public function passKingMove()
+  {
+    // We call a corresponding "passKingMove" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->passKingMove();
+    self::ajaxResponse();
+  }
 
-    /*
+  public function acceptDuel()
+  {
+    // We call a corresponding "acceptDuel" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->acceptDuel();
+    self::ajaxResponse();
+  }
+
+  public function rejectDuel()
+  {
+    // We call a corresponding "rejectDuel" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->rejectDuel();
+    self::ajaxResponse();
+  }
+
+  public function pickBid()
+  {
+    // We call a corresponding "pickBid" method in game.php
+    self::setAjaxMode();
+    $bid_amount = self::getArg("bid_amount", AT_alphanum, true);
+    $result = $this->game->pickBid($bid_amount);
+    self::ajaxResponse();
+  }
+
+  public function promotePawn()
+  {
+    // We call a corresponding "promotePawn" method in game.php
+    self::setAjaxMode();
+    $chosen_promotion = self::getArg("chosen_promotion", AT_alphanum, true);
+    $result = $this->game->promotePawn($chosen_promotion);
+    self::ajaxResponse();
+  }
+
+  /*
     
     Example:
   	
@@ -124,7 +122,4 @@
     }
     
     */
-
-  }
-  
-
+}

@@ -117,8 +117,8 @@
 .piecetype_junglequeen { background-position: -1080px 0px; }
 
 /* Temporary */
-.piecetype_empty { 
-    background-image: url('img/pregunta.png'); 
+.piecetype_empty {
+    background-image: url('img/pregunta.png');
     width: 40px;
     height: 40px;
 }
@@ -130,27 +130,31 @@
 .possible_move {
     background-color: white;
     opacity: 0.8;
-    filter:alpha(opacity=20); /* For IE8 and earlier */  
-    cursor: pointer;  
+    filter: alpha(opacity=20);
+    /* For IE8 and earlier */
+    cursor: pointer;
 }
 
 .highlight_piece {
     background-color: rgb(182, 243, 238);
     opacity: 0.2;
-    filter:alpha(opacity=20); /* For IE8 and earlier */  
-    cursor: pointer; 
+    filter: alpha(opacity=20);
+    /* For IE8 and earlier */
+    cursor: pointer;
 }
 
 .attacked_square {
     background-color: darkred;
     opacity: 0.8;
-    filter:alpha(opacity=20); /* For IE8 and earlier */  
-    cursor: pointer;  
+    filter: alpha(opacity=20);
+    /* For IE8 and earlier */
+    cursor: pointer;
 }
 
 .semi_attacked_square {
     background-color: darkorange;
     opacity: 0.8;
-    filter:alpha(opacity=20); /* For IE8 and earlier */  
-    cursor: pointer;  
+    filter: alpha(opacity=20);
+    /* For IE8 and earlier */
+    cursor: pointer;
 }
