@@ -159,27 +159,6 @@ class ChessSequel extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
-    function sqlUpdate($table, $set_columns_to_values, $where_columns_to_conditions)
-    {
-        $sql = "UPDATE $table SET ";
-
-        foreach ($set_columns_to_values as $column => $value) {
-            $sql .= "$column='$value',";
-        }
-        $sql = rtrim($sql, ',');
-
-        if (count($where_columns_to_conditions) != 0) {
-            $sql .= " WHERE";
-
-            foreach ($where_columns_to_conditions as $column => $condition) {
-                $sql .= " $column='$condition' AND";
-            }
-            $sql = rtrim($sql, ' AND');
-        }
-
-        self::DbQuery($sql);
-    }
-
     function getAllPlayerData()
     {
         $sql = "SELECT player_id id, player_color color, player_score score, player_stones stones, 
@@ -1353,8 +1332,7 @@ class ChessSequel extends Table
     {
         $board_state = $this->getBoardState();
 
-        $sql = "DELETE FROM legal_moves";
-        self::DbQuery($sql);
+        self::DbQuery("DELETE FROM legal_moves");
 
         $all_legal_king_moves = array();
 
@@ -1437,7 +1415,8 @@ class ChessSequel extends Table
             $defending_piece_id = $board_state[$capture_squares[0][0]][$capture_squares[0][1]]['defending_piece'];
 
             // Update piece data for defending piece
-            $this->sqlUpdate("pieces", array("if_captured " => 1), array("piece_id" => $defending_piece_id));
+            self::DbQuery("UPDATE pieces SET if_captured = 1 WHERE piece_id = '$defending_piece_id'");
+
             self::notifyAllPlayers(
                 "updateAllPieceData",
                 "",
@@ -1451,10 +1430,9 @@ class ChessSequel extends Table
                 if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
                     // Player with the color of the capturing piece gets a stone
                     $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
-                    $new_capturing_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color='$capturing_color'") + 1;
+                    $new_capturing_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$capturing_color'") + 1;
 
-                    $sql = "UPDATE player SET player_stones=$new_capturing_player_stones WHERE player_color='$capturing_color'";
-                    self::DbQuery($sql);
+                    self::DbQuery("UPDATE player SET player_stones = '$new_capturing_player_stones' WHERE player_color = '$capturing_color'");
 
                     $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
 
@@ -1470,7 +1448,8 @@ class ChessSequel extends Table
             }
 
             // Update piece data for capturing piece
-            $this->sqlUpdate("pieces", array("if_captured " => 1, "if_capturing" => 0), array("piece_id" => $capturing_piece_id));
+            self::DbQuery("UPDATE pieces SET if_captured = 1, if_capturing = 0 WHERE piece_id = '$capturing_piece_id'");
+
             self::notifyAllPlayers(
                 "updateAllPieceData",
                 "",
@@ -1486,8 +1465,7 @@ class ChessSequel extends Table
                     $defending_color = $all_piece_data[$defending_piece_id]['piece_color'];
                     $new_defending_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color='$defending_color'") + 1;
 
-                    $sql = "UPDATE player SET player_stones=$new_defending_player_stones WHERE player_color='$defending_color'";
-                    self::DbQuery($sql);
+                    self::DbQuery("UPDATE player SET player_stones = '$new_defending_player_stones' WHERE player_color = '$defending_color'");
 
                     $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
 
@@ -1505,8 +1483,12 @@ class ChessSequel extends Table
             // Update board state
             $capture_square = $capture_squares[0];
             if ($board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id) {
-                $sql = "UPDATE board SET defending_piece=null, capturing_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
-                self::DbQuery($sql);
+                self::DbQuery(
+                    "UPDATE board
+                    SET defending_piece = null, capturing_piece = null
+                    WHERE board_file = '$capture_square[0]'
+                    AND board_rank = '$capture_square[1]'"
+                );
 
                 self::notifyAllPlayers(
                     "updateBoardState",
@@ -1517,8 +1499,12 @@ class ChessSequel extends Table
                     )
                 );
             } else {
-                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
-                self::DbQuery($sql);
+                self::DbQuery(
+                    "UPDATE board
+                    SET defending_piece = null
+                    WHERE board_file = '$capture_square[0]'
+                    AND board_rank = '$capture_square[1]'"
+                );
 
                 self::notifyAllPlayers(
                     "updateBoardState",
@@ -1531,8 +1517,12 @@ class ChessSequel extends Table
 
                 $location_of_capturing_piece = array((int) $all_piece_data[$capturing_piece_id]['board_file'], (int) $all_piece_data[$capturing_piece_id]['board_rank']);
                 if ($board_state[$location_of_capturing_piece[0]][$location_of_capturing_piece[1]]['defending_piece'] === $capturing_piece_id) {
-                    $sql = "UPDATE board SET defending_piece=null WHERE board_file='$location_of_capturing_piece[0]' AND board_rank='$location_of_capturing_piece[1]'";
-                    self::DbQuery($sql);
+                    self::DbQuery(
+                        "UPDATE board
+                        SET defending_piece = null
+                        WHERE board_file = '$location_of_capturing_piece[0]'
+                        AND board_rank = '$location_of_capturing_piece[1]'"
+                    );
 
                     self::notifyAllPlayers(
                         "updateBoardState",
@@ -1543,8 +1533,12 @@ class ChessSequel extends Table
                         )
                     );
                 } else {
-                    $sql = "UPDATE board SET capturing_piece=null WHERE board_file='$location_of_capturing_piece[0]' AND board_rank='$location_of_capturing_piece[1]'";
-                    self::DbQuery($sql);
+                    self::DbQuery(
+                        "UPDATE board
+                        SET capturing_piece = null
+                        WHERE board_file = '$location_of_capturing_piece[0]'
+                        AND board_rank = '$location_of_capturing_piece[1]'"
+                    );
 
                     self::notifyAllPlayers(
                         "updateBoardState",
@@ -1559,8 +1553,7 @@ class ChessSequel extends Table
 
             // Clear entire capture queue
             foreach ($capture_ids as $capture_id) {
-                $sql = "DELETE FROM capture_queue WHERE capture_id='$capture_id'";
-                self::DbQuery($sql);
+                self::DbQuery("DELETE FROM capture_queue WHERE capture_id = '$capture_id'");
 
                 self::notifyAllPlayers("deleteFromCaptureQueue", "", array("capture_id" => $capture_id));
             }
@@ -1577,7 +1570,8 @@ class ChessSequel extends Table
 
             $defending_piece_id = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
 
-            $this->sqlUpdate("pieces", array("if_captured " => 1), array("piece_id" => $defending_piece_id));
+            self::DbQuery("UPDATE pieces SET if_captured = 1 WHERE piece_id = '$defending_piece_id'");
+
             self::notifyAllPlayers(
                 "updateAllPieceData",
                 "",
@@ -1593,8 +1587,7 @@ class ChessSequel extends Table
                     $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
                     $new_capturing_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color='$capturing_color'") + 1;
 
-                    $sql = "UPDATE player SET player_stones=$new_capturing_player_stones WHERE player_color='$capturing_color'";
-                    self::DbQuery($sql);
+                    self::DbQuery("UPDATE player SET player_stones = '$new_capturing_player_stones' WHERE player_color = '$capturing_color'");
 
                     $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
 
@@ -1610,8 +1603,12 @@ class ChessSequel extends Table
             }
 
             if ($board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id) {
-                $sql = "UPDATE board SET defending_piece='$capturing_piece_id', capturing_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
-                self::DbQuery($sql);
+                self::DbQuery(
+                    "UPDATE board
+                    SET defending_piece = '$capturing_piece_id', capturing_piece = null
+                    WHERE board_file = '$capture_square[0]'
+                    AND board_rank = '$capture_square[1]'"
+                );
 
                 self::notifyAllPlayers(
                     "updateBoardState",
@@ -1622,8 +1619,12 @@ class ChessSequel extends Table
                     )
                 );
             } else {
-                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$capture_square[0]' AND board_rank='$capture_square[1]'";
-                self::DbQuery($sql);
+                self::DbQuery(
+                    "UPDATE board
+                    SET defending_piece = null
+                    WHERE board_file = '$capture_square[0]'
+                    AND board_rank = '$capture_square[1]'"
+                );
 
                 self::notifyAllPlayers(
                     "updateBoardState",
@@ -1636,7 +1637,8 @@ class ChessSequel extends Table
             }
 
             if (count($capture_queue) === 1) {
-                $this->sqlUpdate("pieces", array("if_capturing" => 0), array("piece_id" => $capturing_piece_id));
+                self::DbQuery("UPDATE pieces SET if_capturing = 0 WHERE piece_id = '$capturing_piece_id'");
+
                 self::notifyAllPlayers(
                     "updateAllPieceData",
                     "",
@@ -1647,8 +1649,7 @@ class ChessSequel extends Table
                 );
             }
 
-            $sql = "DELETE FROM capture_queue WHERE capture_id='$capture_id'";
-            self::DbQuery($sql);
+            self::DbQuery("DELETE FROM capture_queue WHERE capture_id = '$capture_id'");
 
             self::notifyAllPlayers("deleteFromCaptureQueue", "", array("capture_id" => $capture_id));
         }
@@ -1660,8 +1661,7 @@ class ChessSequel extends Table
         $board_state = $this->getBoardState();
 
         // Update the pieces database table to no longer have this piece castling
-        $sql = "UPDATE pieces SET if_performing_castle=0 WHERE piece_id='$king_id'";
-        self::DbQuery($sql);
+        self::DbQuery("UPDATE pieces SET if_performing_castle = 0 WHERE piece_id = '$king_id'");
 
         self::notifyAllPlayers(
             "updateAllPieceData",
@@ -1686,8 +1686,11 @@ class ChessSequel extends Table
         $rook_destination_rank = $king_data['board_rank'];
 
         // Update the rook's position in the pieces and board database tables
-        $sql = "UPDATE pieces SET board_file=$rook_destination_file, board_rank=$rook_destination_rank WHERE piece_id='$castling_rook_id'";
-        self::DbQuery($sql);
+        self::DbQuery(
+            "UPDATE pieces
+            SET board_file = '$rook_destination_file', board_rank = '$rook_destination_rank'
+            WHERE piece_id = '$castling_rook_id'"
+        );
 
         self::notifyAllPlayers(
             "updateAllPieceData",
@@ -1698,8 +1701,12 @@ class ChessSequel extends Table
             )
         );
 
-        $sql = "UPDATE board SET defending_piece=null WHERE board_file='$rook_starting_file' AND board_rank='$rook_destination_rank'";
-        self::DbQuery($sql);
+        self::DbQuery(
+            "UPDATE board
+            SET defending_piece = null
+            WHERE board_file = '$rook_starting_file'
+            AND board_rank = '$rook_destination_rank'"
+        );
 
         self::notifyAllPlayers(
             "updateBoardState",
@@ -1710,8 +1717,12 @@ class ChessSequel extends Table
             )
         );
 
-        $sql = "UPDATE board SET defending_piece='$castling_rook_id' WHERE board_file='$rook_destination_file' AND board_rank='$rook_destination_rank'";
-        self::DbQuery($sql);
+        self::DbQuery(
+            "UPDATE board
+            SET defending_piece = '$castling_rook_id'
+            WHERE board_file = '$rook_destination_file'
+            AND board_rank = '$rook_destination_rank'"
+        );
 
         self::notifyAllPlayers(
             "updateBoardState",
@@ -1726,8 +1737,7 @@ class ChessSequel extends Table
     function activePlayerWins()
     {
         $active_player_id = $this->getActivePlayerId();
-        $sql = "UPDATE player SET player_score=1 WHERE player_id=$active_player_id";
-        self::DbQuery($sql);
+        self::DbQuery("UPDATE player SET player_score = 1 WHERE player_id = '$active_player_id'");
 
         $this->gamestate->nextState('gameEnd');
     }
@@ -1761,8 +1771,7 @@ class ChessSequel extends Table
             $player_id = $this->getCurrentPlayerId();
 
             // Updates the current player's army in the database
-            $sql = "UPDATE player SET player_army = '$army_name' WHERE player_id = $player_id";
-            self::DbQuery($sql);
+            self::DbQuery("UPDATE player SET player_army = '$army_name' WHERE player_id = '$player_id'");
 
             $opponent_active = self::getUniqueValueFromDB("SELECT player_is_multiactive FROM player WHERE player_id != '$player_id'");
 
@@ -1847,12 +1856,25 @@ class ChessSequel extends Table
                     }
                 }
 
+                // TODO
                 $location_value_to_set = array();
                 $if_capturing_at_target_location = $board_state[$target_location[0]][$target_location[1]]['defending_piece'] != null;
                 if ($if_capturing_at_target_location) {
                     $location_value_to_set['capturing_piece'] = (string) $moving_piece_id;
+                    self::DbQuery(
+                        "UPDATE board
+                        SET capturing_piece = '$moving_piece_id'
+                        WHERE board_file = '$target_location[0]' 
+                        AND board_rank = '$target_location[1]'"
+                    );
                 } else {
                     $location_value_to_set['defending_piece'] = (string) $moving_piece_id;
+                    self::DbQuery(
+                        "UPDATE board
+                        SET defending_piece = '$moving_piece_id'
+                        WHERE board_file = '$target_location[0]'
+                        AND board_rank = '$target_location[1]'"
+                    );
                 }
 
                 $sql = "SELECT moves_made FROM pieces WHERE piece_id='$moving_piece_id'";
@@ -1872,12 +1894,21 @@ class ChessSequel extends Table
                     self::DbQuery($sql);
                 }
 
-                $sql = "UPDATE board SET defending_piece=null WHERE board_file='$moving_piece_starting_location[0]' AND board_rank='$moving_piece_starting_location[1]'";
+                self::DbQuery(
+                    "UPDATE board
+                    SET defending_piece = null
+                    WHERE board_file = '$moving_piece_starting_location[0]'
+                    AND board_rank = '$moving_piece_starting_location[1]'"
+                );
+
+                // Update pieces table for the moving piece
+                $sql = "UPDATE pieces SET";
+                foreach ($pieces_values_to_set as $column => $value) {
+                    $sql .= " $column = '$value',";
+                }
+                $sql = rtrim($sql, ',');
+                $sql .= " WHERE piece_id = '$moving_piece_id'";
                 self::DbQuery($sql);
-
-                $this->sqlUpdate("board", $location_value_to_set, array("board_file" => $target_location[0], "board_rank" => $target_location[1]));
-
-                $this->sqlUpdate("pieces", $pieces_values_to_set, array("piece_id" => $moving_piece_id));
 
                 // Send notifications
                 if (count($capture_queue) != 0) {
@@ -1955,8 +1986,7 @@ class ChessSequel extends Table
 
         if (in_array($bid_amount, [0, 1, 2]) && $bid_amount <= $player_stones) {
             // Update the current player's bid in the database
-            $sql = "UPDATE player SET player_bid = '$bid_amount' WHERE player_id = $player_id";
-            self::DbQuery($sql);
+            self::DbQuery("UPDATE player SET player_bid = '$bid_amount' WHERE player_id = '$player_id'");
 
             // Notify?
 
@@ -1993,7 +2023,7 @@ class ChessSequel extends Table
             }
         }
 
-        $this->sqlUpdate("pieces", array("piece_type" => $chosen_promotion), array("piece_id" => $promoting_pawn_id));
+        self::DbQuery("UPDATE pieces SET piece_type = '$chosen_promotion' WHERE piece_id = '$promoting_pawn_id'");
 
         self::notifyAllPlayers("updateAllPieceData", "", array(
             "piece_id" => $promoting_pawn_id,
@@ -2149,21 +2179,23 @@ class ChessSequel extends Table
         self::DbQuery($sql);
 
         foreach ($all_king_ids as $player_id => $king_ids) {
-            $update_values = array("player_king_id" => $king_ids[0]);
+            self::DbQuery("UPDATE player SET player_king_id = '$king_ids[0]' WHERE player_id = '$player_id'");
 
             if (count($king_ids) === 2) {
-                $update_values["player_king_id_2"] = $king_ids[1];
+                self::DbQuery("UPDATE player SET player_king_id_2 = '$king_ids[1]' WHERE player_id = '$player_id'");
             }
-
-            $this->sqlUpdate("player", $update_values, array("player_id" => $player_id));
         }
 
         // Adding the starting pieces into the board table
         foreach ($board_table_update_information as $value) {
-            $this->sqlUpdate("board", array("defending_piece" => $value[2]), array("board_file" => $value[0], "board_rank" => $value[1]));
+            // TODO: one sql query for this
+            self::DbQuery(
+                "UPDATE board
+                SET defending_piece = '$value[2]'
+                WHERE board_file = '$value[0]'
+                AND board_rank = '$value[1]'"
+            );
         }
-
-
 
         // Notifying players of the changes to gamedatas
         self::notifyAllPlayers("stBoardSetup", "", array(
@@ -2283,8 +2315,7 @@ class ChessSequel extends Table
             // Tick down the if_en_passant_vulnerable value by 1 at the end of each turn so an en passant capture is only available for one turn
             if ($piece_data['if_en_passant_vulnerable'] != "0") {
                 $if_en_passant_vulnerable = $piece_data['if_en_passant_vulnerable'] - 1;
-                $sql = "UPDATE pieces SET if_en_passant_vulnerable=$if_en_passant_vulnerable WHERE piece_id='$piece_id'";
-                self::DbQuery($sql);
+                self::DbQuery("UPDATE pieces SET if_en_passant_vulnerable = '$if_en_passant_vulnerable' WHERE piece_id = '$piece_id'");
 
                 self::notifyAllPlayers("updateAllPieceData", "", array(
                     "piece_id" => $piece_id,
@@ -2298,7 +2329,7 @@ class ChessSequel extends Table
         $if_king_move_available = self::getUniqueValueFromDB($sql);
 
         if ($if_king_move_available === "1") {
-            $this->sqlUpdate("player", array("player_king_move_available" => 0), array("player_id" => $active_player_id));
+            self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$active_player_id'");
 
             if ($this->generateAllKingMovesForPlayer($active_player_id, $all_piece_data)) {
                 $this->gamestate->nextState('playerKingMove');
@@ -2309,8 +2340,7 @@ class ChessSequel extends Table
         // Activate the next player and generate their legal moves. If they have none, they lose.
         $this->activeNextPlayer();
 
-        $sql = "DELETE FROM legal_moves";
-        self::DbQuery($sql);
+        self::DbQuery("DELETE FROM legal_moves");
 
         $active_player_id = $this->getActivePlayerId();
         $board_state = $this->getBoardState();
@@ -2342,7 +2372,7 @@ class ChessSequel extends Table
             $army_name = self::getUniqueValueFromDB($sql);
 
             if ($army_name === "twokings") {
-                $this->sqlUpdate("player", array("player_king_move_available" => 1), array("player_id" => $active_player_id));
+                self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_id = '$active_player_id'");
             }
 
             $this->gamestate->nextState('playerMove');
@@ -2381,8 +2411,7 @@ class ChessSequel extends Table
         $this->resolveNextCapture($both_pieces_capture);
 
         // Update bids database
-        $sql = "UPDATE player SET player_bid = null";
-        self::DbQuery($sql);
+        self::DbQuery("UPDATE player SET player_bid = null");
 
         // Update player stones in database and notify
         $player_stones = self::getCollectionFromDB("SELECT player_color, player_stones FROM player", true);
@@ -2391,8 +2420,7 @@ class ChessSequel extends Table
         foreach ($player_stones as $player_color => $stones_for_player) {
             $new_stones = $stones_for_player - $player_bids[$player_color];
 
-            $sql = "UPDATE player SET player_stones=$new_stones WHERE player_color='$player_color'";
-            self::DbQuery($sql);
+            self::DbQuery("UPDATE player SET player_stones = '$new_stones' WHERE player_color = '$player_color'");
 
             self::notifyAllPlayers(
                 "updatePlayerData",
