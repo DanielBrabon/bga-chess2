@@ -244,6 +244,9 @@ define([
             },
 
             addPieceOnSquare: function (color, type, piece_id, file, rank) {
+                // Unflip and reflip to get correct placement
+                dojo.query('.flipped').removeClass('flipped');
+
                 // The color argument is as a hex code, either 000000 or ffffff
                 // The type argument is like "queen" or "nemesispawn"
                 // The piece_id argument will be the id field of the created HTML div
@@ -259,11 +262,14 @@ define([
 
                 // With BGA "this.placeOnObject" method, place this element over the right square
                 this.placeOnObject(piece_id, 'square_' + file + '_' + rank);
+
+                if (this.gamedatas.players[this.player_id].color === "000000") {
+                    dojo.addClass('board', 'flipped');
+                    dojo.query('.piece').addClass('flipped');
+                }
             },
 
             placeStartingPiecesOnBoard: function (army_name, player_color) {
-                dojo.query('.flipped').removeClass('flipped');
-
                 // Gets an array of starting pieces for that army type where:
                 // Keys are a name for the piece e.g. "pawn_1"
                 // Values are the array [ file, rank, type ] for that piece (on white side)
@@ -335,16 +341,8 @@ define([
                 // Check client side that the army name is valid
                 if (all_army_names.indexOf(army_name) >= 0) {
                     // Place the starting pieces for that army_name on the board for this player
-                    dojo.query('.flipped').removeClass('flipped');
-
                     this.placeStartingPiecesOnBoard(army_name, this.gamedatas.players[this.player_id].color);
                     this.gamedatas.players[this.player_id].army = army_name;
-
-                    if (this.gamedatas.players[this.player_id].color === "000000") {
-                        dojo.addClass('board', 'flipped');
-                        dojo.query('.piece').addClass('flipped');
-                    }
-
                     this.updateArmySelectTitleText(this.gamedatas.button_labels[army_name]);
                 }
             },
