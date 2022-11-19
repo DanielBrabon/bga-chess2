@@ -63,6 +63,8 @@ var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_I
     */
 
     var jstpl_piece='<div class="piece piececolor_${color} piecetype_${type}" id="${piece_id}"></div>';
+
+    var jstpl_player_stones = '\<div class="player_stones">\<span id="player_stones_${id}">Stones: ${stones}</span>\</div>';
 </script>
 
 {OVERALL_GAME_FOOTER}

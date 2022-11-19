@@ -48,9 +48,13 @@ define([
                 console.log("Starting game setup");
 
                 // Setting up player boards
-                // for (var player_id in gamedatas.players) {
-                //     var player = gamedatas.players[player_id];
-                // }
+                for (var player_id in gamedatas.players) {
+                    var player = gamedatas.players[player_id];
+                    console.log(player);
+
+                    var player_board_div = $('player_board_' + player_id);
+                    dojo.place(this.format_block('jstpl_player_stones', player), player_board_div);
+                }
 
                 // Placing pieces on the board
                 this.populateBoard();
@@ -758,9 +762,14 @@ define([
             notif_updatePlayerData: function (notif) {
                 for (var field in notif.args.values_updated) {
                     this.gamedatas.players[notif.args.player_id][field] = notif.args.values_updated[field];
+
+                    if (field == "stones")
+                    {
+                        $('player_stones_' + notif.args.player_id).innerHTML = "Stones: " + notif.args.values_updated[field];
+                    }
                 }
 
-                console.log(this.gamedatas.players);
+                // console.log(this.gamedatas.players);
             },
 
             notif_deleteFromCaptureQueue: function (notif) {
