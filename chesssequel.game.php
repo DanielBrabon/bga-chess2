@@ -104,7 +104,7 @@ class ChessSequel extends Table
     {
         $result = array();
     
-        $current_player_id = self::getCurrentPlayerId();    // !! We must only return informations visible by this player !!
+        // $current_player_id = self::getCurrentPlayerId();    // !! We must only return informations visible by this player !!
     
         // Get information about players
         // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
@@ -1873,7 +1873,7 @@ class ChessSequel extends Table
         Each time a player is doing some game action, one of the methods below is called.
         (note: each method below must match an input method in chesssequel.action.php)
     */
-
+    
     function confirmArmy( $army_name )
     {
         // Check this action is allowed according to the game state
@@ -1890,23 +1890,23 @@ class ChessSequel extends Table
             $sql = "UPDATE player SET player_army = '$army_name' WHERE player_id = $player_id";
             self::DbQuery( $sql );
             
-            if (self::getUniqueValueFromDB( "SELECT player_is_multiactive FROM player WHERE player_id != '$player_id'" ) == 1) {
-                // Deactivate player (other player still active)
+            $opponent_active = self::getUniqueValueFromDB("SELECT player_is_multiactive FROM player WHERE player_id != '$player_id'");
+
+            // If opponent is active, deactivate this player before the notification (status bar inconsistency otherwise)
+            if ($opponent_active) 
+            {
                 $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
-                $deactivate_second = false;
-            }
-            else {
-                $deactivate_second = true;
             }
 
             // Send notification
-            self::notifyAllPlayers( "confirmArmy", clienttranslate( '${player_name} has confirmed their army choice' ), array( 
+            self::notifyAllPlayers("confirmArmy", clienttranslate('${player_name} has confirmed their army choice'), array(
                 'player_id' => $player_id,
                 'player_name' => $this->getCurrentPlayerName()
             ));
 
-            if ($deactivate_second) {
-                // Deactivate player and transition to 'boardSetup' state
+            // If opponent not active, deactivate player after notification (also transitions to boardSetup state)
+            if (!$opponent_active)
+            {
                 $this->gamestate->setPlayerNonMultiactive($player_id, 'boardSetup');
             }
         }

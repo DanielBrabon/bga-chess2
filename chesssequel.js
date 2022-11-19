@@ -307,10 +307,6 @@ define([
                 // Undo the effect of pieceCapturing
             },
 
-            playerConfirmedArmy: function (player_id, player_name) {
-                // Could hightlight the board somehow to show that the choice was confirmed
-            },
-
             ///////////////////////////////////////////////////
             //// Player's action
 
@@ -631,9 +627,6 @@ define([
                 if (this.player_id != notif.args.player_id) {
                     this.updateArmySelectTitleText(this.gamedatas.button_labels[this.gamedatas.players[this.player_id].army]);
                 }
-                
-                // Not implemented yet:
-                // this.playerConfirmedArmy(notif.args.player_id, notif.args.player_name);
             },
 
             notif_stBoardSetup: function (notif) {
