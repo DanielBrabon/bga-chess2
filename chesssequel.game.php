@@ -1799,32 +1799,30 @@ class ChessSequel extends Table
         // Check this action is allowed according to the game state
         $this->checkAction('movePiece');
 
-        //$this->printWithJavascript( "movePiece called");
+        // Check for valid moving_piece_id
+        if (!in_array($moving_piece_id, self::getObjectListFromDB("SELECT piece_id FROM pieces", true))) {
+            return;
+        }
 
         // Get some information
         $player_id = $this->getActivePlayerId();
         $player_color = $this->getPlayerColorById($player_id);
-
         $all_piece_data = $this->getAllPieceData();
 
         // Check that the player is trying to move their own piece
-        // TODO: Check for valid piece name?
         if ($all_piece_data[$moving_piece_id]['piece_color'] != $player_color) {
             return;
         }
 
+        // More information
         $board_state = $this->getBoardState();
-
         $target_location = array((int)$target_file, (int)$target_rank);
-
         $legal_moves = $this->getLegalMovesTable();
 
         foreach ($legal_moves as $move) {
-            //$this->printWithJavascript($move);
-
             // If the attempted move is found in the array of possible moves
             if ($move['board_file'] === $target_file && $move['board_rank'] === $target_rank && $move['moving_piece_id'] === $moving_piece_id) {
-                $this->printWithJavascript("The target location IS in the array of legal moves");
+                // $this->printWithJavascript("The target location IS in the array of legal moves");
 
                 $moving_piece_starting_location = array($all_piece_data[$moving_piece_id]['board_file'], $all_piece_data[$moving_piece_id]['board_rank']);
 
@@ -1887,8 +1885,6 @@ class ChessSequel extends Table
                 $pieces_values_to_set['board_file'] = (string) $target_location[0];
                 $pieces_values_to_set['board_rank'] = (string) $target_location[1];
 
-                //$this->printWithJavascript($pieces_values_to_set);
-
                 if (count($capture_queue) != 0) {
                     $sql = "INSERT INTO capture_queue (capture_id,board_file,board_rank) VALUES ";
                     $sql .= implode(',', $capture_queue);
@@ -1943,7 +1939,7 @@ class ChessSequel extends Table
             }
         }
 
-        $this->printWithJavascript("The target location is NOT in the array of possible moves");
+        // $this->printWithJavascript("The target location is NOT in the array of possible moves");
     }
 
     function passKingMove()
