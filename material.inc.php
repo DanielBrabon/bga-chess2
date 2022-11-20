@@ -80,7 +80,7 @@ $this->all_armies_starting_layout = array(
     "eknight_2" => array(7, 1, "empoweredknight"),
     "ebishop_1" => array(3, 1, "empoweredbishop"),
     "ebishop_2" => array(6, 1, "empoweredbishop"),
-    "equeen" => array(4, 1, "empoweredqueen"),
+    "equeen" => array(4, 1, "elegantqueen"),
     "king" => array(5, 1, "king")
   ),
 
@@ -175,7 +175,7 @@ $this->all_armies_starting_layout = array(
 $this->all_armies_promote_options = array(
   "classic" => array("knight", "bishop", "rook", "queen"),
   "nemesis" => array("knight", "bishop", "rook", "nemesis"),
-  "empowered" => array("empoweredknight", "empoweredbishop", "empoweredrook", "empoweredqueen"),
+  "empowered" => array("empoweredknight", "empoweredbishop", "empoweredrook", "elegantqueen"),
   "reaper" => array("knight", "bishop", "ghost", "reaper"),
   "twokings" => array("knight", "bishop", "rook"),
   "animal" => array("wildhorse", "tiger", "elephant", "junglequeen"),
