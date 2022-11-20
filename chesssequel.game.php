@@ -1808,6 +1808,7 @@ class ChessSequel extends Table
         $all_piece_data = $this->getAllPieceData();
 
         // Check that the player is trying to move their own piece
+        // TODO: Check for valid piece name?
         if ($all_piece_data[$moving_piece_id]['piece_color'] != $player_color) {
             return;
         }
@@ -1934,7 +1935,7 @@ class ChessSequel extends Table
                     "values_updated" => $location_value_to_set
                 ));
 
-                self::notifyAllPlayers("clearHighlights", "", array());
+                self::notifyAllPlayers("clearSelectedPiece", "", array());
 
                 // Change player state
                 $this->gamestate->nextState('whereNext');

@@ -86,6 +86,7 @@
     width: 60px;
     height: 60px;
     position: absolute;
+    pointer-events: none;
 }
 
 .piececolor_000000 {
@@ -135,7 +136,7 @@
     cursor: pointer;
 }
 
-.highlight_piece {
+.selected_piece {
     background-color: rgb(182, 243, 238);
     opacity: 0.2;
     filter: alpha(opacity=20);

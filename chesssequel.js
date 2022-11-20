@@ -59,6 +59,7 @@ define([
                 // Placing pieces on the board
                 this.populateBoard();
 
+                // Flip the board for the black player
                 if (gamedatas.players[this.player_id].color === "000000") {
                     dojo.addClass('board', 'flipped');
                     dojo.query('.piece').addClass('flipped');
@@ -67,8 +68,9 @@ define([
                 // Setup game notifications to handle (see "setupNotifications" method below)
                 this.setupNotifications();
 
-                // Any time an empty square is clicked, call squareClicked
+                // Connect onclick events
                 dojo.query('.square').connect('onclick', this, 'squareClicked');
+                dojo.query('#main').connect('onclick', this, 'mainClicked');
 
                 console.log("Ending game setup");
             },
@@ -208,6 +210,15 @@ define([
             
             */
 
+            clearSelectedPiece: function () {
+                var selected_pieces = dojo.query('.selected_piece');
+                if (selected_pieces.length != 0) {
+                    selected_pieces.removeClass('selected_piece');
+                    dojo.query('.possible_move').removeClass('possible_move');
+                    this.gamedatas.players[this.player_id].piece_selected = null;
+                }
+            },
+
             populateBoard: function () {
                 if (this.gamedatas.board_state.length === 0) // We're in armySelect and pieces haven't been added to the database yet
                 {
@@ -261,8 +272,6 @@ define([
                     type: type,
                     piece_id: piece_id
                 }), 'pieces');
-
-                dojo.query('#' + piece_id).connect('onclick', this, 'pieceClicked');
 
                 // With BGA "this.placeOnObject" method, place this element over the right square
                 this.placeOnObject(piece_id, 'square_' + file + '_' + rank);
@@ -341,7 +350,7 @@ define([
 
                 // Gets the array of valid army names that started in material.inc.php and was returned by getAllDatas
                 var all_army_names = this.gamedatas.all_army_names;
-
+                
                 // Check client side that the army name is valid
                 if (all_army_names.indexOf(army_name) >= 0) {
                     // Place the starting pieces for that army_name on the board for this player
@@ -350,12 +359,12 @@ define([
                     this.updateArmySelectTitleText(this.gamedatas.button_labels[army_name]);
                 }
             },
-
+            
             confirmArmy: function (evt) {
                 // We stop the propagation of the Javascript "onclick" event. 
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
-
+                
                 // Check that "confirmArmy" action is possible, according to current game state
                 if (this.checkAction('confirmArmy')) {
                     // Make a call to the server using BGA "ajaxcall" method
@@ -364,72 +373,53 @@ define([
                     }, this, function (result) { });
                 }
             },
-
-            pieceClicked: function (evt) {
-                // We stop the propagation of the Javascript "onclick" event to avoid random behaviour
+            
+            mainClicked: function (evt) {
+                // We stop the propagation of the Javascript "onclick" event.
+                // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
 
-                var player_id = this.getActivePlayerId();
-
-                // If the player doesn't have a highlighted piece, find the valid moves for that piece and highlight those moves and the piece
-                if (dojo.query('.highlight_piece').length === 0) {
-                    // If this player is active, and the action is allowed in the current game state, and they click on one of their own pieces
-                    if (this.checkAction('displayAvailableMoves', true) && evt.currentTarget.id.split('_')[0] === this.gamedatas.players[player_id].color) {
-                        this.gamedatas.players[player_id].piece_clicked = evt.currentTarget.id;
-                        dojo.addClass(evt.currentTarget.id, 'highlight_piece');
-
-                        for (var move_index in this.gamedatas.legal_moves) {
-                            var move_object = this.gamedatas.legal_moves[move_index];
-
-                            if (move_object['moving_piece_id'] === evt.currentTarget.id) {
-                                dojo.addClass('square_' + move_object['board_file'] + '_' + move_object['board_rank'], 'possible_move');
-                            }
-                        }
-                    }
-                }
-                // If the player clicks the same friendly piece again, deselect it
-                else if (dojo.query('.highlight_piece')[0]['id'] === evt.currentTarget.id) {
-                    dojo.query('.highlight_piece').removeClass('highlight_piece');
-                    dojo.query('.possible_move').removeClass('possible_move');
-                }
-                // If the player has already clicked a friendly piece and then clicks another piece, try to move the first piece to the second
-                else {
-                    if (this.checkAction('movePiece')) {
-                        // Find the location of the piece being clicked on
-                        var target_piece_file = this.gamedatas.pieces[evt.currentTarget.id]['board_file'];
-                        var target_piece_rank = this.gamedatas.pieces[evt.currentTarget.id]['board_rank'];
-
-                        console.log("clicked on a piece at: " + target_piece_file + ", " + target_piece_rank);
-
-                        // Make a call to the server using BGA "ajaxcall" method
-                        this.ajaxcall("/chesssequel/chesssequel/movePiece.html", {
-                            target_file: target_piece_file,
-                            target_rank: target_piece_rank,
-                            moving_piece_id: this.gamedatas.players[player_id].piece_clicked
-                        }, this, function (result) { });
-                    }
-                }
+                this.clearSelectedPiece();
             },
 
             squareClicked: function (evt) {
                 // We stop the propagation of the Javascript "onclick" event. 
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
+                
+                // If this player is not active or movePiece is not allowed in the current game state or the interface is locked, do nothing
+                if (!this.checkAction('movePiece', true)) {
+                    return;
+                }
 
-                // If there is a highlighted friendly piece to move (from pieceClicked), and this player is active, and this move is allowed in this game state
-                if (dojo.query('.highlight_piece').length != 0 && this.checkAction('movePiece')) {
-                    // The location of the square being clicked on
-                    var target_square_file = evt.currentTarget.id.split('_')[1];
-                    var target_square_rank = evt.currentTarget.id.split('_')[2];
-
-                    console.log("clicked on a square at: " + target_square_file + ", " + target_square_rank);
-
-                    // Make a call to the server using BGA "ajaxcall" method
+                // If the player clicked a highlighted possible move square, call the server to make the move
+                if (dojo.hasClass(evt.currentTarget, 'possible_move')) {
                     this.ajaxcall("/chesssequel/chesssequel/movePiece.html", {
-                        target_file: target_square_file,
-                        target_rank: target_square_rank,
-                        moving_piece_id: this.gamedatas.players[this.getActivePlayerId()].piece_clicked
+                        target_file: evt.currentTarget.id.split('_')[1],
+                        target_rank: evt.currentTarget.id.split('_')[2],
+                        moving_piece_id: this.gamedatas.players[this.player_id].piece_selected
                     }, this, function (result) { });
+                }
+                else {
+                    // If the player has a piece selected, deselect it
+                    this.clearSelectedPiece();
+                    
+                    var split_square_id = evt.currentTarget.id.split('_');
+                    var piece_id_on_clicked_square = this.gamedatas.board_state[split_square_id[1]][split_square_id[2]].defending_piece;
+
+                    // If the player clicked a square with a friendly piece, select it
+                    if (piece_id_on_clicked_square != null && this.gamedatas.pieces[piece_id_on_clicked_square].piece_color === this.gamedatas.players[this.player_id].color) {
+                        this.gamedatas.players[this.player_id].piece_selected = piece_id_on_clicked_square;
+                        dojo.addClass(piece_id_on_clicked_square, 'selected_piece');
+    
+                        for (var move_index in this.gamedatas.legal_moves) {
+                            var move_object = this.gamedatas.legal_moves[move_index];
+    
+                            if (move_object['moving_piece_id'] === piece_id_on_clicked_square) {
+                                dojo.addClass('square_' + move_object['board_file'] + '_' + move_object['board_rank'], 'possible_move');
+                            }
+                        }
+                    }
                 }
             },
 
@@ -440,16 +430,16 @@ define([
 
                 var player_id = this.getActivePlayerId();
 
-                if (dojo.query('.highlight_piece').length != 0 && this.gamedatas.pieces[this.gamedatas.players[player_id].piece_clicked]['piece_type'] === "warriorking" && this.checkAction('movePiece')) {
+                if (dojo.query('.selected_piece').length != 0 && this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['piece_type'] === "warriorking" && this.checkAction('movePiece')) {
                     // Find the location of the piece being clicked on
-                    var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_clicked]['board_file'];
-                    var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_clicked]['board_rank'];
+                    var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['board_file'];
+                    var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['board_rank'];
 
                     // Make a call to the server using BGA "ajaxcall" method
                     this.ajaxcall("/chesssequel/chesssequel/movePiece.html", {
                         target_file: target_piece_file,
                         target_rank: target_piece_rank,
-                        moving_piece_id: this.gamedatas.players[player_id].piece_clicked
+                        moving_piece_id: this.gamedatas.players[player_id].piece_selected
                     }, this, function (result) { });
                 }
             },
@@ -458,6 +448,8 @@ define([
                 // We stop the propagation of the Javascript "onclick" event. 
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
+
+                this.clearSelectedPiece();
 
                 if (this.checkAction('passKingMove')) {
                     // Make a call to the server using BGA "ajaxcall" method
@@ -616,7 +608,7 @@ define([
 
                 dojo.subscribe('deleteFromCaptureQueue', this, "notif_deleteFromCaptureQueue");
 
-                dojo.subscribe('clearHighlights', this, "notif_clearHighlights");
+                dojo.subscribe('clearSelectedPiece', this, "notif_clearSelectedPiece");
 
                 dojo.subscribe('highlightAttackedSquares', this, "notif_highlightAttackedSquares");
 
@@ -777,9 +769,8 @@ define([
                 //console.log(this.gamedatas.capture_queue);
             },
 
-            notif_clearHighlights: function (notif) {
-                dojo.query('.highlight_piece').removeClass('highlight_piece');
-                dojo.query('.possible_move').removeClass('possible_move');
+            notif_clearSelectedPiece: function () {
+                this.clearSelectedPiece();
             },
 
             notif_highlightAttackedSquares: function (notif) {
