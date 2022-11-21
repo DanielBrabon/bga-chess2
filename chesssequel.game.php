@@ -163,16 +163,6 @@ class ChessSequel extends Table
         return self::getCollectionFromDb($sql);
     }
 
-    function getBoardState()
-    {
-        //return self::getDoubleKeyCollectionFromDB( "SELECT board_x x, board_y y, board_player player
-        //                                               FROM board", true );
-
-        // Returns the full board state (the full contents of the board table)
-        $sql = "SELECT board_file, board_rank, defending_piece, capturing_piece FROM board";
-        return self::getDoubleKeyCollectionFromDB($sql);
-    }
-
     function getAllPieceData()
     {
         $sql = "SELECT piece_id, piece_color, piece_type, board_file, board_rank, moves_made, if_captured, 
@@ -202,6 +192,37 @@ class ChessSequel extends Table
         }
 
         return $king_ids;
+    }
+
+    function getBoardState($all_piece_data)
+    {
+        $board_state = [];
+
+        for ($i = 1; $i <= 8; $i++) {
+            for ($j = 1; $j <= 8; $j++) {
+                $board_state[$i][$j] = array(
+                    'board_file' => (string) $i,
+                    'board_rank' => (string) $j,
+                    'defending_piece' => null,
+                    'capturing_piece' => null
+                );
+            }
+        }
+
+        foreach ($all_piece_data as $piece_id => $piece_data) {
+            if ($piece_data['if_captured']) {
+                continue;
+            }
+
+            if ($piece_data['if_capturing']) {
+                $board_state[$piece_data['board_file']][$piece_data['board_rank']]['capturing_piece'] = $piece_id;
+            }
+            else {
+                $board_state[$piece_data['board_file']][$piece_data['board_rank']]['defending_piece'] = $piece_id;
+            }
+        }
+
+        return $board_state;
     }
 
     function generateAllMovesForPlayer($player_id, $all_piece_data, $board_state)
@@ -1327,7 +1348,8 @@ class ChessSequel extends Table
 
     function generateAllKingMovesForPlayer($active_player_id, $all_piece_data)
     {
-        $board_state = $this->getBoardState();
+        $all_piece_data = $this->getAllPieceData();
+        $board_state = $this->getBoardState($all_piece_data);
 
         self::DbQuery("DELETE FROM legal_moves");
 
@@ -1383,7 +1405,7 @@ class ChessSequel extends Table
         }
 
         if ($board_state === null) {
-            $board_state = $this->getBoardState();
+            $board_state = $this->getBoardState($all_piece_data);
         }
 
         if ($capture_queue === null) {
@@ -1477,41 +1499,6 @@ class ChessSequel extends Table
                 }
             }
 
-            // Update board state
-            $capture_square = $capture_squares[0];
-            if ($board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id) {
-                self::DbQuery(
-                    "UPDATE board
-                    SET defending_piece = null, capturing_piece = null
-                    WHERE board_file = '$capture_square[0]'
-                    AND board_rank = '$capture_square[1]'"
-                );
-            } else {
-                self::DbQuery(
-                    "UPDATE board
-                    SET defending_piece = null
-                    WHERE board_file = '$capture_square[0]'
-                    AND board_rank = '$capture_square[1]'"
-                );
-
-                $location_of_capturing_piece = array((int) $all_piece_data[$capturing_piece_id]['board_file'], (int) $all_piece_data[$capturing_piece_id]['board_rank']);
-                if ($board_state[$location_of_capturing_piece[0]][$location_of_capturing_piece[1]]['defending_piece'] === $capturing_piece_id) {
-                    self::DbQuery(
-                        "UPDATE board
-                        SET defending_piece = null
-                        WHERE board_file = '$location_of_capturing_piece[0]'
-                        AND board_rank = '$location_of_capturing_piece[1]'"
-                    );
-                } else {
-                    self::DbQuery(
-                        "UPDATE board
-                        SET capturing_piece = null
-                        WHERE board_file = '$location_of_capturing_piece[0]'
-                        AND board_rank = '$location_of_capturing_piece[1]'"
-                    );
-                }
-            }
-
             // Clear entire capture queue
             foreach ($capture_ids as $capture_id) {
                 self::DbQuery("DELETE FROM capture_queue WHERE capture_id = '$capture_id'");
@@ -1563,22 +1550,6 @@ class ChessSequel extends Table
                 }
             }
 
-            if ($board_state[$capture_square[0]][$capture_square[1]]['capturing_piece'] === $capturing_piece_id) {
-                self::DbQuery(
-                    "UPDATE board
-                    SET defending_piece = '$capturing_piece_id', capturing_piece = null
-                    WHERE board_file = '$capture_square[0]'
-                    AND board_rank = '$capture_square[1]'"
-                );
-            } else {
-                self::DbQuery(
-                    "UPDATE board
-                    SET defending_piece = null
-                    WHERE board_file = '$capture_square[0]'
-                    AND board_rank = '$capture_square[1]'"
-                );
-            }
-
             if (count($capture_queue) === 1) {
                 self::DbQuery("UPDATE pieces SET if_capturing = 0 WHERE piece_id = '$capturing_piece_id'");
 
@@ -1601,7 +1572,7 @@ class ChessSequel extends Table
     function resolveCastle($king_id, $all_piece_data)
     {
         $king_data = $all_piece_data[$king_id];
-        $board_state = $this->getBoardState();
+        $board_state = $this->getBoardState($all_piece_data);
 
         // Update the pieces database table to no longer have this piece castling
         self::DbQuery("UPDATE pieces SET if_performing_castle = 0 WHERE piece_id = '$king_id'");
@@ -1642,20 +1613,6 @@ class ChessSequel extends Table
                 "piece_id" => $castling_rook_id,
                 "values_updated" => array("location" => array($rook_destination_file, $rook_destination_rank))
             )
-        );
-
-        self::DbQuery(
-            "UPDATE board
-            SET defending_piece = null
-            WHERE board_file = '$rook_starting_file'
-            AND board_rank = '$rook_destination_rank'"
-        );
-
-        self::DbQuery(
-            "UPDATE board
-            SET defending_piece = '$castling_rook_id'
-            WHERE board_file = '$rook_destination_file'
-            AND board_rank = '$rook_destination_rank'"
         );
     }
 
@@ -1740,7 +1697,7 @@ class ChessSequel extends Table
         }
 
         // More information
-        $board_state = $this->getBoardState();
+        $board_state = $this->getBoardState($all_piece_data);
         $target_location = array((int)$target_file, (int)$target_rank);
         $legal_moves = $this->getLegalMovesTable();
 
@@ -1780,27 +1737,6 @@ class ChessSequel extends Table
                     }
                 }
 
-                // TODO
-                $location_value_to_set = array();
-                $if_capturing_at_target_location = $board_state[$target_location[0]][$target_location[1]]['defending_piece'] != null;
-                if ($if_capturing_at_target_location) {
-                    $location_value_to_set['capturing_piece'] = (string) $moving_piece_id;
-                    self::DbQuery(
-                        "UPDATE board
-                        SET capturing_piece = '$moving_piece_id'
-                        WHERE board_file = '$target_location[0]' 
-                        AND board_rank = '$target_location[1]'"
-                    );
-                } else {
-                    $location_value_to_set['defending_piece'] = (string) $moving_piece_id;
-                    self::DbQuery(
-                        "UPDATE board
-                        SET defending_piece = '$moving_piece_id'
-                        WHERE board_file = '$target_location[0]'
-                        AND board_rank = '$target_location[1]'"
-                    );
-                }
-
                 $sql = "SELECT moves_made FROM pieces WHERE piece_id='$moving_piece_id'";
                 $pieces_values_to_set['moves_made'] = (string) (self::getUniqueValueFromDB($sql) + 1);
 
@@ -1815,13 +1751,6 @@ class ChessSequel extends Table
                     $sql .= implode(',', $capture_queue);
                     self::DbQuery($sql);
                 }
-
-                self::DbQuery(
-                    "UPDATE board
-                    SET defending_piece = null
-                    WHERE board_file = '$moving_piece_starting_location[0]'
-                    AND board_rank = '$moving_piece_starting_location[1]'"
-                );
 
                 // Update pieces table for the moving piece
                 $sql = "UPDATE pieces SET";
@@ -2037,20 +1966,6 @@ class ChessSequel extends Table
         $all_datas = $this->getAllDatas();
 
         $pieces_table_update_information = array();
-        $board_table_update_information = array(); // An array to hold information on the pieces, this will be used to update the board table with pieces
-
-        // Adding a row into the board database table for each square on the board
-        $sql = "INSERT INTO board (board_file,board_rank) VALUES ";
-        $sql_values = array();
-
-        for ($i = 1; $i <= 8; $i++) {
-            for ($j = 1; $j <= 8; $j++) {
-                $sql_values[] = "('$i','$j')";
-            }
-        }
-
-        $sql .= implode(',', $sql_values);
-        self::DbQuery($sql);
 
         // Adding a row to the pieces database table for each piece in each player's starting layout
         $sql = "INSERT INTO pieces (piece_id,piece_color,piece_type,board_file,board_rank) VALUES ";
@@ -2078,8 +1993,6 @@ class ChessSequel extends Table
                 $sql_values[] = "('$piece_id','$player_color','$piece_info[2]','$piece_info[0]','$piece_rank')";
                 $pieces_table_update_information[] = array($piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_rank);
 
-                $board_table_update_information[] = array($piece_info[0], $piece_rank, $piece_id);
-
                 if ($piece_info[2] === "king" || $piece_info[2] === "warriorking") {
                     $all_king_ids[$player_data['id']][] = $piece_id;
                 }
@@ -2098,21 +2011,9 @@ class ChessSequel extends Table
             }
         }
 
-        // Adding the starting pieces into the board table
-        foreach ($board_table_update_information as $value) {
-            // TODO: one sql query for this
-            self::DbQuery(
-                "UPDATE board
-                SET defending_piece = '$value[2]'
-                WHERE board_file = '$value[0]'
-                AND board_rank = '$value[1]'"
-            );
-        }
-
         // Notifying players of the changes to gamedatas
         self::notifyAllPlayers("stBoardSetup", "", array(
             'pieces_table_update_information' => $pieces_table_update_information,
-            'board_table_update_information' => $board_table_update_information,
             'player_armies' => self::getCollectionFromDB("SELECT player_id, player_army FROM player", true)
         ));
 
@@ -2170,7 +2071,7 @@ class ChessSequel extends Table
                     return;
                 }
 
-                $board_state = $this->getBoardState();
+                $board_state = $this->getBoardState($all_piece_data);
                 $capture_queue = $this->getCaptureQueue();
 
                 $capture_square = array();
@@ -2255,7 +2156,7 @@ class ChessSequel extends Table
         self::DbQuery("DELETE FROM legal_moves");
 
         $active_player_id = $this->getActivePlayerId();
-        $board_state = $this->getBoardState();
+        $board_state = $this->getBoardState($all_piece_data);
         $all_legal_moves = $this->generateAllMovesForPlayer($active_player_id, $all_piece_data, $board_state)['all_moves'];
 
         $sql = "INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES ";

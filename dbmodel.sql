@@ -40,14 +40,6 @@ ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NU
 ALTER TABLE `player` ADD `player_king_id` VARCHAR(17) DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_id_2` VARCHAR(17) DEFAULT NULL;
 
-CREATE TABLE IF NOT EXISTS `board` (
-  `board_file` TINYINT(1) UNSIGNED NOT NULL,
-  `board_rank` TINYINT(1) UNSIGNED NOT NULL,
-  `defending_piece` VARCHAR(17) DEFAULT NULL,
-  `capturing_piece` VARCHAR(17) DEFAULT NULL,
-  PRIMARY KEY (`board_file`,`board_rank`)
-) ENGINE=InnoDB;
-
 CREATE TABLE IF NOT EXISTS `pieces` (
   `piece_id` VARCHAR(17) NOT NULL,
   `piece_color` CHAR(6) NOT NULL,
