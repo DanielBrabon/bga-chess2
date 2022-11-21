@@ -110,9 +110,6 @@ class ChessSequel extends Table
         // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
         $result['players'] = $this->getAllPlayerData();
 
-        // Get information needed to show board state
-        $result['board_state'] = $this->getBoardState();
-
         // Get information about all pieces
         $result['pieces'] = $this->getAllPieceData();
 
@@ -1489,30 +1486,12 @@ class ChessSequel extends Table
                     WHERE board_file = '$capture_square[0]'
                     AND board_rank = '$capture_square[1]'"
                 );
-
-                self::notifyAllPlayers(
-                    "updateBoardState",
-                    "",
-                    array(
-                        "square" => $capture_square,
-                        "values_updated" => array("defending_piece" => null, "capturing_piece" => null)
-                    )
-                );
             } else {
                 self::DbQuery(
                     "UPDATE board
                     SET defending_piece = null
                     WHERE board_file = '$capture_square[0]'
                     AND board_rank = '$capture_square[1]'"
-                );
-
-                self::notifyAllPlayers(
-                    "updateBoardState",
-                    "",
-                    array(
-                        "square" => $capture_square,
-                        "values_updated" => array("defending_piece" => null)
-                    )
                 );
 
                 $location_of_capturing_piece = array((int) $all_piece_data[$capturing_piece_id]['board_file'], (int) $all_piece_data[$capturing_piece_id]['board_rank']);
@@ -1523,30 +1502,12 @@ class ChessSequel extends Table
                         WHERE board_file = '$location_of_capturing_piece[0]'
                         AND board_rank = '$location_of_capturing_piece[1]'"
                     );
-
-                    self::notifyAllPlayers(
-                        "updateBoardState",
-                        "",
-                        array(
-                            "square" => $location_of_capturing_piece,
-                            "values_updated" => array("defending_piece" => null)
-                        )
-                    );
                 } else {
                     self::DbQuery(
                         "UPDATE board
                         SET capturing_piece = null
                         WHERE board_file = '$location_of_capturing_piece[0]'
                         AND board_rank = '$location_of_capturing_piece[1]'"
-                    );
-
-                    self::notifyAllPlayers(
-                        "updateBoardState",
-                        "",
-                        array(
-                            "square" => $location_of_capturing_piece,
-                            "values_updated" => array("capturing_piece" => null)
-                        )
                     );
                 }
             }
@@ -1609,30 +1570,12 @@ class ChessSequel extends Table
                     WHERE board_file = '$capture_square[0]'
                     AND board_rank = '$capture_square[1]'"
                 );
-
-                self::notifyAllPlayers(
-                    "updateBoardState",
-                    "",
-                    array(
-                        "square" => $capture_square,
-                        "values_updated" => array("defending_piece" => $capturing_piece_id, "capturing_piece" => null)
-                    )
-                );
             } else {
                 self::DbQuery(
                     "UPDATE board
                     SET defending_piece = null
                     WHERE board_file = '$capture_square[0]'
                     AND board_rank = '$capture_square[1]'"
-                );
-
-                self::notifyAllPlayers(
-                    "updateBoardState",
-                    "",
-                    array(
-                        "square" => $capture_square,
-                        "values_updated" => array("defending_piece" => null)
-                    )
                 );
             }
 
@@ -1708,29 +1651,11 @@ class ChessSequel extends Table
             AND board_rank = '$rook_destination_rank'"
         );
 
-        self::notifyAllPlayers(
-            "updateBoardState",
-            "",
-            array(
-                "square" => array($rook_starting_file, $rook_destination_rank),
-                "values_updated" => array("defending_piece" => null)
-            )
-        );
-
         self::DbQuery(
             "UPDATE board
             SET defending_piece = '$castling_rook_id'
             WHERE board_file = '$rook_destination_file'
             AND board_rank = '$rook_destination_rank'"
-        );
-
-        self::notifyAllPlayers(
-            "updateBoardState",
-            "",
-            array(
-                "square" => array($rook_destination_file, $rook_destination_rank),
-                "values_updated" => array("defending_piece" => $castling_rook_id)
-            )
         );
     }
 
@@ -1920,16 +1845,6 @@ class ChessSequel extends Table
                         "values_updated" => $pieces_values_to_set_notif
                     )
                 );
-
-                self::notifyAllPlayers("updateBoardState", "", array(
-                    "square" => $moving_piece_starting_location,
-                    "values_updated" => array("defending_piece" => null)
-                ));
-
-                self::notifyAllPlayers("updateBoardState", "", array(
-                    "square" => $target_location,
-                    "values_updated" => $location_value_to_set
-                ));
 
                 self::notifyAllPlayers("clearSelectedPiece", "", array());
 

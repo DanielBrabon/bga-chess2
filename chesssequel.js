@@ -228,7 +228,7 @@ define([
             },
 
             populateBoard: function () {
-                if (this.gamedatas.board_state.length === 0) { // We're in armySelect and pieces haven't been added to the database yet
+                if (this.gamedatas.pieces.length === 0) { // We're in armySelect and pieces haven't been added to the database yet
                     for (var player_id in this.gamedatas.players) {
                         if (player_id == this.player_id) {
                             var army = "classic";
@@ -392,19 +392,17 @@ define([
                 else {
                     // If the player has a piece selected, deselect it
                     this.clearSelectedPiece();
-                    
-                    var split_square_id = evt.currentTarget.id.split('_');
-                    var piece_id_on_clicked_square = this.gamedatas.board_state[split_square_id[1]][split_square_id[2]].defending_piece;
 
                     // If the player clicked a square with a friendly piece, select it
-                    if (piece_id_on_clicked_square != null && this.gamedatas.pieces[piece_id_on_clicked_square].piece_color === this.gamedatas.players[this.player_id].color) {
-                        this.gamedatas.players[this.player_id].piece_selected = piece_id_on_clicked_square;
-                        dojo.addClass(piece_id_on_clicked_square, 'selected_piece');
+                    const children = evt.currentTarget.children;                    
+                    if (children.length != 0 && this.gamedatas.pieces[children[0].id].piece_color === this.gamedatas.players[this.player_id].color) {
+                        this.gamedatas.players[this.player_id].piece_selected = children[0].id;
+                        dojo.addClass(children[0].id, 'selected_piece');
     
                         for (var move_index in this.gamedatas.legal_moves) {
                             var move_object = this.gamedatas.legal_moves[move_index];
     
-                            if (move_object['moving_piece_id'] === piece_id_on_clicked_square) {
+                            if (move_object['moving_piece_id'] === children[0].id) {
                                 dojo.addClass('square_' + move_object['board_file'] + '_' + move_object['board_rank'], 'possible_move');
                             }
                         }
@@ -581,8 +579,6 @@ define([
 
                 dojo.subscribe('updateAllPieceData', this, "notif_updateAllPieceData");
                 
-                dojo.subscribe('updateBoardState', this, "notif_updateBoardState");
-                
                 dojo.subscribe('updatePlayerData', this, "notif_updatePlayerData")
                 
                 dojo.subscribe('fillCaptureQueue', this, "notif_fillCaptureQueue");
@@ -606,24 +602,6 @@ define([
 
             notif_stBoardSetup: function (notif) {
                 // Updates gamedatas for all players with the new information added to the database during boardSetup
-
-                // Update the board state information in gamedatas to reflect the changes made during boardSetup
-                var board_info = notif.args.board_table_update_information;
-                var board_state_object = {};
-
-                for (let i = 1; i <= 8; i++) {
-                    board_state_object[i] = {};
-
-                    for (let j = 1; j <= 8; j++) {
-                        board_state_object[i][j] = { defending_piece: null, capturing_piece: null };
-                        board_state_object[i][j].board_file = String(i);
-                        board_state_object[i][j].board_rank = String(j);
-                    }
-                }
-                for (var entry in board_info) {
-                    board_state_object[board_info[entry][0]][board_info[entry][1]].defending_piece = board_info[entry][2];
-                }
-                this.gamedatas.board_state = board_state_object;
 
                 // Update the pieces information in gamedatas to reflect the changes made during boardSetup          
                 var pieces_info = notif.args.pieces_table_update_information;
@@ -701,14 +679,6 @@ define([
                 }
 
                 //console.log(this.gamedatas.pieces);
-            },
-
-            notif_updateBoardState: function (notif) {
-                for (var field in notif.args.values_updated) {
-                    this.gamedatas.board_state[notif.args.square[0]][notif.args.square[1]][field] = notif.args.values_updated[field];
-                }
-
-                //console.log(this.gamedatas.board_state);
             },
 
             notif_updatePlayerData: function (notif) {
