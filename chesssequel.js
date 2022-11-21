@@ -208,6 +208,16 @@ define([
             
             */
 
+            ajaxcallWrapper: function (action, args, handler) {
+                if (!args) {
+                    args = {};
+                }
+                args.lock = true;
+            
+                // Make a call to the server using BGA "ajaxcall" method
+                this.ajaxcall("/chesssequel/chesssequel/" + action + ".html", args, this, (result) => {}, handler);
+            },
+
             clearSelectedPiece: function () {
                 var selected_pieces = dojo.query('.selected_piece');
                 if (selected_pieces.length != 0) {
@@ -349,10 +359,7 @@ define([
                 
                 // Check that "confirmArmy" action is possible, according to current game state
                 if (this.checkAction('confirmArmy')) {
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall("/chesssequel/chesssequel/confirmArmy.html", {
-                        army_name: this.gamedatas.players[this.player_id].army
-                    }, this, function (result) { });
+                    this.ajaxcallWrapper("confirmArmy", {army_name: this.gamedatas.players[this.player_id].army});
                 }
             },
             
@@ -376,11 +383,11 @@ define([
 
                 // If the player clicked a highlighted possible move square, call the server to make the move
                 if (dojo.hasClass(evt.currentTarget, 'possible_move')) {
-                    this.ajaxcall("/chesssequel/chesssequel/movePiece.html", {
+                    this.ajaxcallWrapper("movePiece", {
                         target_file: evt.currentTarget.id.split('_')[1],
                         target_rank: evt.currentTarget.id.split('_')[2],
                         moving_piece_id: this.gamedatas.players[this.player_id].piece_selected
-                    }, this, function (result) { });
+                    });
                 }
                 else {
                     // If the player has a piece selected, deselect it
@@ -417,12 +424,11 @@ define([
                     var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['board_file'];
                     var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['board_rank'];
 
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall("/chesssequel/chesssequel/movePiece.html", {
+                    this.ajaxcallWrapper("movePiece", {
                         target_file: target_piece_file,
                         target_rank: target_piece_rank,
                         moving_piece_id: this.gamedatas.players[player_id].piece_selected
-                    }, this, function (result) { });
+                    });
                 }
             },
 
@@ -434,8 +440,7 @@ define([
                 this.clearSelectedPiece();
 
                 if (this.checkAction('passKingMove')) {
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall("/chesssequel/chesssequel/passKingMove.html", {}, this, function (result) { });
+                    this.ajaxcallWrapper("passKingMove");
                 }
             },
 
@@ -445,9 +450,7 @@ define([
                 dojo.stopEvent(evt);
 
                 if (this.checkAction('acceptDuel')) {
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall("/chesssequel/chesssequel/acceptDuel.html", {
-                    }, this, function (result) { });
+                    this.ajaxcallWrapper("acceptDuel");
                 }
             },
 
@@ -457,9 +460,7 @@ define([
                 dojo.stopEvent(evt);
 
                 if (this.checkAction('rejectDuel')) {
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall("/chesssequel/chesssequel/rejectDuel.html", {
-                    }, this, function (result) { });
+                    this.ajaxcallWrapper("rejectDuel");
                 }
             },
 
@@ -488,10 +489,9 @@ define([
                 }
 
                 if (this.checkAction('pickBid')) {
-                    // Make a call to the server using BGA "ajaxcall" method with argument army_name.
-                    this.ajaxcall("/chesssequel/chesssequel/pickBid.html", {
+                    this.ajaxcallWrapper("pickBid", {
                         bid_amount: bid_amount
-                    }, this, function (result) { });
+                    });
                 }
             },
 
@@ -503,10 +503,9 @@ define([
                 if (this.checkAction('promotePawn')) {
                     var chosen_promotion = evt.currentTarget.id.split('_')[2];
 
-                    // Make a call to the server using BGA "ajaxcall" method
-                    this.ajaxcall("/chesssequel/chesssequel/promotePawn.html", {
+                    this.ajaxcallWrapper("promotePawn", {
                         chosen_promotion: chosen_promotion
-                    }, this, function (result) { });
+                    });
                 }
             },
 
@@ -587,7 +586,7 @@ define([
                 dojo.subscribe('updatePlayerData', this, "notif_updatePlayerData")
                 
                 dojo.subscribe('fillCaptureQueue', this, "notif_fillCaptureQueue");
-                
+
                 dojo.subscribe('deleteFromCaptureQueue', this, "notif_deleteFromCaptureQueue");
 
                 dojo.subscribe('clearSelectedPiece', this, "notif_clearSelectedPiece");
