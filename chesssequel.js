@@ -254,16 +254,6 @@ define([
                 }
             },
 
-            updateArmySelectTitleText: function (army) {
-                if (this.gamedatas.players[this.player_id].color === "ffffff") {
-                    var you = '<span style="font-weight:bold;color:#ffffff;background-color:#bbbbbb;">You</span>';
-                }
-                else {
-                    var you = '<span style="font-weight:bold;color:#000000;">You</span>';
-                }
-                $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
-            },
-
             placeStartingPiecesOnBoard: function (army_name, player_color) {
                 // Gets an array of starting pieces for that army type where:
                 // Keys are a name for the piece e.g. "pawn_1"
@@ -296,6 +286,16 @@ define([
                 if (this.gamedatas.players[this.player_id].color === "000000") {
                     dojo.query('.piece').addClass('flipped');
                 }
+            },
+            
+            updateArmySelectTitleText: function (army) {
+                if (this.gamedatas.players[this.player_id].color === "ffffff") {
+                    var you = '<span style="font-weight:bold;color:#ffffff;background-color:#bbbbbb;">You</span>';
+                }
+                else {
+                    var you = '<span style="font-weight:bold;color:#000000;">You</span>';
+                }
+                $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
             },
 
             pieceCapturing: function (capturing_piece_id, location) {
@@ -580,14 +580,14 @@ define([
 
                 dojo.subscribe('updateLegalMovesTable', this, "notif_updateLegalMovesTable");
 
-                dojo.subscribe('fillCaptureQueue', this, "notif_fillCaptureQueue");
-
                 dojo.subscribe('updateAllPieceData', this, "notif_updateAllPieceData");
-
+                
                 dojo.subscribe('updateBoardState', this, "notif_updateBoardState");
-
+                
                 dojo.subscribe('updatePlayerData', this, "notif_updatePlayerData")
-
+                
+                dojo.subscribe('fillCaptureQueue', this, "notif_fillCaptureQueue");
+                
                 dojo.subscribe('deleteFromCaptureQueue', this, "notif_deleteFromCaptureQueue");
 
                 dojo.subscribe('clearSelectedPiece', this, "notif_clearSelectedPiece");
@@ -665,19 +665,6 @@ define([
                 //console.log(this.gamedatas.legal_moves);
             },
 
-            notif_fillCaptureQueue: function (notif) {
-                this.gamedatas.capture_queue = {};
-
-                var capture_queue = notif.args.capture_queue;
-                for (var i = 0; i < capture_queue.length; i++) {
-                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)] = { "capture_id": capture_queue[i].substring(2, 3) };
-                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_file = capture_queue[i].substring(6, 7);
-                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_rank = capture_queue[i].substring(10, 11);
-                }
-
-                //console.log(this.gamedatas.capture_queue);
-            },
-
             notif_updateAllPieceData: function (notif) {
                 for (var field in notif.args.values_updated) {
                     switch (field) {
@@ -736,6 +723,19 @@ define([
                 }
 
                 // console.log(this.gamedatas.players);
+            },
+
+            notif_fillCaptureQueue: function (notif) {
+                this.gamedatas.capture_queue = {};
+
+                var capture_queue = notif.args.capture_queue;
+                for (var i = 0; i < capture_queue.length; i++) {
+                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)] = { "capture_id": capture_queue[i].substring(2, 3) };
+                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_file = capture_queue[i].substring(6, 7);
+                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_rank = capture_queue[i].substring(10, 11);
+                }
+
+                //console.log(this.gamedatas.capture_queue);
             },
 
             notif_deleteFromCaptureQueue: function (notif) {
