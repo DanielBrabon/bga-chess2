@@ -327,7 +327,7 @@ class ChessSequel extends Table
                 $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
                 break;
 
-            case "empoweredqueen":
+            case "elegantqueen":
                 $possible_moves = $this->getAttackingMoveSquares($piece_id, "king", $all_piece_data, $board_state)['attacking_squares'];
                 $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
                 break;
@@ -498,7 +498,7 @@ class ChessSequel extends Table
                 }
                 break;
 
-            case "empoweredqueen":
+            case "elegantqueen":
                 $king_attacks = $this->getAttackingMoveSquares($piece_id, "king", $all_piece_data, $board_state);
                 $attacking_squares = $king_attacks['attacking_squares'];
                 $semi_attacking_squares = $king_attacks['semi_attacking_squares'];
