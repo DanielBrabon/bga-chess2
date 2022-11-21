@@ -50,7 +50,6 @@ define([
                 // Setting up player boards
                 for (var player_id in gamedatas.players) {
                     var player = gamedatas.players[player_id];
-                    console.log(player);
 
                     var player_board_div = $('player_board_' + player_id);
                     dojo.place(this.format_block('jstpl_player_stones', player), player_board_div);
@@ -62,7 +61,6 @@ define([
                 // Flip the board for the black player
                 if (gamedatas.players[this.player_id].color === "000000") {
                     dojo.addClass('board', 'flipped');
-                    dojo.query('.piece').addClass('flipped');
                 }
 
                 // Setup game notifications to handle (see "setupNotifications" method below)
@@ -220,8 +218,7 @@ define([
             },
 
             populateBoard: function () {
-                if (this.gamedatas.board_state.length === 0) // We're in armySelect and pieces haven't been added to the database yet
-                {
+                if (this.gamedatas.board_state.length === 0) { // We're in armySelect and pieces haven't been added to the database yet
                     for (var player_id in this.gamedatas.players) {
                         if (player_id == this.player_id) {
                             var army = "classic";
@@ -232,18 +229,27 @@ define([
                         this.placeStartingPiecesOnBoard(army, this.gamedatas.players[player_id].color);
                     }
                 }
-                else // Players have confirmed their armies and their pieces have been added to the database
-                {
+                else { // Players have confirmed their armies and their pieces have been added to the database
                     for (var piece_id in this.gamedatas.pieces) {
                         var piece_info = this.gamedatas.pieces[piece_id];
 
                         if (piece_info['if_captured'] === "0") {
-                            this.addPieceOnSquare(piece_info['piece_color'], piece_info['piece_type'], piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
+                            // Insert the HTML element for the piece as a child of the square it's on
+                            dojo.place(this.format_block('jstpl_piece', {
+                                color: piece_info['piece_color'],
+                                type: piece_info['piece_type'],
+                                piece_id: piece_info['piece_id']
+                            }), 'square_' + piece_info['board_file'] + '_' + piece_info['board_rank']);
 
                             if (piece_info['if_capturing'] === "1") {
                                 this.pieceCapturing(piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
                             }
                         }
+                    }
+
+                    // Flip the pieces for the black player
+                    if (this.gamedatas.players[this.player_id].color === "000000") {
+                        dojo.query('.piece').addClass('flipped');
                     }
                 }
             },
@@ -256,30 +262,6 @@ define([
                     var you = '<span style="font-weight:bold;color:#000000;">You</span>';
                 }
                 $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
-            },
-
-            addPieceOnSquare: function (color, type, piece_id, file, rank) {
-                // Unflip and reflip to get correct placement
-                dojo.query('.flipped').removeClass('flipped');
-
-                // The color argument is as a hex code, either 000000 or ffffff
-                // The type argument is like "queen" or "nemesispawn"
-                // The piece_id argument will be the id field of the created HTML div
-
-                // Insert the HTML for a piece as a child of pieces
-                dojo.place(this.format_block('jstpl_piece', {
-                    color: color,
-                    type: type,
-                    piece_id: piece_id
-                }), 'pieces');
-
-                // With BGA "this.placeOnObject" method, place this element over the right square
-                this.placeOnObject(piece_id, 'square_' + file + '_' + rank);
-
-                if (this.gamedatas.players[this.player_id].color === "000000") {
-                    dojo.addClass('board', 'flipped');
-                    dojo.query('.piece').addClass('flipped');
-                }
             },
 
             placeStartingPiecesOnBoard: function (army_name, player_color) {
@@ -296,23 +278,23 @@ define([
                 }
 
                 // If pieces have already been placed for that color, remove those HTML elements
-                var dojo_query = dojo.query('.piececolor_' + player_color);
-                if (dojo_query.length != 0) {
-                    // Should I use for-of instead of for-in? Would that mean I don't need the if statement?
-                    for (var piece in dojo_query) {
-                        if (dojo_query[piece].id != undefined) {
-                            var piece_id = dojo_query[piece].id;
-                            this.disconnect($(piece_id), 'onclick');
-                        }
-                    }
+                dojo.query('.piececolor_' + player_color).forEach(dojo.destroy);
 
-                    dojo.query('.piececolor_' + player_color).forEach(dojo.destroy);
-                }
-
-                // Create an HTML element on the page for each piece in the starting layout
+                // For each piece in the starting layout
                 for (var piece_name in army_starting_layout) {
                     var piece_info = army_starting_layout[piece_name];
-                    this.addPieceOnSquare(player_color, piece_info[2], player_color + '_' + piece_name, piece_info[0], piece_info[1]);
+                    
+                    // Insert the HTML element for the piece as a child of the square it's on
+                    dojo.place(this.format_block('jstpl_piece', {
+                        color: player_color,
+                        type: piece_info[2],
+                        piece_id: player_color + '_' + piece_name
+                    }), 'square_' + piece_info[0] + '_' + piece_info[1]);
+                }
+
+                // Flip the pieces for the black player
+                if (this.gamedatas.players[this.player_id].color === "000000") {
+                    dojo.query('.piece').addClass('flipped');
                 }
             },
 
@@ -702,20 +684,12 @@ define([
                         case "location":
                             this.gamedatas.pieces[notif.args.piece_id]['board_file'] = String(notif.args.values_updated[field][0]);
                             this.gamedatas.pieces[notif.args.piece_id]['board_rank'] = String(notif.args.values_updated[field][1]);
-
-                            dojo.query('.flipped').removeClass('flipped');
-
-                            this.slideToObject(notif.args.piece_id, 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]).play();
-
-                            if (this.gamedatas.players[this.player_id].color === "000000") {
-                                dojo.addClass('board', 'flipped');
-                                dojo.query('.piece').addClass('flipped');
-                            }
+                            
+                            dojo.place(notif.args.piece_id, 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;
 
                         case "if_captured":
-                            this.disconnect($(notif.args.piece_id), 'onclick');
-                            dojo.query('#' + notif.args.piece_id).forEach(dojo.destroy);
+                            dojo.destroy(notif.args.piece_id);
                             break;
 
                         case "if_capturing":
