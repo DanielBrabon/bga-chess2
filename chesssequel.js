@@ -243,7 +243,7 @@ define([
                     for (var piece_id in this.gamedatas.pieces) {
                         var piece_info = this.gamedatas.pieces[piece_id];
 
-                        if (piece_info['if_captured'] === "0") {
+                        if (piece_info['captured'] === "0") {
                             // Insert the HTML element for the piece as a child of the square it's on
                             dojo.place(this.format_block('jstpl_piece', {
                                 color: piece_info['piece_color'],
@@ -251,7 +251,7 @@ define([
                                 piece_id: piece_info['piece_id']
                             }), 'square_' + piece_info['board_file'] + '_' + piece_info['board_rank']);
 
-                            if (piece_info['if_capturing'] === "1") {
+                            if (piece_info['capturing'] === "1") {
                                 this.pieceCapturing(piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
                             }
                         }
@@ -614,8 +614,8 @@ define([
                     pieces_object[pieces_info[piece][0]].piece_type = pieces_info[piece][2];
                     pieces_object[pieces_info[piece][0]].board_file = String(pieces_info[piece][3]);
                     pieces_object[pieces_info[piece][0]].board_rank = String(pieces_info[piece][4]);
-                    pieces_object[pieces_info[piece][0]].if_capturing = String(0);
-                    pieces_object[pieces_info[piece][0]].if_captured = String(0);
+                    pieces_object[pieces_info[piece][0]].capturing = String(0);
+                    pieces_object[pieces_info[piece][0]].captured = String(0);
                     pieces_object[pieces_info[piece][0]].moves_made = String(0);
                 }
                 this.gamedatas.pieces = pieces_object;
@@ -652,11 +652,11 @@ define([
                             dojo.place(notif.args.piece_id, 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;
 
-                        case "if_captured":
+                        case "captured":
                             dojo.destroy(notif.args.piece_id);
                             break;
 
-                        case "if_capturing":
+                        case "capturing":
                             if (notif.args.values_updated[field] === "1") {
                                 this.pieceCapturing(notif.args.piece_id, notif.args.location);
                             }

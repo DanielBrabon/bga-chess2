@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   `board_file` TINYINT(1) UNSIGNED,
   `board_rank` TINYINT(1) UNSIGNED,
   `moves_made` INT(10) UNSIGNED DEFAULT '0',
-  `if_captured` TINYINT(1) UNSIGNED DEFAULT '0',
-  `if_capturing` TINYINT(1) UNSIGNED DEFAULT '0',
-  `if_en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT '0',
-  `if_performing_castle` TINYINT(1) UNSIGNED DEFAULT '0',
+  `captured` TINYINT(1) UNSIGNED DEFAULT '0',
+  `capturing` TINYINT(1) UNSIGNED DEFAULT '0',
+  `en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT '0',
+  `performing_castle` TINYINT(1) UNSIGNED DEFAULT '0',
   PRIMARY KEY (`piece_id`)
 ) ENGINE=InnoDB;
 
