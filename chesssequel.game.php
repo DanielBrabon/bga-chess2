@@ -197,8 +197,7 @@ class ChessSequel extends Table
 
             if ($piece_data['capturing']) {
                 $board_state[$piece_data['board_file']][$piece_data['board_rank']]['capturing_piece'] = $piece_id;
-            }
-            else {
+            } else {
                 $board_state[$piece_data['board_file']][$piece_data['board_rank']]['defending_piece'] = $piece_id;
             }
         }
@@ -1383,7 +1382,7 @@ class ChessSequel extends Table
     function updateStones($player_color, $amount)
     {
         $new_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$player_color'") + $amount;
-        
+
         if ($new_stones == 7) {
             return;
         }
@@ -1803,6 +1802,44 @@ class ChessSequel extends Table
         }
     }
 
+    function gainStone()
+    {
+        $this->checkAction('gainStone');
+        
+        $choosing_color = $this->getCurrentPlayerColor();
+        $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$choosing_color'");
+
+        if ($current_stones == 6) {
+            throw new BgaSystemException("Maximum stones reached");
+        } else {
+            $this->updateStones($choosing_color, 1);
+
+            $this->gamestate->nextState('whereNext');
+            return;
+        }
+    }
+
+    function destroyStone()
+    {
+        $this->checkAction('destroyStone');
+
+        $choosing_color = $this->getCurrentPlayerColor();
+        $other_color = "000000";
+        if ($choosing_color === "000000") {
+            $other_color = "ffffff";
+        }
+        $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$other_color'");
+
+        if ($current_stones == 0) {
+            throw new BgaSystemException("Minimum stones reached");
+        } else {
+            $this->updateStones($other_color, -1);
+
+            $this->gamestate->nextState('whereNext');
+            return;
+        }
+    }
+
     function promotePawn($chosen_promotion)
     {
         // Check this action is allowed according to the game state
@@ -1989,6 +2026,7 @@ class ChessSequel extends Table
     {
         $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
 
+        // Check each piece
         foreach ($all_piece_data as $piece_id => $piece_data) {
             // If the piece is a king which is over the midline
             if ($piece_data['piece_type'] === "king") {
@@ -2195,9 +2233,16 @@ class ChessSequel extends Table
         }
 
         $this->resolveNextCapture($both_pieces_capture);
-        
-        // Transition to whereNext
+
         $this->activeNextPlayer();
+
+        // If both bid 0 stones, the attacker can choose to gain 1 stone or destroy 1 of the defender's stones
+        if ($player_bids[$capturing_piece_color] == 0 && $player_bids[$other_color] == 0) {
+            $this->gamestate->nextState('calledBluff');
+            return;
+        }
+
+        // Transition to whereNext
         $this->gamestate->nextState('whereNext');
         return;
     }

@@ -93,6 +93,22 @@ class action_chesssequel extends APP_GameAction
     self::ajaxResponse();
   }
 
+  public function gainStone()
+  {
+    // We call a corresponding "gainStone" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->gainStone();
+    self::ajaxResponse();
+  }
+
+  public function destroyStone()
+  {
+    // We call a corresponding "destroyStone" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->destroySTone();
+    self::ajaxResponse();
+  }
+
   public function promotePawn()
   {
     // We call a corresponding "promotePawn" method in game.php

@@ -127,7 +127,7 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose whether to duel'),
         "descriptionmyturn" => clienttranslate('${you} must choose whether to duel'),
         "possibleactions" => array("acceptDuel", "rejectDuel"),
-        "transitions" => array("whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 11),
+        "transitions" => array("whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 12),
     ),
 
     // Both players simultaneously choose how many stones to bid
@@ -145,10 +145,19 @@ $machinestates = array(
         "name" => "resolveDuel",
         "type" => "game",
         "action" => "stResolveDuel",
-        "transitions" => array("whereNext" => 5)
+        "transitions" => array("whereNext" => 5, "calledBluff" => 11)
     ),
 
     11 => array(
+        "name" => "calledBluff",
+        "type" => "activeplayer",
+        "description" => clienttranslate('${actplayer} must choose between gaining a stone and destroying an enemy stone'),
+        "descriptionmyturn" => clienttranslate('${you} must choose between gaining a stone and destroying an enemy stone'),
+        "possibleactions" => array("gainStone", "destroyStone"),
+        "transitions" => array("whereNext" => 5)
+    ),
+
+    12 => array(
         "name" => "nextPlayer",
         "type" => "game",
         "action" => "stNextPlayer",

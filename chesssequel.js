@@ -173,6 +173,11 @@ define([
                             this.addActionButton('btn_bid_two', _('Bid 2 Stones'), 'pickBid');
                             break;
 
+                        case 'calledBluff':
+                            this.addActionButton('btn_gain_stone', _('Gain 1 Stone'), 'gainStone');
+                            this.addActionButton('btn_destroy_stone', _('Destroy 1 Enemy Stone'), 'destroyStone');
+                            break;
+
                         case 'pawnPromotion':
                             var player_army = this.gamedatas.players[this.getActivePlayerId()]['army'];
 
@@ -490,6 +495,26 @@ define([
                     this.ajaxcallWrapper("pickBid", {
                         bid_amount: bid_amount
                     });
+                }
+            },
+
+            gainStone: function (evt) {
+                // We stop the propagation of the Javascript "onclick" event. 
+                // Otherwise, it can lead to random behavior so it's always a good idea.
+                dojo.stopEvent(evt);
+
+                if (this.checkAction('gainStone')) {
+                    this.ajaxcallWrapper("gainStone");
+                }
+            },
+
+            destroyStone: function (evt) {
+                // We stop the propagation of the Javascript "onclick" event. 
+                // Otherwise, it can lead to random behavior so it's always a good idea.
+                dojo.stopEvent(evt);
+
+                if (this.checkAction('destroyStone')) {
+                    this.ajaxcallWrapper("destroyStone");
                 }
             },
 
