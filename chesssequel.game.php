@@ -1379,6 +1379,29 @@ class ChessSequel extends Table
         return $has_legal_moves;
     }
 
+    // Change player_stones by $amount for the player with color $player_color (max 6)
+    function updateStones($player_color, $amount)
+    {
+        $new_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$player_color'") + $amount;
+        
+        if ($new_stones == 7) {
+            return;
+        }
+
+        self::DbQuery("UPDATE player SET player_stones = '$new_stones' WHERE player_color = '$player_color'");
+
+        $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
+
+        self::notifyAllPlayers(
+            "updatePlayerData",
+            "",
+            array(
+                "player_id" => $player_id,
+                "values_updated" => array("stones" => (string) $new_stones)
+            )
+        );
+    }
+
     function resolveNextCapture($both_pieces_capture, $all_piece_data = null, $board_state = null, $capture_queue = null)
     {
         if ($all_piece_data === null) {
@@ -1430,20 +1453,7 @@ class ChessSequel extends Table
                 if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
                     // Player with the color of the capturing piece gets a stone
                     $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
-                    $new_capturing_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$capturing_color'") + 1;
-
-                    self::DbQuery("UPDATE player SET player_stones = '$new_capturing_player_stones' WHERE player_color = '$capturing_color'");
-
-                    $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
-
-                    self::notifyAllPlayers(
-                        "updatePlayerData",
-                        "",
-                        array(
-                            "player_id" => $player_ids[$capturing_color],
-                            "values_updated" => array("stones" => (string) $new_capturing_player_stones)
-                        )
-                    );
+                    $this->updateStones($capturing_color, 1);
                 }
             }
 
@@ -1463,20 +1473,7 @@ class ChessSequel extends Table
                 if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
                     // Player with the color of the defending piece gets a stone
                     $defending_color = $all_piece_data[$defending_piece_id]['piece_color'];
-                    $new_defending_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$defending_color'") + 1;
-
-                    self::DbQuery("UPDATE player SET player_stones = '$new_defending_player_stones' WHERE player_color = '$defending_color'");
-
-                    $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
-
-                    self::notifyAllPlayers(
-                        "updatePlayerData",
-                        "",
-                        array(
-                            "player_id" => $player_ids[$defending_color],
-                            "values_updated" => array("stones" => (string) $new_defending_player_stones)
-                        )
-                    );
+                    $this->updateStones($defending_color, 1);
                 }
             }
 
@@ -1514,20 +1511,7 @@ class ChessSequel extends Table
                 if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
                     // Player with the color of the capturing piece gets a stone
                     $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
-                    $new_capturing_player_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$capturing_color'") + 1;
-
-                    self::DbQuery("UPDATE player SET player_stones = '$new_capturing_player_stones' WHERE player_color = '$capturing_color'");
-
-                    $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
-
-                    self::notifyAllPlayers(
-                        "updatePlayerData",
-                        "",
-                        array(
-                            "player_id" => $player_ids[$capturing_color],
-                            "values_updated" => array("stones" => (string) $new_capturing_player_stones)
-                        )
-                    );
+                    $this->updateStones($capturing_color, 1);
                 }
             }
 
@@ -2202,30 +2186,16 @@ class ChessSequel extends Table
             $both_pieces_capture = true;
         }
 
-        $this->resolveNextCapture($both_pieces_capture);
-
         // Update bids database
         self::DbQuery("UPDATE player SET player_bid = null");
 
         // Update player stones in database and notify
-        $player_stones = self::getCollectionFromDB("SELECT player_color, player_stones FROM player", true);
-        $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
-
-        foreach ($player_stones as $player_color => $stones_for_player) {
-            $new_stones = $stones_for_player - $player_bids[$player_color];
-
-            self::DbQuery("UPDATE player SET player_stones = '$new_stones' WHERE player_color = '$player_color'");
-
-            self::notifyAllPlayers(
-                "updatePlayerData",
-                "",
-                array(
-                    "player_id" => $player_ids[$player_color],
-                    "values_updated" => array("stones" => (string) $new_stones)
-                )
-            );
+        foreach ($player_bids as $player_color => $bid) {
+            $this->updateStones($player_color, $bid * -1);
         }
 
+        $this->resolveNextCapture($both_pieces_capture);
+        
         // Transition to whereNext
         $this->activeNextPlayer();
         $this->gamestate->nextState('whereNext');
