@@ -192,6 +192,26 @@ $this->button_labels = array(
   "testarmy" => clienttranslate("Test Army")
 );
 
+$this->piece_ranks = array(
+  "pawn" => 0,
+  "knight" => 1,
+  "bishop" => 1,
+  "rook" => 2,
+  "queen" => 3,
+  "nemesispawn" => 0,
+  "nemesis" => 3,
+  "empoweredrook" => 2,
+  "empoweredknight" => 1,
+  "empoweredbishop" => 1,
+  "elegantqueen" => 3,
+  "ghost" => 2,
+  "reaper" => 3,
+  "elephant" => 2,
+  "wildhorse" => 1,
+  "tiger" => 1,
+  "junglequeen" => 3
+);
+
 /*
 
 Example:

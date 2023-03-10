@@ -1763,6 +1763,34 @@ class ChessSequel extends Table
     {
         $this->checkAction('acceptDuel');
 
+        // Pay the cost to duel
+        $capture_queue = self::getCollectionFromDB("SELECT * FROM capture_queue");
+        $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
+        $board_state = $this->getBoardState($all_piece_data);
+
+        $defending_piece_id = 0;
+        for ($i = 1; $i <= 8; $i++) {
+            if (array_key_exists($i, $capture_queue)) {
+                $defending_piece_id = $board_state[(int) $capture_queue[$i]['board_file']][(int) $capture_queue[$i]['board_rank']]['defending_piece'];
+                break;
+            }
+        }
+
+        $capturing_piece_id = 0;
+        foreach ($all_piece_data as $piece_id => $piece_data) {
+            if ($piece_data['capturing'] === "1") {
+                $capturing_piece_id = $piece_id;
+                break;
+            }
+        }
+
+        $capturing_piece_rank = $this->piece_ranks[$all_piece_data[$capturing_piece_id]['piece_type']];
+        $defending_piece_rank = $this->piece_ranks[$all_piece_data[$defending_piece_id]['piece_type']];
+
+        $cost_to_duel = ($capturing_piece_rank > $defending_piece_rank) ? 1 : 0;
+
+        $this->updateStones($this->getCurrentPlayerColor(), $cost_to_duel * -1);
+
         $this->gamestate->nextState('duelBidding');
         return;
     }
@@ -2101,7 +2129,12 @@ class ChessSequel extends Table
                     $sql = "SELECT player_stones FROM player WHERE player_id = '$active_player_id'";
                     $player_stones = self::getUniqueValueFromDB($sql);
 
-                    if ($player_stones > 0) {
+                    $capturing_piece_rank = $this->piece_ranks[$piece_data['piece_type']];
+                    $defending_piece_rank = $this->piece_ranks[$all_piece_data[$defending_piece_id]['piece_type']];
+
+                    $cost_to_duel = ($capturing_piece_rank > $defending_piece_rank) ? 1 : 0;
+
+                    if ($player_stones > $cost_to_duel) {
                         $this->gamestate->nextState('duelOffer');
                         return;
                     } else {
