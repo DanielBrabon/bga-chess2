@@ -1580,6 +1580,20 @@ class ChessSequel extends Table
         );
     }
 
+    // Returns true if active player has met the midline invasion win condition, else returns false
+    function activePlayerInvaded($all_piece_data) {
+        $king_ids = $this->getPlayerKingIds($this->getActivePlayerId());
+
+        $invasion_direction = ($all_piece_data[$king_ids['player_king_id']]['piece_color'] === "000000") ? -1 : 1;
+
+        foreach ($king_ids as $king_id) {
+            if (($all_piece_data[$king_id]['board_rank'] - 4.5) * $invasion_direction < 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function activePlayerWins()
     {
         $active_player_id = $this->getActivePlayerId();
@@ -2047,6 +2061,8 @@ class ChessSequel extends Table
             'player_armies' => self::getCollectionFromDB("SELECT player_id, player_army FROM player", true)
         ));
 
+        $this->activeNextPlayer();
+        $this->activeNextPlayer();
         $this->gamestate->nextState('whereNext');
     }
 
@@ -2054,46 +2070,13 @@ class ChessSequel extends Table
     {
         $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
 
-        // Check each piece
+        // Check for midline invasion win condition
+        if ($this->activePlayerInvaded($all_piece_data)) {
+            $this->activePlayerWins();
+            return;
+        }
+
         foreach ($all_piece_data as $piece_id => $piece_data) {
-            // If the piece is a king which is over the midline
-            if ($piece_data['piece_type'] === "king") {
-                $past_mid_rank = "5";
-                if ($piece_data['piece_color'] === "000000") {
-                    $past_mid_rank = "4";
-                }
-
-                if ($piece_data['board_rank'] === $past_mid_rank) {
-                    $this->activePlayerWins();
-                    return;
-                }
-            }
-
-            // If the piece is a warrior king which is over the midline
-            if ($piece_data['piece_type'] === "warriorking") {
-                if ($piece_data['piece_color'] === "000000") {
-                    $past_mid_rank = "4";
-                    if ($piece_data['board_rank'] === $past_mid_rank) {
-                        foreach ($all_piece_data as $piece_data_2) {
-                            if ($piece_data_2['piece_type'] === "warriorking" && $piece_data_2['piece_color'] === $piece_data['piece_color'] && $piece_data_2['piece_id'] != $piece_data['piece_id'] && $piece_data_2['board_rank'] <= $past_mid_rank) {
-                                $this->activePlayerWins();
-                                return;
-                            }
-                        }
-                    }
-                } else {
-                    $past_mid_rank = "5";
-                    if ($piece_data['board_rank'] === $past_mid_rank) {
-                        foreach ($all_piece_data as $piece_data_2) {
-                            if ($piece_data_2['piece_type'] === "warriorking" && $piece_data_2['piece_color'] === $piece_data['piece_color'] && $piece_data_2['piece_id'] != $piece_data['piece_id'] && $piece_data_2['board_rank'] >= $past_mid_rank) {
-                                $this->activePlayerWins();
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-
             // If the piece is capturing
             if ($piece_data['capturing'] === "1") {
                 if ($piece_data['piece_type'] === "king" || $piece_data['piece_type'] === "warriorking") {
