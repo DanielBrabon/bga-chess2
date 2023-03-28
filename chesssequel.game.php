@@ -205,42 +205,30 @@ class ChessSequel extends Table
         return $board_state;
     }
 
-    function generateAllMovesForPlayer($player_id, $all_piece_data, $board_state)
+    // Note that $piece_ids must be an array of valid piece ids belonging to $player_id
+    function getAllMovesForPieces($piece_ids, $player_id, $all_piece_data, $board_state)
     {
-        $all_moves_for_player = array();
-        $corresponding_captures_for_player = array();
-
         $player_color = $this->getPlayerColorById($player_id);
-
-        $enemy_player_color = "000000";
-        if ($player_color === "000000") {
-            $enemy_player_color = "ffffff";
-        }
-
+        $enemy_player_color = ($player_color === "000000") ? "ffffff" : "000000";
         $friendly_king_ids = $this->getPlayerKingIds($player_id);
-
         $all_enemy_attacked_squares = $this->getAllAttackedSquares($enemy_player_color, $all_piece_data, $board_state);
+        
         //$this->printWithJavascript($all_enemy_attacked_squares);
-
         /*self::notifyPlayer( $active_player_id, "highlightAttackedSquares", "", array( 
             'attacked_squares' => $all_enemy_attacked_squares[0], 
             'semi_attacked_squares' => $all_enemy_attacked_squares[1] )
         );*/
 
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            if ($piece_data['piece_color'] === $player_color && $piece_data['captured'] === "0") {
-                $possible_moves_and_corresponding_captures = $this->generateMoves($piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares);
-                $possible_moves = $possible_moves_and_corresponding_captures['possible_moves'];
-                $corresponding_captures = $possible_moves_and_corresponding_captures['corresponding_captures'];
+        $all_moves = array();
 
-                $all_moves_for_player[$piece_id] = $possible_moves;
-                $corresponding_captures_for_player[$piece_id] = $corresponding_captures;
-            }
+        foreach ($piece_ids as $piece_id) {
+            $all_moves[$piece_id] = $this->generateMoves($piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares)['possible_moves'];
         }
 
-        return array("all_moves" => $all_moves_for_player, "all_corresponding_captures" => $corresponding_captures_for_player);
+        return $all_moves;
     }
-
+    
+    // TODO: Improve this. Especially, don't need to return corresponding captures
     // Returns an array of the squares of all current possible moves for this piece (the squares the player can click on to make the move)
     function generateMoves($piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares)
     {
@@ -1326,28 +1314,6 @@ class ChessSequel extends Table
         return false;
     }
 
-    // Replaces content of legal_moves db table with all legal king moves for given player. Returns number of legal moves
-    function generateAllKingMovesForPlayer($all_piece_data, $active_player_id)
-    {
-        $board_state = $this->getBoardState($all_piece_data);
-
-        $all_legal_king_moves = array();
-
-        $player_color = $this->getPlayerColorById($active_player_id);
-        $enemy_player_color = ($player_color === "000000") ? "ffffff" : "000000";
-
-        $friendly_king_ids = $this->getPlayerKingIds($active_player_id);
-
-        $all_enemy_attacked_squares = $this->getAllAttackedSquares($enemy_player_color, $all_piece_data, $board_state);
-
-        foreach ($friendly_king_ids as $friendly_king_id) {
-            $possible_moves_and_corresponding_captures = $this->generateMoves($friendly_king_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares);
-            $all_legal_king_moves[$friendly_king_id] = $possible_moves_and_corresponding_captures['possible_moves'];
-        }
-
-        return $this->replaceLegalMoves($all_legal_king_moves);
-    }
-
     // Replaces content of legal_moves db table with data provided. Returns number of legal moves
     function replaceLegalMoves($all_legal_moves)
     {
@@ -2093,15 +2059,20 @@ class ChessSequel extends Table
             return;
         }
 
-        // Now the board state is resolved
+        // Now the state is resolved
+
+        $board_state = $this->getBoardState($all_piece_data);
 
         // Give the active player a king turn if available
         $active_player_id = $this->getActivePlayerId();
-        $if_king_move_available = self::getUniqueValueFromDB("SELECT player_king_move_available FROM player WHERE player_id = '$active_player_id'");
-        if ($if_king_move_available) {
+
+        if (self::getUniqueValueFromDB("SELECT player_king_move_available FROM player WHERE player_id = '$active_player_id'")) {
             self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$active_player_id'");
 
-            if ($this->generateAllKingMovesForPlayer($all_piece_data, $active_player_id)) {
+            $kings = array_values($this->getPlayerKingIds($active_player_id));
+            $king_moves = $this->getAllMovesForPieces($kings, $active_player_id, $all_piece_data, $board_state);
+
+            if ($this->replaceLegalMoves($king_moves)) {
                 $this->gamestate->nextState('playerKingMove');
                 return;
             }
@@ -2126,9 +2097,10 @@ class ChessSequel extends Table
         $this->activeNextPlayer();
 
         $active_player_id = $this->getActivePlayerId();
-        $board_state = $this->getBoardState($all_piece_data);
+        $active_player_color = $this->getPlayerColorById($active_player_id);
+        $pieces = self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE piece_color = '$active_player_color' AND captured = 0", true);
 
-        $all_legal_moves = $this->generateAllMovesForPlayer($active_player_id, $all_piece_data, $board_state)['all_moves'];
+        $all_legal_moves = $this->getAllMovesForPieces($pieces, $active_player_id, $all_piece_data, $board_state);
 
         if (!$this->replaceLegalMoves($all_legal_moves)) {
             $this->activeNextPlayer();
