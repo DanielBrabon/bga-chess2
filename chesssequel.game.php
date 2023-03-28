@@ -1326,12 +1326,10 @@ class ChessSequel extends Table
         return false;
     }
 
-    // Replaces legal_moves db table with all legal king moves for given player. Returns true if there are any, else false
+    // Replaces content of legal_moves db table with all legal king moves for given player. Returns number of legal moves
     function generateAllKingMovesForPlayer($all_piece_data, $active_player_id)
     {
         $board_state = $this->getBoardState($all_piece_data);
-
-        self::DbQuery("DELETE FROM legal_moves");
 
         $all_legal_king_moves = array();
 
@@ -1347,31 +1345,31 @@ class ChessSequel extends Table
             $all_legal_king_moves[$friendly_king_id] = $possible_moves_and_corresponding_captures['possible_moves'];
         }
 
-        $sql = "INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES ";
+        return $this->replaceLegalMoves($all_legal_king_moves);
+    }
+
+    // Replaces content of legal_moves db table with data provided. Returns number of legal moves
+    function replaceLegalMoves($all_legal_moves)
+    {
+        self::DbQuery("DELETE FROM legal_moves");
+
         $moves = array();
 
-        $has_legal_moves = false;
-
         $counter = 0;
-        foreach ($all_legal_king_moves as $piece_id => $moves_for_piece) {
+        foreach ($all_legal_moves as $piece_id => $moves_for_piece) {
             foreach ($moves_for_piece as $move_square) {
                 $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]')";
                 $counter++;
             }
-
-            if (!$has_legal_moves && count($moves_for_piece) != 0) {
-                $has_legal_moves = true;
-            }
         }
 
-        if ($has_legal_moves) {
-            $sql .= implode(',', $moves);
-            self::DbQuery($sql);
+        if ($counter > 0) {
+            self::DbQuery("INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES " . implode(',', $moves));
         }
 
-        self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_king_moves));
+        self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
 
-        return $has_legal_moves;
+        return $counter;
     }
 
     // Change player_stones by $amount for the player with color $player_color (max 6)
@@ -2110,7 +2108,7 @@ class ChessSequel extends Table
         }
 
         // Now the turn can pass to the other player
-        
+
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($all_piece_data as $piece_id => $piece_data) {
             if ($piece_data['piece_type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
@@ -2127,46 +2125,24 @@ class ChessSequel extends Table
         // Activate the next player and generate their legal moves. If they have none, they lose.
         $this->activeNextPlayer();
 
-        self::DbQuery("DELETE FROM legal_moves");
-
         $active_player_id = $this->getActivePlayerId();
         $board_state = $this->getBoardState($all_piece_data);
+
         $all_legal_moves = $this->generateAllMovesForPlayer($active_player_id, $all_piece_data, $board_state)['all_moves'];
 
-        $sql = "INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES ";
-        $moves = array();
-
-        $has_legal_moves = false;
-
-        $counter = 0;
-        foreach ($all_legal_moves as $piece_id => $moves_for_piece) {
-            foreach ($moves_for_piece as $move_square) {
-                $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]')";
-                $counter++;
-            }
-
-            if (!$has_legal_moves && count($moves_for_piece) != 0) {
-                $has_legal_moves = true;
-            }
-        }
-
-        if ($has_legal_moves) {
-            $sql .= implode(',', $moves);
-            self::DbQuery($sql);
-
-            self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
-
-            $army_name = self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_id = '$active_player_id'");
-            if ($army_name === "twokings") {
-                self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_id = '$active_player_id'");
-            }
-
-            $this->gamestate->nextState('playerMove');
+        if (!$this->replaceLegalMoves($all_legal_moves)) {
+            $this->activeNextPlayer();
+            $this->activePlayerWins();
             return;
         }
 
-        $this->activeNextPlayer();
-        $this->activePlayerWins();
+        $army_name = self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_id = '$active_player_id'");
+
+        if ($army_name === "twokings") {
+            self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_id = '$active_player_id'");
+        }
+
+        $this->gamestate->nextState('playerMove');
         return;
 
         /*
