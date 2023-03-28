@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   `captured` TINYINT(1) UNSIGNED DEFAULT '0',
   `capturing` TINYINT(1) UNSIGNED DEFAULT '0',
   `en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT '0',
-  `performing_castle` TINYINT(1) UNSIGNED DEFAULT '0',
   PRIMARY KEY (`piece_id`)
 ) ENGINE=InnoDB;
 

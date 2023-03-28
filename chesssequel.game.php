@@ -1537,49 +1537,29 @@ class ChessSequel extends Table
         }
     }
 
-    function resolveCastle($king_id, $all_piece_data)
+    function resolveCastle($all_piece_data, $king_id)
     {
-        $king_data = $all_piece_data[$king_id];
+        $king_file = $all_piece_data[$king_id]['board_file'];
+        $king_rank = $all_piece_data[$king_id]['board_rank'];
         $board_state = $this->getBoardState($all_piece_data);
 
-        // Update the pieces database table to no longer have this piece castling
-        self::DbQuery("UPDATE pieces SET performing_castle = 0 WHERE piece_id = '$king_id'");
-
-        self::notifyAllPlayers(
-            "updateAllPieceData",
-            "",
-            array(
-                "piece_id" => $king_id,
-                "values_updated" => array("performing_castle" => "0")
-            )
-        );
-
         // Find the rook
-        $rook_starting_file = 1;
-        $rook_move_direction = 1;
-        if ($king_data['board_file'] === "7") {
-            $rook_starting_file = 8;
-            $rook_move_direction = -1;
-        }
-        $square_with_rook = $board_state[$rook_starting_file][$king_data['board_rank']];
-        $castling_rook_id = $square_with_rook['defending_piece'];
+        $rook_dir = ($king_file === "7") ? 1 : -1;
+        $castling_rook_id = $board_state[$king_file + $rook_dir][$king_rank]['defending_piece'];
+        $rook_destination_file = $king_file - $rook_dir;
 
-        $rook_destination_file = $king_data['board_file'] + $rook_move_direction;
-        $rook_destination_rank = $king_data['board_rank'];
+        // Update the rook's position in the pieces database table
+        self::DbQuery("UPDATE pieces SET board_file = '$rook_destination_file' WHERE piece_id = '$castling_rook_id'");
 
-        // Update the rook's position in the pieces and board database tables
-        self::DbQuery(
-            "UPDATE pieces
-            SET board_file = '$rook_destination_file', board_rank = '$rook_destination_rank'
-            WHERE piece_id = '$castling_rook_id'"
-        );
+        // Update the game_variables database table to no longer have this piece castling
+        self::DbQuery("UPDATE game_variables SET var_value = NULL WHERE var_id = 'cas_id'");
 
         self::notifyAllPlayers(
             "updateAllPieceData",
             "",
             array(
                 "piece_id" => $castling_rook_id,
-                "values_updated" => array("location" => array($rook_destination_file, $rook_destination_rank))
+                "values_updated" => array("location" => array($rook_destination_file, $king_rank))
             )
         );
     }
@@ -1740,7 +1720,7 @@ class ChessSequel extends Table
                 }
                 // If the moving piece is a castling king
                 elseif ($all_piece_data[$moving_piece_id]['piece_type'] === "king" && abs($moving_piece_starting_location[0] - $target_location[0]) === 2) {
-                    $pieces_values_to_set['performing_castle'] = "1";
+                    self::DbQuery("UPDATE game_variables SET var_value = '$moving_piece_id' WHERE var_id = 'cas_id'");
                 }
 
                 $corresponding_captures = $this->getCorrespondingCaptures($moving_piece_id, $all_piece_data, $board_state, array($target_location))[0];
@@ -2110,7 +2090,7 @@ class ChessSequel extends Table
             'player_armies' => self::getCollectionFromDB("SELECT player_id, player_army FROM player", true)
         ));
 
-        self::DbQuery("INSERT INTO game_variables (var_id) VALUES ('cap_id')");
+        self::DbQuery("INSERT INTO game_variables (var_id) VALUES ('cap_id'), ('cas_id'), ('pro_id')");
 
         $this->activeNextPlayer();
         $this->activeNextPlayer();
@@ -2127,10 +2107,11 @@ class ChessSequel extends Table
             return;
         }
 
+        $game_variables = self::getCollectionFromDB("SELECT * FROM game_variables", true);
+
         // Check for a piece capturing
-        $capturing_piece_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'cap_id'");
-        if ($capturing_piece_id) {
-            $this->processCapture($all_piece_data, $capturing_piece_id);
+        if ($game_variables['cap_id']) {
+            $this->processCapture($all_piece_data, $game_variables['cap_id']);
             return;
         }
 
@@ -2142,11 +2123,11 @@ class ChessSequel extends Table
                     return;
                 }
             }
+        }
 
-            // If a king is castling this turn
-            if ($piece_data['performing_castle'] === "1") {
-                $this->resolveCastle($piece_id, $all_piece_data);
-            }
+        // Check for a king castling
+        if ($game_variables['cas_id']) {
+            $this->resolveCastle($all_piece_data, $game_variables['cas_id']);
         }
 
         foreach ($all_piece_data as $piece_id => $piece_data) {
