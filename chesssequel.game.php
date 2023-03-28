@@ -1326,9 +1326,9 @@ class ChessSequel extends Table
         return false;
     }
 
-    function generateAllKingMovesForPlayer($active_player_id, $all_piece_data)
+    // Replaces legal_moves db table with all legal king moves for given player. Returns true if there are any, else false
+    function generateAllKingMovesForPlayer($all_piece_data, $active_player_id)
     {
-        $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
         $board_state = $this->getBoardState($all_piece_data);
 
         self::DbQuery("DELETE FROM legal_moves");
@@ -1336,11 +1336,7 @@ class ChessSequel extends Table
         $all_legal_king_moves = array();
 
         $player_color = $this->getPlayerColorById($active_player_id);
-
-        $enemy_player_color = "000000";
-        if ($player_color === "000000") {
-            $enemy_player_color = "ffffff";
-        }
+        $enemy_player_color = ($player_color === "000000") ? "ffffff" : "000000";
 
         $friendly_king_ids = $this->getPlayerKingIds($active_player_id);
 
@@ -1556,6 +1552,8 @@ class ChessSequel extends Table
                 "values_updated" => array("location" => array($rook_destination_file, $king_rank))
             )
         );
+
+        $this->gamestate->nextState('whereNext');
     }
 
     // Returns true if active player has met the midline invasion win condition, else returns false
@@ -1607,10 +1605,8 @@ class ChessSequel extends Table
             $this->activeNextPlayer();
             $this->resolveNextCapture(false, $all_piece_data, $board_state, $capture_queue);
             $this->gamestate->nextState('whereNext');
-            return;
         } else {
             $this->gamestate->nextState('duelOffer');
-            return;
         }
     }
 
@@ -2096,11 +2092,28 @@ class ChessSequel extends Table
         // Check for a king castling
         if ($game_variables['cas_id']) {
             $this->resolveCastle($all_piece_data, $game_variables['cas_id']);
+            return;
         }
 
+        // Now the board state is resolved
+
+        // Give the active player a king turn if available
+        $active_player_id = $this->getActivePlayerId();
+        $if_king_move_available = self::getUniqueValueFromDB("SELECT player_king_move_available FROM player WHERE player_id = '$active_player_id'");
+        if ($if_king_move_available) {
+            self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$active_player_id'");
+
+            if ($this->generateAllKingMovesForPlayer($all_piece_data, $active_player_id)) {
+                $this->gamestate->nextState('playerKingMove');
+                return;
+            }
+        }
+
+        // Now the turn can pass to the other player
+        
+        // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($all_piece_data as $piece_id => $piece_data) {
-            // Tick down the en_passant_vulnerable value by 1 at the end of each turn so an en passant capture is only available for one turn
-            if ($piece_data['en_passant_vulnerable'] != "0") {
+            if ($piece_data['piece_type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
                 $en_passant_vulnerable = $piece_data['en_passant_vulnerable'] - 1;
                 self::DbQuery("UPDATE pieces SET en_passant_vulnerable = '$en_passant_vulnerable' WHERE piece_id = '$piece_id'");
 
@@ -2108,19 +2121,6 @@ class ChessSequel extends Table
                     "piece_id" => $piece_id,
                     "values_updated" => array("en_passant_vulnerable" => (string) $en_passant_vulnerable)
                 ));
-            }
-        }
-
-        $active_player_id = $this->getActivePlayerId();
-        $sql = "SELECT player_king_move_available FROM player WHERE player_id = '$active_player_id'";
-        $if_king_move_available = self::getUniqueValueFromDB($sql);
-
-        if ($if_king_move_available === "1") {
-            self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$active_player_id'");
-
-            if ($this->generateAllKingMovesForPlayer($active_player_id, $all_piece_data)) {
-                $this->gamestate->nextState('playerKingMove');
-                return;
             }
         }
 
@@ -2153,11 +2153,10 @@ class ChessSequel extends Table
         if ($has_legal_moves) {
             $sql .= implode(',', $moves);
             self::DbQuery($sql);
+
             self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
 
-            $sql = "SELECT player_army FROM player WHERE player_id = '$active_player_id'";
-            $army_name = self::getUniqueValueFromDB($sql);
-
+            $army_name = self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_id = '$active_player_id'");
             if ($army_name === "twokings") {
                 self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_id = '$active_player_id'");
             }
@@ -2167,7 +2166,6 @@ class ChessSequel extends Table
         }
 
         $this->activeNextPlayer();
-
         $this->activePlayerWins();
         return;
 
