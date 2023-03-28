@@ -68,3 +68,9 @@ CREATE TABLE IF NOT EXISTS `capture_queue` (
   `board_rank` TINYINT(1) UNSIGNED NOT NULL,
   PRIMARY KEY (`capture_id`)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS `game_variables` (
+  `var_id` VARCHAR(17) NOT NULL,
+  `var_value` VARCHAR(17) DEFAULT NULL,
+  PRIMARY KEY (`var_id`)
+) ENGINE=InnoDB;
