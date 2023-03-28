@@ -1401,6 +1401,7 @@ class ChessSequel extends Table
         );
     }
 
+    // TODO: Poorly designed and can be improved
     function resolveNextCapture($both_pieces_capture, $all_piece_data = null, $board_state = null, $capture_queue = null)
     {
         if ($all_piece_data === null) {
@@ -1415,14 +1416,7 @@ class ChessSequel extends Table
             $capture_queue = self::getCollectionFromDB("SELECT * FROM capture_queue");
         }
 
-        $capturing_piece_id = 0;
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            // If the piece is capturing
-            if ($piece_data['capturing'] === "1") {
-                $capturing_piece_id = $piece_id;
-                break;
-            }
-        }
+        $capturing_piece_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'cap_id'");
 
         if ($both_pieces_capture) {
             $capture_ids = array();
@@ -1827,13 +1821,7 @@ class ChessSequel extends Table
             }
         }
 
-        $capturing_piece_id = 0;
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            if ($piece_data['capturing'] === "1") {
-                $capturing_piece_id = $piece_id;
-                break;
-            }
-        }
+        $capturing_piece_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'cap_id'");
 
         $capturing_piece_rank = $this->piece_ranks[$all_piece_data[$capturing_piece_id]['piece_type']];
         $defending_piece_rank = $this->piece_ranks[$all_piece_data[$defending_piece_id]['piece_type']];
