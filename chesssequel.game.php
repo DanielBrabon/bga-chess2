@@ -1606,8 +1606,7 @@ class ChessSequel extends Table
 
         // If capturing (warrior)king or defending friendly or can't afford duel, capturing proceeds with no duel
         if (
-            $capturing_piece_data['piece_type'] === "king"
-            || $capturing_piece_data['piece_type'] === "warriorking"
+            in_array($capturing_piece_data['piece_type'], ["king", "warriorking"])
             || $defending_piece_data['piece_color'] === $capturing_piece_data['piece_color']
             || $defender_stones <= $cost_to_duel
         ) {
@@ -1718,9 +1717,18 @@ class ChessSequel extends Table
                     //$this->printWithJavascript("double pawn push");
                     $pieces_values_to_set['en_passant_vulnerable'] = "2";
                 }
-                // If the moving piece is a castling king
+                // If the moving piece is a castling king, set cas_id
                 elseif ($all_piece_data[$moving_piece_id]['piece_type'] === "king" && abs($moving_piece_starting_location[0] - $target_location[0]) === 2) {
                     self::DbQuery("UPDATE game_variables SET var_value = '$moving_piece_id' WHERE var_id = 'cas_id'");
+                }
+
+                // If the moving piece is a pawn reaching the enemy backline, set pro_id
+                if (in_array($all_piece_data[$moving_piece_id]['piece_type'],  ["pawn", "nemesispawn"])) {
+                    $backline = ($all_piece_data[$moving_piece_id]['piece_color'] === "000000") ? "1" : "8";
+
+                    if ($target_rank === $backline) {
+                        self::DbQuery("UPDATE game_variables SET var_value = '$moving_piece_id' WHERE var_id = 'pro_id'");
+                    }
                 }
 
                 $corresponding_captures = $this->getCorrespondingCaptures($moving_piece_id, $all_piece_data, $board_state, array($target_location))[0];
@@ -1925,19 +1933,11 @@ class ChessSequel extends Table
             return;
         }
 
-        $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
-        $promoting_pawn_id = 0;
-
-        // Find id of the promoting pawn
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            if ($piece_data['piece_type'] === "pawn" || $piece_data['piece_type'] === "nemesispawn") {
-                if (($piece_data['piece_color'] === "000000" && $piece_data['board_rank'] === "1") || ($piece_data['piece_color'] === "ffffff" && $piece_data['board_rank'] === "8")) {
-                    $promoting_pawn_id = $piece_id;
-                }
-            }
-        }
+        $promoting_pawn_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'pro_id'");
 
         self::DbQuery("UPDATE pieces SET piece_type = '$chosen_promotion' WHERE piece_id = '$promoting_pawn_id'");
+
+        self::DbQuery("UPDATE game_variables SET var_value = NULL WHERE var_id = 'pro_id'");
 
         self::notifyAllPlayers("updateAllPieceData", "", array(
             "piece_id" => $promoting_pawn_id,
@@ -1987,22 +1987,6 @@ class ChessSequel extends Table
 
     function argPawnPromotion()
     {
-        /*$all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
-
-        $pawn_id = 0;
-
-        foreach( $all_piece_data as $piece_id => $piece_data )
-        {
-            if ( $piece_data['piece_type'] === "pawn" || $piece_data['piece_type'] === "nemesispawn" )
-            {
-                if ( ($piece_data['piece_color'] === "000000" && $piece_data['board_rank'] === "8") || ($piece_data['piece_color'] === "ffffff" && $piece_data['board_rank'] === "1") )
-                {
-                    $pawn_id = $piece_id;
-                    break;
-                }
-            }
-        }"pawnToPromote" => $pawn_id*/
-
         return array("promoteOptions" => $this->all_armies_promote_options);
     }
 
@@ -2109,20 +2093,16 @@ class ChessSequel extends Table
 
         $game_variables = self::getCollectionFromDB("SELECT * FROM game_variables", true);
 
+        // Check for a pawn promoting
+        if ($game_variables['pro_id']) {
+            $this->gamestate->nextState('pawnPromotion');
+            return;
+        }
+
         // Check for a piece capturing
         if ($game_variables['cap_id']) {
             $this->processCapture($all_piece_data, $game_variables['cap_id']);
             return;
-        }
-
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            // If a pawn can promote
-            if ($piece_data['piece_type'] === "pawn" || $piece_data['piece_type'] === "nemesispawn") {
-                if (($piece_data['piece_color'] === "000000" && $piece_data['board_rank'] === "1") || ($piece_data['piece_color'] === "ffffff" && $piece_data['board_rank'] === "8")) {
-                    $this->gamestate->nextState('pawnPromotion');
-                    return;
-                }
-            }
         }
 
         // Check for a king castling
