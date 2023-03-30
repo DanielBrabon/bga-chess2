@@ -251,13 +251,13 @@ define([
                         if (piece_info['captured'] === "0") {
                             // Insert the HTML element for the piece as a child of the square it's on
                             dojo.place(this.format_block('jstpl_piece', {
-                                color: piece_info['piece_color'],
-                                type: piece_info['piece_type'],
+                                color: piece_info['color'],
+                                type: piece_info['type'],
                                 piece_id: piece_info['piece_id']
-                            }), 'square_' + piece_info['board_file'] + '_' + piece_info['board_rank']);
+                            }), 'square_' + piece_info['x'] + '_' + piece_info['y']);
 
                             if (piece_info['capturing'] === "1") {
-                                this.pieceCapturing(piece_info['piece_id'], piece_info['board_file'], piece_info['board_rank']);
+                                this.pieceCapturing(piece_info['piece_id'], piece_info['x'], piece_info['y']);
                             }
                         }
                     }
@@ -400,7 +400,7 @@ define([
 
                     // If the player clicked a square with a friendly piece, select it
                     const children = evt.currentTarget.children;                    
-                    if (children.length != 0 && this.gamedatas.pieces[children[0].id].piece_color === this.gamedatas.players[this.player_id].color) {
+                    if (children.length != 0 && this.gamedatas.pieces[children[0].id].color === this.gamedatas.players[this.player_id].color) {
                         this.gamedatas.players[this.player_id].piece_selected = children[0].id;
                         dojo.addClass(children[0].id, 'selected_piece');
     
@@ -408,7 +408,7 @@ define([
                             var move_object = this.gamedatas.legal_moves[move_index];
     
                             if (move_object['moving_piece_id'] === children[0].id) {
-                                dojo.addClass('square_' + move_object['board_file'] + '_' + move_object['board_rank'], 'possible_move');
+                                dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move');
                             }
                         }
                     }
@@ -422,10 +422,10 @@ define([
 
                 var player_id = this.getActivePlayerId();
 
-                if (dojo.query('.selected_piece').length != 0 && this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['piece_type'] === "warriorking" && this.checkAction('movePiece')) {
+                if (dojo.query('.selected_piece').length != 0 && this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['type'] === "warriorking" && this.checkAction('movePiece')) {
                     // Find the location of the piece being clicked on
-                    var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['board_file'];
-                    var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['board_rank'];
+                    var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['x'];
+                    var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['y'];
 
                     this.ajaxcallWrapper("movePiece", {
                         target_file: target_piece_file,
@@ -604,11 +604,7 @@ define([
 
                 dojo.subscribe('updateAllPieceData', this, "notif_updateAllPieceData");
                 
-                dojo.subscribe('updatePlayerData', this, "notif_updatePlayerData")
-                
-                dojo.subscribe('fillCaptureQueue', this, "notif_fillCaptureQueue");
-
-                dojo.subscribe('deleteFromCaptureQueue', this, "notif_deleteFromCaptureQueue");
+                dojo.subscribe('updatePlayerData', this, "notif_updatePlayerData");
 
                 dojo.subscribe('clearSelectedPiece', this, "notif_clearSelectedPiece");
 
@@ -635,10 +631,10 @@ define([
                 for (var piece in pieces_info) {
                     pieces_object[pieces_info[piece][0]] = {};
                     pieces_object[pieces_info[piece][0]].piece_id = pieces_info[piece][0];
-                    pieces_object[pieces_info[piece][0]].piece_color = pieces_info[piece][1];
-                    pieces_object[pieces_info[piece][0]].piece_type = pieces_info[piece][2];
-                    pieces_object[pieces_info[piece][0]].board_file = String(pieces_info[piece][3]);
-                    pieces_object[pieces_info[piece][0]].board_rank = String(pieces_info[piece][4]);
+                    pieces_object[pieces_info[piece][0]].color = pieces_info[piece][1];
+                    pieces_object[pieces_info[piece][0]].type = pieces_info[piece][2];
+                    pieces_object[pieces_info[piece][0]].x = String(pieces_info[piece][3]);
+                    pieces_object[pieces_info[piece][0]].y = String(pieces_info[piece][4]);
                     pieces_object[pieces_info[piece][0]].capturing = String(0);
                     pieces_object[pieces_info[piece][0]].captured = String(0);
                     pieces_object[pieces_info[piece][0]].moves_made = String(0);
@@ -660,7 +656,7 @@ define([
                     for (move_index in moves_for_piece) {
                         move = moves_for_piece[move_index];
 
-                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'board_file': String(move[0]), 'board_rank': String(move[1]) });
+                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'x': String(move[0]), 'y': String(move[1]) });
                     }
                 }
 
@@ -671,8 +667,8 @@ define([
                 for (var field in notif.args.values_updated) {
                     switch (field) {
                         case "location":
-                            this.gamedatas.pieces[notif.args.piece_id]['board_file'] = String(notif.args.values_updated[field][0]);
-                            this.gamedatas.pieces[notif.args.piece_id]['board_rank'] = String(notif.args.values_updated[field][1]);
+                            this.gamedatas.pieces[notif.args.piece_id]['x'] = String(notif.args.values_updated[field][0]);
+                            this.gamedatas.pieces[notif.args.piece_id]['y'] = String(notif.args.values_updated[field][1]);
                             
                             dojo.place(notif.args.piece_id, 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;
@@ -690,11 +686,11 @@ define([
                             }
                             break;
 
-                        case "piece_type":
-                            var previous_type = this.gamedatas.pieces[notif.args.piece_id]['piece_type'];
+                        case "type":
+                            var previous_type = this.gamedatas.pieces[notif.args.piece_id]['type'];
 
                             dojo.query('#' + notif.args.piece_id).removeClass('piecetype_' + previous_type);
-                            dojo.query('#' + notif.args.piece_id).addClass('piecetype_' + notif.args.values_updated['piece_type']);
+                            dojo.query('#' + notif.args.piece_id).addClass('piecetype_' + notif.args.values_updated['type']);
                             break;
                     }
 
@@ -717,24 +713,6 @@ define([
                 }
 
                 // console.log(this.gamedatas.players);
-            },
-
-            notif_fillCaptureQueue: function (notif) {
-                this.gamedatas.capture_queue = {};
-
-                var capture_queue = notif.args.capture_queue;
-                for (var i = 0; i < capture_queue.length; i++) {
-                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)] = { "capture_id": capture_queue[i].substring(2, 3) };
-                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_file = capture_queue[i].substring(6, 7);
-                    this.gamedatas.capture_queue[capture_queue[i].substring(2, 3)].board_rank = capture_queue[i].substring(10, 11);
-                }
-
-                //console.log(this.gamedatas.capture_queue);
-            },
-
-            notif_deleteFromCaptureQueue: function (notif) {
-                delete this.gamedatas.capture_queue[notif.args.capture_id];
-                //console.log(this.gamedatas.capture_queue);
             },
 
             notif_clearSelectedPiece: function () {

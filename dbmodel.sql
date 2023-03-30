@@ -42,10 +42,10 @@ ALTER TABLE `player` ADD `player_king_id_2` VARCHAR(17) DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS `pieces` (
   `piece_id` VARCHAR(17) NOT NULL,
-  `piece_color` CHAR(6) NOT NULL,
-  `piece_type` VARCHAR(15) NOT NULL,
-  `board_file` TINYINT(1) UNSIGNED,
-  `board_rank` TINYINT(1) UNSIGNED,
+  `color` CHAR(6) NOT NULL,
+  `type` VARCHAR(15) NOT NULL,
+  `x` TINYINT(1) UNSIGNED,
+  `y` TINYINT(1) UNSIGNED,
   `moves_made` INT(10) UNSIGNED DEFAULT '0',
   `captured` TINYINT(1) UNSIGNED DEFAULT '0',
   `capturing` TINYINT(1) UNSIGNED DEFAULT '0',
@@ -56,20 +56,20 @@ CREATE TABLE IF NOT EXISTS `pieces` (
 CREATE TABLE IF NOT EXISTS `legal_moves` (
   `move_id` INT(10) UNSIGNED NOT NULL,
   `moving_piece_id` VARCHAR(17) NOT NULL,
-  `board_file` TINYINT(1) UNSIGNED NOT NULL,
-  `board_rank` TINYINT(1) UNSIGNED NOT NULL,
+  `x` TINYINT(1) UNSIGNED NOT NULL,
+  `y` TINYINT(1) UNSIGNED NOT NULL,
   PRIMARY KEY (`move_id`)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS `capture_queue` (
-  `capture_id` INT(10) UNSIGNED NOT NULL,
-  `board_file` TINYINT(1) UNSIGNED NOT NULL,
-  `board_rank` TINYINT(1) UNSIGNED NOT NULL,
-  PRIMARY KEY (`capture_id`)
+  `cq_id` INT(10) UNSIGNED NOT NULL,
+  `x` TINYINT(1) UNSIGNED NOT NULL,
+  `y` TINYINT(1) UNSIGNED NOT NULL,
+  PRIMARY KEY (`cq_id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS `game_variables` (
+CREATE TABLE IF NOT EXISTS `game_vars` (
   `var_id` VARCHAR(17) NOT NULL,
-  `var_value` VARCHAR(17) DEFAULT NULL,
+  `var_val` VARCHAR(17) DEFAULT NULL,
   PRIMARY KEY (`var_id`)
 ) ENGINE=InnoDB;

@@ -117,7 +117,7 @@ class ChessSequel extends Table
         $result['capture_queue'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
 
         // Get information about legal moves this turn
-        $result['legal_moves'] = self::getObjectListFromDB("SELECT moving_piece_id, board_file, board_rank FROM legal_moves");
+        $result['legal_moves'] = self::getObjectListFromDB("SELECT moving_piece_id, x, y FROM legal_moves");
 
         // Gathering variables from material.inc.php
         $result['all_army_names'] = $this->all_army_names;
@@ -165,8 +165,7 @@ class ChessSequel extends Table
 
     function getPlayerKingIds($player_id)
     {
-        $sql = "SELECT player_king_id, player_king_id_2 FROM player WHERE player_id='$player_id'";
-        $king_ids = self::getObjectFromDB($sql);
+        $king_ids = self::getObjectFromDB("SELECT player_king_id, player_king_id_2 FROM player WHERE player_id = '$player_id'");
 
         if ($king_ids['player_king_id_2'] === null) {
             unset($king_ids['player_king_id_2']);
@@ -175,364 +174,146 @@ class ChessSequel extends Table
         return $king_ids;
     }
 
-    function getBoardState($all_piece_data)
+    function getSquaresData($pieces)
     {
-        $board_state = [];
+        $squares = [];
 
         for ($i = 1; $i <= 8; $i++) {
             for ($j = 1; $j <= 8; $j++) {
-                $board_state[$i][$j] = array(
-                    'board_file' => (string) $i,
-                    'board_rank' => (string) $j,
-                    'defending_piece' => null,
-                    'capturing_piece' => null
-                );
+                $squares[$i][$j] = array('def_piece' => null, 'cap_piece' => null);
             }
         }
 
-        foreach ($all_piece_data as $piece_id => $piece_data) {
+        foreach ($pieces as $piece_id => $piece_data) {
             if ($piece_data['captured']) {
                 continue;
             }
 
             if ($piece_data['capturing']) {
-                $board_state[$piece_data['board_file']][$piece_data['board_rank']]['capturing_piece'] = $piece_id;
+                $squares[$piece_data['x']][$piece_data['y']]['cap_piece'] = $piece_id;
             } else {
-                $board_state[$piece_data['board_file']][$piece_data['board_rank']]['defending_piece'] = $piece_id;
+                $squares[$piece_data['x']][$piece_data['y']]['def_piece'] = $piece_id;
             }
         }
 
-        return $board_state;
+        return $squares;
     }
 
     // Note that $piece_ids must be an array of valid piece ids belonging to $player_id
-    function getAllMovesForPieces($piece_ids, $player_id, $all_piece_data, $board_state)
+    function getAllMovesForPieces($piece_ids, $player_id, $game_data)
     {
-        $player_color = $this->getPlayerColorById($player_id);
-        $enemy_player_color = ($player_color === "000000") ? "ffffff" : "000000";
+        $enemy_player_color = ($this->getPlayerColorById($player_id) === "000000") ? "ffffff" : "000000";
         $friendly_king_ids = $this->getPlayerKingIds($player_id);
-        $all_enemy_attacked_squares = $this->getAllAttackedSquares($enemy_player_color, $all_piece_data, $board_state);
-        
-        //$this->printWithJavascript($all_enemy_attacked_squares);
+        $enemy_attacks = $this->getSquaresAttackedByColor($enemy_player_color, $game_data);
+
+        //$this->printWithJavascript($enemy_attacks);
         /*self::notifyPlayer( $active_player_id, "highlightAttackedSquares", "", array( 
-            'attacked_squares' => $all_enemy_attacked_squares[0], 
-            'semi_attacked_squares' => $all_enemy_attacked_squares[1] )
+            'attacked_squares' => $enemy_attacks[0], 
+            'semi_attacked_squares' => $enemy_attacks[1] )
         );*/
 
         $all_moves = array();
 
         foreach ($piece_ids as $piece_id) {
-            $all_moves[$piece_id] = $this->generateMoves($piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares)['possible_moves'];
+            $all_moves[$piece_id] = $this->getMovesForPiece($piece_id, $friendly_king_ids, $enemy_attacks, $game_data);
         }
 
         return $all_moves;
     }
-    
-    // TODO: Improve this. Especially, don't need to return corresponding captures
+
     // Returns an array of the squares of all current possible moves for this piece (the squares the player can click on to make the move)
-    function generateMoves($piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares)
+    function getMovesForPiece($piece_id, $friendly_king_ids, $enemy_attacks, $game_data)
     {
-        $possible_moves = array();
+        $piece_type = $game_data['pieces'][$piece_id]['type'];
 
-        switch ($all_piece_data[$piece_id]['piece_type']) {
-            case "knight":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "knight", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
+        $possible_moves = $this->getAttackingMoveSquares($piece_id, $game_data)['attacking_squares'];
 
-            case "bishop":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "bishop", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "rook":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "queen":
-                $bishop_moves = $this->getAttackingMoveSquares($piece_id, "bishop", $all_piece_data, $board_state)['attacking_squares'];
-                $rook_moves = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = array_merge($bishop_moves, $rook_moves);
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "pawn":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "pawn", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $possible_moves = $this->removeUnavailablePawnAttacks($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $available_pawn_pushes = $this->getNonCapturingMoveSquares($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares);
-                $possible_moves = array_merge($possible_moves, $available_pawn_pushes);
-                break;
-
-            case "king":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "king", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $available_castles = $this->getNonCapturingMoveSquares($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares);
-                $possible_moves = array_merge($possible_moves, $available_castles);
-                break;
-
-            case "nemesis":
-                $bishop_moves = $this->getAttackingMoveSquares($piece_id, "bishop", $all_piece_data, $board_state)['attacking_squares'];
-                $rook_moves = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = array_merge($bishop_moves, $rook_moves);
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $possible_moves = $this->removeEnemyOccupiedNonKingSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "nemesispawn":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "nemesispawn", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $possible_moves = $this->removeUnavailablePawnAttacks($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $available_pawn_pushes = $this->getNonCapturingMoveSquares($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares);
-                $possible_moves = array_merge($possible_moves, $available_pawn_pushes);
-                break;
-
-            case "reaper":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "reaper", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                $possible_moves = $this->removeEnemyOccupiedKingSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "ghost":
-                $possible_moves = $this->getNonCapturingMoveSquares($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares);
-                break;
-
-            case "empoweredknight":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "empoweredknight", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "empoweredbishop":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "empoweredbishop", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "empoweredrook":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "empoweredrook", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "elegantqueen":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "king", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "warriorking":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "warriorking", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "wildhorse":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "knight", $all_piece_data, $board_state)['attacking_squares'];
-                break;
-
-            case "tiger":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "tiger", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
-
-            case "elephant":
-                $possible_moves = $this->getAttackingMoveSquares($piece_id, "elephant", $all_piece_data, $board_state)['attacking_squares'];
-                $available_short_moves = $this->getNonCapturingMoveSquares($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares);
-                $possible_moves = array_merge($possible_moves, $available_short_moves);
-                break;
-
-            case "junglequeen":
-                $knight_moves = $this->getAttackingMoveSquares($piece_id, "knight", $all_piece_data, $board_state)['attacking_squares'];
-                $rook_moves = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state)['attacking_squares'];
-                $possible_moves = array_merge($knight_moves, $rook_moves);
-                $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $possible_moves);
-                break;
+        if (!in_array($piece_type, ["elephant", "wildhorse"])) {
+            $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $possible_moves, $game_data);
         }
 
-        $corresponding_captures = $this->getCorrespondingCaptures($piece_id, $all_piece_data, $board_state, $possible_moves);
-        $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $all_piece_data, $board_state, $possible_moves, $corresponding_captures);
-
-        //$this->printWithJavascript( "generateMoves called for piece: ".$piece_id );
-        //$this->printWithJavascript( "possible_moves:" );
-        //$this->printWithJavascript( $moves_and_captures['possible_moves'] );
-
-        //$this->printWithJavascript( "corresponding_captures:" );
-        //$this->printWithJavascript( $moves_and_captures['corresponding_captures'] );
-
-        $possible_moves_and_corresponding_captures = $this->removeSelfChecks($piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares, $moves_and_captures['possible_moves'], $moves_and_captures['corresponding_captures']);
-
-        //$this->printWithJavascript( "possible_moves_and_corresponding_captures:" );
-        //$this->printWithJavascript( $possible_moves_and_corresponding_captures );
-        return $possible_moves_and_corresponding_captures;
-    }
-
-    function getAttackingMoveSquares($piece_id, $piece_type, $all_piece_data, $board_state)
-    {
-        $attacking_squares = array();
-        $semi_attacking_squares = array();
-
-        switch ($piece_type) {
-            case "knight":
-                $attack_steps = array(array(2, 1), array(1, 2), array(2, -1), array(1, -2), array(-2, 1), array(-1, 2), array(-2, -1), array(-1, -2));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 1);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "bishop":
-                $attack_steps = array(array(1, 1), array(-1, 1), array(-1, -1), array(1, -1));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 7);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "rook":
-                $attack_steps = array(array(1, 0), array(-1, 0), array(0, 1), array(0, -1));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 7);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "queen":
-                $bishop_attacks = $this->getAttackingMoveSquares($piece_id, "bishop", $all_piece_data, $board_state);
-                $rook_attacks = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state);
-                $attacking_squares = array_merge($bishop_attacks['attacking_squares'], $rook_attacks['attacking_squares']);
-                $semi_attacking_squares = array_merge($bishop_attacks['semi_attacking_squares'], $rook_attacks['semi_attacking_squares']);
-                break;
-
-            case "pawn":
-                $forward_direction = 1;
-                if ($all_piece_data[$piece_id]['piece_color'] === "000000") {
-                    $forward_direction = -1;
-                }
-                $attack_steps = array(array(1, $forward_direction), array(-1, $forward_direction));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 1);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "king":
-                $attack_steps = array(array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 1);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "nemesis":
-                $queen_attacks = $this->getAttackingMoveSquares($piece_id, "queen", $all_piece_data, $board_state);
-                $attacking_squares = $queen_attacks['attacking_squares'];
-                $semi_attacking_squares = $queen_attacks['semi_attacking_squares'];
-                break;
-
-            case "nemesispawn":
-                $forward_direction = 1;
-                if ($all_piece_data[$piece_id]['piece_color'] === "000000") {
-                    $forward_direction = -1;
-                }
-                $attack_steps = array(array(1, $forward_direction), array(-1, $forward_direction));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 1);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "reaper":
-                $start_rank = 1;
-                if ($all_piece_data[$piece_id]['piece_color'] === "000000") {
-                    $start_rank = 2;
-                }
-
-                for ($i = 1; $i <= 8; $i++) {
-                    for ($j = $start_rank; $j <= $start_rank + 6; $j++) {
-                        $attacking_squares[] = array($i, $j);
-                    }
-                }
-                break;
-
-            case "empoweredknight":
-                $knight_attacks = $this->getAttackingMoveSquares($piece_id, "knight", $all_piece_data, $board_state);
-                $attacking_squares = $knight_attacks['attacking_squares'];
-                $semi_attacking_squares = $knight_attacks['semi_attacking_squares'];
-
-                $empowerments = $this->getEmpowerments($piece_id, $all_piece_data, $board_state);
-                foreach ($empowerments as $empowerment) {
-                    $attacks = $this->getAttackingMoveSquares($piece_id, $empowerment, $all_piece_data, $board_state);
-                    $attacking_squares = array_merge($attacking_squares, $attacks['attacking_squares']);
-                    $semi_attacking_squares = array_merge($semi_attacking_squares, $attacks['semi_attacking_squares']);
-                }
-                break;
-
-            case "empoweredbishop":
-                $bishop_attacks = $this->getAttackingMoveSquares($piece_id, "bishop", $all_piece_data, $board_state);
-                $attacking_squares = $bishop_attacks['attacking_squares'];
-                $semi_attacking_squares = $bishop_attacks['semi_attacking_squares'];
-
-                $empowerments = $this->getEmpowerments($piece_id, $all_piece_data, $board_state);
-                foreach ($empowerments as $empowerment) {
-                    $attacks = $this->getAttackingMoveSquares($piece_id, $empowerment, $all_piece_data, $board_state);
-                    $attacking_squares = array_merge($attacking_squares, $attacks['attacking_squares']);
-                    $semi_attacking_squares = array_merge($semi_attacking_squares, $attacks['semi_attacking_squares']);
-                }
-                break;
-
-            case "empoweredrook":
-                $rook_attacks = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state);
-                $attacking_squares = $rook_attacks['attacking_squares'];
-                $semi_attacking_squares = $rook_attacks['semi_attacking_squares'];
-
-                $empowerments = $this->getEmpowerments($piece_id, $all_piece_data, $board_state);
-                foreach ($empowerments as $empowerment) {
-                    $attacks = $this->getAttackingMoveSquares($piece_id, $empowerment, $all_piece_data, $board_state);
-                    $attacking_squares = array_merge($attacking_squares, $attacks['attacking_squares']);
-                    $semi_attacking_squares = array_merge($semi_attacking_squares, $attacks['semi_attacking_squares']);
-                }
-                break;
-
-            case "elegantqueen":
-                $king_attacks = $this->getAttackingMoveSquares($piece_id, "king", $all_piece_data, $board_state);
-                $attacking_squares = $king_attacks['attacking_squares'];
-                $semi_attacking_squares = $king_attacks['semi_attacking_squares'];
-                break;
-
-            case "warriorking":
-                $king_attacks = $this->getAttackingMoveSquares($piece_id, "king", $all_piece_data, $board_state);
-                $attacking_squares = $king_attacks['attacking_squares'];
-                //$this->printWithJavascript($attacking_squares);
-                $attacking_squares[] = array((int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank']);
-                //$this->printWithJavascript($attacking_squares);
-                $semi_attacking_squares = $king_attacks['semi_attacking_squares'];
-                //$this->printWithJavascript($semi_attacking_squares);
-                break;
-
-            case "wildhorse":
-                $knight_attacks = $this->getAttackingMoveSquares($piece_id, "knight", $all_piece_data, $board_state);
-                $attacking_squares = $knight_attacks['attacking_squares'];
-                $semi_attacking_squares = $knight_attacks['semi_attacking_squares'];
-                break;
-
-            case "tiger":
-                $attack_steps = array(array(1, 1), array(-1, 1), array(-1, -1), array(1, -1));
-                $attacks = $this->getSeenSquares($piece_id, $all_piece_data, $board_state, $attack_steps, 2);
-                $attacking_squares = $attacks[0];
-                $semi_attacking_squares = $attacks[1];
-                break;
-
-            case "elephant":
-                $attacking_squares = $this->getElephantAttackingMoveSquares($piece_id, $all_piece_data, $board_state);
-                break;
-
-            case "junglequeen":
-                $knight_attacks = $this->getAttackingMoveSquares($piece_id, "knight", $all_piece_data, $board_state);
-                $rook_attacks = $this->getAttackingMoveSquares($piece_id, "rook", $all_piece_data, $board_state);
-                $attacking_squares = array_merge($knight_attacks['attacking_squares'], $rook_attacks['attacking_squares']);
-                $semi_attacking_squares = array_merge($knight_attacks['semi_attacking_squares'], $rook_attacks['semi_attacking_squares']);
-                break;
+        if (in_array($piece_type, ["pawn", "nemesispawn"])) {
+            $possible_moves = $this->removeUnavailablePawnAttacks($piece_id, $possible_moves, $game_data);
         }
 
-        return array("attacking_squares" => $attacking_squares, "semi_attacking_squares" => $semi_attacking_squares);
+        if (in_array($piece_type, ["pawn", "king", "nemesispawn", "ghost", "elephant"])) {
+            $non_cap_moves = $this->getNonCapturingMoveSquares($piece_id, $enemy_attacks, $game_data);
+            $possible_moves = array_merge($possible_moves, $non_cap_moves);
+        }
+
+        if ($piece_type === "nemesis") {
+            $possible_moves = $this->removeEnemyOccupiedNonKingSquares($piece_id, $possible_moves, $game_data);
+        }
+
+        if ($piece_type === "reaper") {
+            $possible_moves = $this->removeEnemyOccupiedKingSquares($piece_id, $possible_moves, $game_data);
+        }
+
+        $corresponding_captures = $this->getCorrespondingCaptures($piece_id, $possible_moves, $game_data);
+        $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $possible_moves, $corresponding_captures, $game_data);
+
+        $possible_moves = $this->removeSelfChecks($piece_id, $friendly_king_ids, $enemy_attacks, $moves_and_captures, $game_data);
+
+        return $possible_moves;
     }
 
-    function getElephantAttackingMoveSquares($elephant_id, $all_piece_data, $board_state)
+    function getAttackingMoveSquares($piece_id, $game_data)
+    {
+        $piece_type = $game_data['pieces'][$piece_id]['type'];
+
+        $result = array("attacking_squares" => [], "semi_attacking_squares" => []);
+
+        if ($piece_type === "ghost") {
+            return $result;
+        }
+
+        if ($piece_type === "reaper") {
+            $start_y = ($game_data['pieces'][$piece_id]['color'] === "000000") ? 2 : 1;
+
+            for ($i = 1; $i <= 8; $i++) {
+                for ($j = $start_y; $j <= $start_y + 6; $j++) {
+                    $result['attacking_squares'][] = array($i, $j);
+                }
+            }
+
+            return $result;
+        }
+
+        if ($piece_type === "elephant") {
+            $result['attacking_squares'] = $this->getElephantAttackingMoveSquares($piece_id, $game_data);
+            return $result;
+        }
+
+        if (in_array($piece_type, ["pawn", "nemesispawn"])) {
+            $piece_type = ($game_data['pieces'][$piece_id]['color'] === "000000") ? "bpawn" : "wpawn";
+        }
+
+        $ef_types = $this->effective_types[$piece_type];
+
+        if (in_array($piece_type, ["empoweredknight", "empoweredbishop", "empoweredrook"])) {
+            foreach ($this->getEmpowerments($piece_id, $game_data) as $empowerment) {
+                array_push($ef_types, $empowerment);
+            }
+        }
+
+        foreach ($ef_types as $type) {
+            $seen_squares = $this->getSeenSquares($piece_id, $this->attack_steps[$type], $this->attack_reps[$type], $game_data);
+            $result['attacking_squares'] = array_merge($result['attacking_squares'], $seen_squares['seen_squares']);
+            $result['semi_attacking_squares'] = array_merge($result['semi_attacking_squares'], $seen_squares['semi_seen_squares']);
+        }
+
+        if ($piece_type === "warriorking") {
+            $result['attacking_squares'][] = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
+        }
+
+        return $result;
+    }
+
+    function getElephantAttackingMoveSquares($elephant_id, $game_data)
     {
         $attacking_move_squares = array();
 
-        $elephant_location = array((int) $all_piece_data[$elephant_id]['board_file'], (int) $all_piece_data[$elephant_id]['board_rank']);
+        $elephant_location = array((int) $game_data['pieces'][$elephant_id]['x'], (int) $game_data['pieces'][$elephant_id]['y']);
 
         $directions = array(array(1, 0), array(0, 1), array(-1, 0), array(0, -1));
 
@@ -555,80 +336,83 @@ class ChessSequel extends Table
     }
 
     // Return all squares attacked or semi-attacked by pieces of the color $player_color
-    function getAllAttackedSquares($player_color, $all_piece_data, $board_state)
+    function getSquaresAttackedByColor($player_color, $game_data)
     {
-        $attacked_squares = array();
+        $result = array("attacked_squares" => [], "semi_attacked_squares" => []);
 
         // Creates an 8x8 array of empty arrays
         for ($i = 1; $i <= 8; $i++) {
-            $attacked_squares[$i] = array();
+            $result['attacked_squares'][$i] = array();
 
             for ($j = 1; $j <= 8; $j++) {
-                $attacked_squares[$i][$j] = array();
+                $result['attacked_squares'][$i][$j] = array();
             }
         }
 
-        $semi_attacked_squares = $attacked_squares;
+        $result['semi_attacked_squares'] = $result['attacked_squares'];
 
         // For all uncaptured pieces of this color
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            if ($piece_data['captured'] === "0" && $piece_data['piece_color'] === $player_color && $piece_data['piece_type'] != "reaper" && $piece_data['piece_type'] != "ghost") {
-                $attacks = $this->getAttackingMoveSquares($piece_id, $piece_data['piece_type'], $all_piece_data, $board_state);
-                $attacking_squares = $attacks['attacking_squares'];
-                $attacking_squares_corresponding_captures = array();
+        foreach ($game_data['pieces'] as $piece_id => $piece_data) {
+            if ($piece_data['captured'] === "1" || $piece_data['color'] != $player_color || in_array($piece_data['type'], ["reaper", "ghost"])) {
+                continue;
+            }
 
-                if ($piece_data['piece_type'] === "pawn" || $piece_data['piece_type'] === "nemesispawn") {
-                    foreach ($attacking_squares as $attacking_square) {
-                        $attacking_squares_corresponding_captures[] = array($attacking_square);
-                    }
-                } else {
-                    $attacking_squares_corresponding_captures = $this->getCorrespondingCaptures($piece_id, $all_piece_data, $board_state, $attacking_squares);
+            $attacks = $this->getAttackingMoveSquares($piece_id, $game_data);
+
+            $att_squares = $attacks['attacking_squares'];
+            $att_squares_cc = array();
+
+            if (in_array($piece_data['type'], ["pawn", "nemesispawn"])) {
+                foreach ($att_squares as $square) {
+                    $att_squares_cc[] = array($square);
                 }
+            } else {
+                $att_squares_cc = $this->getCorrespondingCaptures($piece_id, $att_squares, $game_data);
+            }
 
-                $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $all_piece_data, $board_state, $attacking_squares, $attacking_squares_corresponding_captures);
-                $attacking_squares = $moves_and_captures['possible_moves'];
-                $attacking_squares_corresponding_captures = $moves_and_captures['corresponding_captures'];
+            $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $att_squares, $att_squares_cc, $game_data);
+            $att_squares = $moves_and_captures['possible_moves'];
+            $att_squares_cc = $moves_and_captures['corresponding_captures'];
 
-                $pieces_semi_attacking_squares = $attacks['semi_attacking_squares'];
-                $semi_attacking_squares_corresponding_captures = $this->getCorrespondingCaptures($piece_id, $all_piece_data, $board_state, $pieces_semi_attacking_squares);
+            $semi_att_squares = $attacks['semi_attacking_squares'];
+            $semi_att_squares_cc = $this->getCorrespondingCaptures($piece_id, $semi_att_squares, $game_data);
 
-                // For each of the attacked squares
-                foreach ($attacking_squares_corresponding_captures as $attacking_square_corresponding_captures) {
-                    foreach ($attacking_square_corresponding_captures as $attacking_square_corresponding_capture) {
-                        $attacked_squares[$attacking_square_corresponding_capture[0]][$attacking_square_corresponding_capture[1]][] = $piece_id;
-                    }
+            // For each of the attacked squares
+            foreach ($att_squares_cc as $cap_list) {
+                foreach ($cap_list as $cap) {
+                    $result['attacked_squares'][$cap[0]][$cap[1]][] = $piece_id;
                 }
-                // For each of the semi-attacked squares
-                foreach ($semi_attacking_squares_corresponding_captures as $semi_attacking_square_corresponding_captures) {
-                    foreach ($semi_attacking_square_corresponding_captures as $semi_attacking_square_corresponding_capture) {
-                        $semi_attacked_squares[$semi_attacking_square_corresponding_capture[0]][$semi_attacking_square_corresponding_capture[1]][] = $piece_id;
-                    }
+            }
+            // For each of the semi-attacked squares
+            foreach ($semi_att_squares_cc as $cap_list) {
+                foreach ($cap_list as $cap) {
+                    $result['semi_attacked_squares'][$cap[0]][$cap[1]][] = $piece_id;
                 }
             }
         }
 
-        return array("attacked_squares" => $attacked_squares, "semi_attacked_squares" => $semi_attacked_squares);
+        return $result;
     }
 
-    function getNonCapturingMoveSquares($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares)
+    function getNonCapturingMoveSquares($piece_id, $enemy_attacks, $game_data)
     {
         $move_squares = array();
 
-        switch ($all_piece_data[$piece_id]['piece_type']) {
+        switch ($game_data['pieces'][$piece_id]['type']) {
             case "pawn":
-                foreach ($this->getAvailablePawnPushes($piece_id, $all_piece_data, $board_state) as $pawn_push) {
+                foreach ($this->getAvailablePawnPushes($piece_id, $game_data) as $pawn_push) {
                     $move_squares[] = $pawn_push;
                 }
                 break;
 
             case "king":
-                foreach ($this->getAvailableCastleMoves($piece_id, $all_piece_data, $board_state, $all_enemy_attacked_squares) as $castle_move) {
+                foreach ($this->getAvailableCastleMoves($piece_id, $enemy_attacks, $game_data) as $castle_move) {
                     $move_squares[] = $castle_move;
                 }
                 break;
 
             case "nemesispawn":
-                foreach ($this->getAvailableNemesisPawnPushes($piece_id, $all_piece_data, $board_state) as $pawn_push) {
+                foreach ($this->getAvailableNemesisPawnPushes($piece_id, $game_data) as $pawn_push) {
                     $move_squares[] = $pawn_push;
                 }
                 break;
@@ -636,7 +420,7 @@ class ChessSequel extends Table
             case "ghost":
                 for ($i = 1; $i <= 8; $i++) {
                     for ($j = 1; $j <= 8; $j++) {
-                        if ($board_state[$i][$j]['defending_piece'] === null) {
+                        if ($game_data['squares'][$i][$j]['def_piece'] === null) {
                             $move_squares[] = array($i, $j);
                         }
                     }
@@ -644,17 +428,14 @@ class ChessSequel extends Table
                 break;
 
             case "elephant":
-                $elephant_location = array((int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank']);
+                $elephant_location = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
 
                 $directions = array(array(1, 0), array(0, 1), array(-1, 0), array(0, -1));
 
                 foreach ($directions as $direction) {
                     $square = $elephant_location;
 
-                    $change_axis = 0;
-                    if ($direction[0] === 0) {
-                        $change_axis = 1;
-                    }
+                    $change_axis = ($direction[0] === 0) ? 1 : 0;
 
                     for ($i = 1; $i <= 2; $i++) {
                         $square[0] += $direction[0];
@@ -663,7 +444,7 @@ class ChessSequel extends Table
                         if ($square[$change_axis] < 2 || $square[$change_axis] > 7) {
                             break;
                         }
-                        if ($board_state[$square[0]][$square[1]]['defending_piece'] != null) {
+                        if ($game_data['squares'][$square[0]][$square[1]]['def_piece'] != null) {
                             break;
                         }
 
@@ -676,7 +457,7 @@ class ChessSequel extends Table
         return $move_squares;
     }
 
-    function getAvailableCastleMoves($king_id, $all_piece_data, $board_state, $all_enemy_attacked_squares)
+    function getAvailableCastleMoves($king_id, $enemy_attacks, $game_data)
     {
         $castle_moves = array();
 
@@ -684,7 +465,7 @@ class ChessSequel extends Table
         $all_players_data = $this->getAllPlayerData();
 
         foreach ($all_players_data as $player_data) {
-            if ($player_data['color'] === $all_piece_data[$king_id]['piece_color']) {
+            if ($player_data['color'] === $game_data['pieces'][$king_id]['color']) {
                 if ($player_data['army'] != "classic") {
                     return $castle_moves;
                 }
@@ -693,37 +474,40 @@ class ChessSequel extends Table
         }
 
         // If the king already moved it cannot castle
-        if ($all_piece_data[$king_id]['moves_made'] != "0") {
+        if ($game_data['pieces'][$king_id]['moves_made'] != "0") {
             return $castle_moves;
         }
 
         // Store the king's location
-        $king_file = (int) $all_piece_data[$king_id]['board_file'];
-        $king_rank = (int) $all_piece_data[$king_id]['board_rank'];
+        $king_x = (int) $game_data['pieces'][$king_id]['x'];
+        $king_y = (int) $game_data['pieces'][$king_id]['y'];
 
         // If the king is in check right now it cannot castle
-        if (count($all_enemy_attacked_squares['attacked_squares'][$king_file][$king_rank]) != 0) {
+        if (count($enemy_attacks['attacked_squares'][$king_x][$king_y]) != 0) {
             return $castle_moves;
         }
 
         // Check both directions for possible castle
         foreach (array(-1, 1) as $direction) {
-            $square = array($king_file + $direction, $king_rank);
+            $square = array($king_x + $direction, $king_y);
 
             // If the next square along in this direction is attacked, the king cannot castle on this side
-            if (count($all_enemy_attacked_squares['attacked_squares'][$square[0]][$square[1]]) != 0) {
+            if (count($enemy_attacks['attacked_squares'][$square[0]][$square[1]]) != 0) {
                 continue;
             }
 
             while ($square[0] > 0 && $square[0] < 9) {
                 // If there is a piece on this square
-                if ($board_state[$square[0]][$square[1]]['defending_piece'] != null) {
+                if ($game_data['squares'][$square[0]][$square[1]]['def_piece'] != null) {
                     // Get the data for this encountered piece
-                    $piece_on_square = $all_piece_data[$board_state[$square[0]][$square[1]]['defending_piece']];
+                    $piece_on_square = $game_data['pieces'][$game_data['squares'][$square[0]][$square[1]]['def_piece']];
 
                     // If it's a friendly unmoved rook, we can castle in this direction
-                    if ($piece_on_square['piece_color'] === $all_piece_data[$king_id]['piece_color'] && $piece_on_square['piece_type'] === "rook" && $piece_on_square['moves_made'] === "0") {
-                        $castle_moves[] = array($king_file + (2 * $direction), $king_rank);
+                    if (
+                        $piece_on_square['color'] === $game_data['pieces'][$king_id]['color']
+                        && $piece_on_square['type'] === "rook" && $piece_on_square['moves_made'] === "0"
+                    ) {
+                        $castle_moves[] = array($king_x + (2 * $direction), $king_y);
                     }
 
                     break;
@@ -736,23 +520,23 @@ class ChessSequel extends Table
         return $castle_moves;
     }
 
-    function getAvailablePawnPushes($pawn_id, $all_piece_data, $board_state)
+    function getAvailablePawnPushes($pawn_id, $game_data)
     {
         $pawn_pushes = array();
 
-        $forward_direction = 1;
-        if ($all_piece_data[$pawn_id]['piece_color'] === "000000") {
-            $forward_direction = -1;
-        }
+        $forward_direction = ($game_data['pieces'][$pawn_id]['color'] === "000000") ? -1 : 1;
 
-        $pawn_location = array((int)$all_piece_data[$pawn_id]['board_file'], (int)$all_piece_data[$pawn_id]['board_rank']);
+        $pawn_location = array((int)$game_data['pieces'][$pawn_id]['x'], (int)$game_data['pieces'][$pawn_id]['y']);
 
         // If one square forward is empty
-        if ($board_state[$pawn_location[0]][$pawn_location[1] + $forward_direction]['defending_piece'] === null) {
+        if ($game_data['squares'][$pawn_location[0]][$pawn_location[1] + $forward_direction]['def_piece'] === null) {
             $pawn_pushes[] = array($pawn_location[0], $pawn_location[1] + $forward_direction);
 
             // If one and two squares forward are free and the pawn hasn't moved yet
-            if ($all_piece_data[$pawn_id]['moves_made'] === "0" && $board_state[$pawn_location[0]][$pawn_location[1] + 2 * $forward_direction]['defending_piece'] === null) {
+            if (
+                $game_data['pieces'][$pawn_id]['moves_made'] === "0"
+                && $game_data['squares'][$pawn_location[0]][$pawn_location[1] + 2 * $forward_direction]['def_piece'] === null
+            ) {
                 $pawn_pushes[] = array($pawn_location[0], $pawn_location[1] + 2 * $forward_direction);
             }
         }
@@ -760,29 +544,26 @@ class ChessSequel extends Table
         return $pawn_pushes;
     }
 
-    function getAvailableNemesisPawnPushes($nemesis_pawn_id, $all_piece_data, $board_state)
+    function getAvailableNemesisPawnPushes($nemesis_pawn_id, $game_data)
     {
         $nemesis_pawn_pushes = array();
 
-        $nemesis_pawn_location = array((int)$all_piece_data[$nemesis_pawn_id]['board_file'], (int)$all_piece_data[$nemesis_pawn_id]['board_rank']);
-        $nemesis_pawn_color = $all_piece_data[$nemesis_pawn_id]['piece_color'];
+        $nemesis_pawn_location = array((int)$game_data['pieces'][$nemesis_pawn_id]['x'], (int)$game_data['pieces'][$nemesis_pawn_id]['y']);
+        $nemesis_pawn_color = $game_data['pieces'][$nemesis_pawn_id]['color'];
 
-        $forward_direction = 1;
-        if ($nemesis_pawn_color === "000000") {
-            $forward_direction = -1;
-        }
+        $forward_direction = ($nemesis_pawn_color === "000000") ? -1 : 1;
 
         $enemy_king_locations = array();
 
         // For each enemy king or warrior king
-        foreach ($all_piece_data as $piece_data) {
-            if ($piece_data['piece_color'] != $nemesis_pawn_color && ($piece_data['piece_type'] === "king" || $piece_data['piece_type'] === "warriorking")) {
-                $enemy_king_locations[] = array((int) $piece_data['board_file'], (int) $piece_data['board_rank']);
+        foreach ($game_data['pieces'] as $piece_data) {
+            if ($piece_data['color'] != $nemesis_pawn_color && in_array($piece_data['type'], ["king", "warriorking"])) {
+                $enemy_king_locations[] = array((int) $piece_data['x'], (int) $piece_data['y']);
             }
         }
 
         // If one square forward is empty
-        if ($board_state[$nemesis_pawn_location[0]][$nemesis_pawn_location[1] + $forward_direction]['defending_piece'] === null) {
+        if ($game_data['squares'][$nemesis_pawn_location[0]][$nemesis_pawn_location[1] + $forward_direction]['def_piece'] === null) {
             $nemesis_pawn_pushes[] = array($nemesis_pawn_location[0], $nemesis_pawn_location[1] + $forward_direction);
         }
 
@@ -795,7 +576,7 @@ class ChessSequel extends Table
                 continue;
             }
 
-            if ($board_state[$square_in_direction[0]][$square_in_direction[1]]['defending_piece'] != null) {
+            if ($game_data['squares'][$square_in_direction[0]][$square_in_direction[1]]['def_piece'] != null) {
                 continue;
             }
 
@@ -816,20 +597,20 @@ class ChessSequel extends Table
     }
 
     // Returns an array containing all capture squares for each possible move in $possible_moves
-    function getCorrespondingCaptures($piece_id, $all_piece_data, $board_state, $possible_moves)
+    function getCorrespondingCaptures($piece_id, $possible_moves, $game_data)
     {
         $corresponding_captures = array();
 
         $simple_piece = false;
 
-        switch ($all_piece_data[$piece_id]['piece_type']) {
+        switch ($game_data['pieces'][$piece_id]['type']) {
             case "pawn":
                 foreach ($possible_moves as $possible_move) {
                     // If it's an attacking move
-                    if (abs($possible_move[0] - $all_piece_data[$piece_id]['board_file']) === 1) {
+                    if (abs($possible_move[0] - $game_data['pieces'][$piece_id]['x']) === 1) {
                         // If it's an en passant move
-                        if ($board_state[$possible_move[0]][$possible_move[1]]['defending_piece'] === null) {
-                            $corresponding_captures[] = array(array($possible_move[0], (int)$all_piece_data[$piece_id]['board_rank']));
+                        if ($game_data['squares'][$possible_move[0]][$possible_move[1]]['def_piece'] === null) {
+                            $corresponding_captures[] = array(array($possible_move[0], (int)$game_data['pieces'][$piece_id]['y']));
                         }
                         // If it's a normal attack
                         else {
@@ -846,7 +627,7 @@ class ChessSequel extends Table
             case "king":
                 foreach ($possible_moves as $possible_move) {
                     // If it's a castle move
-                    if (abs($possible_move[0] - $all_piece_data[$piece_id]['board_file']) === 2) {
+                    if (abs($possible_move[0] - $game_data['pieces'][$piece_id]['x']) === 2) {
                         $corresponding_captures[] = array();
                     } else {
                         $corresponding_captures[] = array($possible_move);
@@ -855,19 +636,19 @@ class ChessSequel extends Table
                 break;
 
             case "nemesispawn":
-                $piece_color = $all_piece_data[$piece_id]['piece_color'];
-                $forward_direction = 1;
-                if ($piece_color === "000000") {
-                    $forward_direction = -1;
-                }
+                $piece_color = $game_data['pieces'][$piece_id]['color'];
+                $forward_direction = ($piece_color === "000000") ? -1 : 1;
 
                 foreach ($possible_moves as $possible_move) {
                     // If it's a diagonal forward move, this can be a capturing move
-                    if (abs($possible_move[0] - $all_piece_data[$piece_id]['board_file']) === 1 && $possible_move[1] - $all_piece_data[$piece_id]['board_rank'] === $forward_direction) {
-                        $piece_adjacent = $board_state[$possible_move[0]][$all_piece_data[$piece_id]['board_rank']]['defending_piece'];
+                    if (
+                        abs($possible_move[0] - $game_data['pieces'][$piece_id]['x']) === 1
+                        && $possible_move[1] - $game_data['pieces'][$piece_id]['y'] === $forward_direction
+                    ) {
+                        $piece_adjacent = $game_data['squares'][$possible_move[0]][$game_data['pieces'][$piece_id]['y']]['def_piece'];
                         // If the condition is met for an en passant move, the capture square is altered
-                        if ($piece_adjacent != null && $all_piece_data[$piece_adjacent]['piece_color'] != $all_piece_data[$piece_id]['piece_color'] && $all_piece_data[$piece_adjacent]['en_passant_vulnerable'] != "0") {
-                            $corresponding_captures[] = array(array($possible_move[0], (int)$all_piece_data[$piece_id]['board_rank']));
+                        if ($piece_adjacent != null && $game_data['pieces'][$piece_adjacent]['color'] != $game_data['pieces'][$piece_id]['color'] && $game_data['pieces'][$piece_adjacent]['en_passant_vulnerable'] != "0") {
+                            $corresponding_captures[] = array(array($possible_move[0], (int)$game_data['pieces'][$piece_id]['y']));
                         } else {
                             $corresponding_captures[] = array(array($possible_move[0], $possible_move[1]));
                         }
@@ -887,13 +668,13 @@ class ChessSequel extends Table
 
             case "warriorking":
                 foreach ($possible_moves as $move_index => $possible_move) {
-                    if ($possible_move[0] === (int) $all_piece_data[$piece_id]['board_file'] && $possible_move[1] === (int) $all_piece_data[$piece_id]['board_rank']) {
+                    if ($possible_move[0] === (int) $game_data['pieces'][$piece_id]['x'] && $possible_move[1] === (int) $game_data['pieces'][$piece_id]['y']) {
                         $corresponding_captures[$move_index] = array();
 
                         $directions = array(array(1, 0), array(1, 1), array(0, 1), array(-1, 1), array(-1, 0), array(-1, -1), array(0, -1), array(1, -1));
 
                         foreach ($directions as $direction) {
-                            $square = array((int) $all_piece_data[$piece_id]['board_file'] + $direction[0], (int) $all_piece_data[$piece_id]['board_rank'] + $direction[1]);
+                            $square = array((int) $game_data['pieces'][$piece_id]['x'] + $direction[0], (int) $game_data['pieces'][$piece_id]['y'] + $direction[1]);
 
                             if ($square[0] < 1 || $square[0] > 8 || $square[1] < 1 || $square[1] > 8) {
                                 continue;
@@ -908,7 +689,7 @@ class ChessSequel extends Table
                 break;
 
             case "elephant":
-                $elephant_location = array((int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank']);
+                $elephant_location = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
 
                 foreach ($possible_moves as $move_index => $possible_move) {
                     $corresponding_captures[$move_index] = array();
@@ -948,60 +729,56 @@ class ChessSequel extends Table
             }
         }
 
-        //$this->printWithJavascript( "corresponding captures for moving piece ".$piece_id );
-        //$this->printWithJavascript( $corresponding_captures );
-
         return $corresponding_captures;
     }
 
     // Seen square: If that square has a compatible defending piece then the relevant action can be taken
     // Semi-seen square: If that square has a compatible defending piece then the relevant action might be able to be taken if a piece along the path is removed
-    function getSeenSquares($piece_id, $all_piece_data, $board_state, $steps, $range)
+    function getSeenSquares($piece_id, $steps, $range, $game_data)
     {
-        $seen_squares = array();
-        $semi_seen_squares = array();
+        $result = array("seen_squares" => [], "semi_seen_squares" => []);
 
-        $piece_file = $all_piece_data[$piece_id]['board_file'];
-        $piece_rank = $all_piece_data[$piece_id]['board_rank'];
+        $piece_x = $game_data['pieces'][$piece_id]['x'];
+        $piece_y = $game_data['pieces'][$piece_id]['y'];
 
         foreach ($steps as $step) {
-            $square_file = $piece_file;
-            $square_rank = $piece_rank;
+            $square_x = $piece_x;
+            $square_y = $piece_y;
 
             $semi_seen = false;
 
             for ($i = 1; $i <= $range; $i++) {
-                $square_file += $step[0];
-                $square_rank += $step[1];
+                $square_x += $step[0];
+                $square_y += $step[1];
 
                 // If the square is off the board, move to checking the next move step
-                if ($square_file < 1 || $square_file > 8 || $square_rank < 1 || $square_rank > 8) {
+                if ($square_x < 1 || $square_x > 8 || $square_y < 1 || $square_y > 8) {
                     break;
                 }
 
                 if ($semi_seen) {
-                    $semi_seen_squares[] = array($square_file, $square_rank);
+                    $result['semi_seen_squares'][] = array($square_x, $square_y);
                 } else {
-                    $seen_squares[] = array($square_file, $square_rank);
+                    $result['seen_squares'][] = array($square_x, $square_y);
                 }
 
-                $piece_on_square = $board_state[$square_file][$square_rank]['defending_piece'];
+                $piece_on_square = $game_data['squares'][$square_x][$square_y]['def_piece'];
                 if (!$semi_seen && $piece_on_square != null) {
                     $semi_seen = true;
                 }
             }
         }
 
-        return array($seen_squares, $semi_seen_squares);
+        return $result;
     }
 
-    function getEmpowerments($piece_id, $all_piece_data, $board_state)
+    function getEmpowerments($piece_id, $game_data)
     {
         $empowerments = array();
 
         $directions = array(array(1, 0), array(0, 1), array(-1, 0), array(0, -1));
 
-        $piece_location = array((int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank']);
+        $piece_location = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
 
         foreach ($directions as $direction) {
             $square = array($piece_location[0] + $direction[0], $piece_location[1] + $direction[1]);
@@ -1010,10 +787,14 @@ class ChessSequel extends Table
                 continue;
             }
 
-            $piece_on_square = $board_state[$square[0]][$square[1]]['defending_piece'];
+            $piece_on_square = $game_data['squares'][$square[0]][$square[1]]['def_piece'];
 
-            if ($piece_on_square != null && $all_piece_data[$piece_on_square]['piece_color'] === $all_piece_data[$piece_id]['piece_color'] && $all_piece_data[$piece_on_square]['piece_type'] != $all_piece_data[$piece_id]['piece_type']) {
-                switch ($all_piece_data[$piece_on_square]['piece_type']) {
+            if (
+                $piece_on_square != null
+                && $game_data['pieces'][$piece_on_square]['color'] === $game_data['pieces'][$piece_id]['color']
+                && $game_data['pieces'][$piece_on_square]['type'] != $game_data['pieces'][$piece_id]['type']
+            ) {
+                switch ($game_data['pieces'][$piece_on_square]['type']) {
                     case "empoweredknight":
                         $empowerments[] = "knight";
                         break;
@@ -1032,13 +813,17 @@ class ChessSequel extends Table
         return $empowerments;
     }
 
-    function removeFriendlyOccupiedSquares($piece_id, $all_piece_data, $board_state, $squares_array)
+    function removeFriendlyOccupiedSquares($piece_id, $squares_array, $game_data)
     {
         // Loop through the provided array of squares
         foreach ($squares_array as $index => $square) {
             // If a square has a friendly piece on it, remove this square from the array
-            $piece_on_square = $board_state[$square[0]][$square[1]]['defending_piece'];
-            if ($piece_on_square != null && $all_piece_data[$piece_on_square]['piece_color'] === $all_piece_data[$piece_id]['piece_color'] && $all_piece_data[$piece_on_square]['piece_id'] != $piece_id) {
+            $piece_on_square = $game_data['squares'][$square[0]][$square[1]]['def_piece'];
+            if (
+                $piece_on_square != null
+                && $game_data['pieces'][$piece_on_square]['color'] === $game_data['pieces'][$piece_id]['color']
+                && $game_data['pieces'][$piece_on_square]['piece_id'] != $piece_id
+            ) {
                 unset($squares_array[$index]);
             }
         }
@@ -1047,18 +832,19 @@ class ChessSequel extends Table
         return $squares_array;
     }
 
-    function removeEnemyOccupiedNonKingSquares($piece_id, $all_piece_data, $board_state, $squares_array)
+    function removeEnemyOccupiedNonKingSquares($piece_id, $squares_array, $game_data)
     {
         // Loop through the provided array of squares
         foreach ($squares_array as $index => $square) {
-            $piece_on_square = $board_state[$square[0]][$square[1]]['defending_piece'];
+            $piece_on_square = $game_data['squares'][$square[0]][$square[1]]['def_piece'];
 
-            // If there is an enemy piece on the square
-            if ($piece_on_square != null && $all_piece_data[$piece_on_square]['piece_color'] != $all_piece_data[$piece_id]['piece_color']) {
-                // And if that piece is not a king or a warrior king, remove the square from the array
-                if ($all_piece_data[$piece_on_square]['piece_type'] != "king" && $all_piece_data[$piece_on_square]['piece_type'] != "warriorking") {
-                    unset($squares_array[$index]);
-                }
+            // If there is an enemy non (warrior)king on the square, remove the square from the array
+            if (
+                $piece_on_square != null
+                && $game_data['pieces'][$piece_on_square]['color'] != $game_data['pieces'][$piece_id]['color']
+                && !in_array($game_data['pieces'][$piece_on_square]['type'], ["king", "warriorking"])
+            ) {
+                unset($squares_array[$index]);
             }
         }
         $squares_array = array_values($squares_array);
@@ -1066,18 +852,19 @@ class ChessSequel extends Table
         return $squares_array;
     }
 
-    function removeEnemyOccupiedKingSquares($piece_id, $all_piece_data, $board_state, $squares_array)
+    function removeEnemyOccupiedKingSquares($piece_id, $squares_array, $game_data)
     {
         // Loop through the provided array of squares
         foreach ($squares_array as $index => $square) {
-            $piece_on_square = $board_state[$square[0]][$square[1]]['defending_piece'];
+            $piece_on_square = $game_data['squares'][$square[0]][$square[1]]['def_piece'];
 
-            // If there is an enemy piece on the square
-            if ($piece_on_square != null && $all_piece_data[$piece_on_square]['piece_color'] != $all_piece_data[$piece_id]['piece_color']) {
-                // And if that piece is a king or a warrior king, remove the square from the array
-                if ($all_piece_data[$piece_on_square]['piece_type'] === "king" || $all_piece_data[$piece_on_square]['piece_type'] === "warriorking") {
-                    unset($squares_array[$index]);
-                }
+            // If there is an enemy (warrior)king on the square, remove the square from the array
+            if (
+                $piece_on_square != null
+                && $game_data['pieces'][$piece_on_square]['color'] != $game_data['pieces'][$piece_id]['color']
+                && in_array($game_data['pieces'][$piece_on_square]['type'], ["king", "warriorking"])
+            ) {
+                unset($squares_array[$index]);
             }
         }
         $squares_array = array_values($squares_array);
@@ -1085,64 +872,74 @@ class ChessSequel extends Table
         return $squares_array;
     }
 
-    function removeIllegalCaptureMoves($piece_id, $all_piece_data, $board_state, $possible_moves, $corresponding_captures)
+    function removeIllegalCaptureMoves($piece_id, $possible_moves, $corresponding_captures, $game_data)
     {
-        foreach ($possible_moves as $move_index => $move_square) {
-            foreach ($corresponding_captures[$move_index] as $capture_square) {
-                $piece_on_square = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+        $result = array("possible_moves" => [], "corresponding_captures" => []);
 
-                if ($piece_on_square != null) {
-                    if (($all_piece_data[$piece_on_square]['piece_type'] === "king" || $all_piece_data[$piece_on_square]['piece_type'] === "warriorking") && $all_piece_data[$piece_on_square]['piece_color'] === $all_piece_data[$piece_id]['piece_color']) {
-                        unset($possible_moves[$move_index]);
-                        unset($corresponding_captures[$move_index]);
-                        break;
-                    }
+        $move_count = count($possible_moves);
 
-                    switch ($all_piece_data[$piece_on_square]['piece_type']) {
-                        case "ghost":
-                            unset($possible_moves[$move_index]);
-                            unset($corresponding_captures[$move_index]);
-                            break (2);
+        for ($i = 0; $i < $move_count; $i++) {
+            if ($this->isCapturingMoveLegal($piece_id, $corresponding_captures[$i], $game_data)) {
+                $result['possible_moves'][] = $possible_moves[$i];
+                $result['corresponding_captures'][] = $corresponding_captures[$i];
+            }
+        }
 
-                        case "nemesis":
-                            if ($all_piece_data[$piece_id]['piece_type'] != "king" && $all_piece_data[$piece_id]['piece_type'] != "warriorking") {
-                                unset($possible_moves[$move_index]);
-                                unset($corresponding_captures[$move_index]);
-                                break (2);
-                            }
-                            break;
+        return $result;
+    }
 
-                        case "elephant":
-                            $capturing_piece_location = array((int) $all_piece_data[$piece_id]['board_file'], (int) $all_piece_data[$piece_id]['board_rank']);
+    function isCapturingMoveLegal($cap_id, $capture_squares, $game_data)
+    {
+        foreach ($capture_squares as $capture_square) {
+            $piece_on_square = $game_data['squares'][$capture_square[0]][$capture_square[1]]['def_piece'];
 
-                            if (abs($capturing_piece_location[0] - $capture_square[0]) > 2 || abs($capturing_piece_location[1] - $capture_square[1]) > 2) {
-                                unset($possible_moves[$move_index]);
-                                unset($corresponding_captures[$move_index]);
-                                break (2);
-                            }
-                            break;
+            if ($piece_on_square != null) {
+                if ($game_data['pieces'][$piece_on_square]['type'] === "ghost") {
+                    return false;
+                }
+
+                if (
+                    in_array($game_data['pieces'][$piece_on_square]['type'], ["king", "warriorking"])
+                    && $game_data['pieces'][$piece_on_square]['color'] === $game_data['pieces'][$cap_id]['color']
+                ) {
+                    return false;
+                }
+
+                if (
+                    $game_data['pieces'][$piece_on_square]['type'] === "nemesis"
+                    && !in_array($game_data['pieces'][$cap_id]['type'], ["king", "warriorking"])
+                ) {
+                    return false;
+                }
+
+                if ($game_data['pieces'][$piece_on_square]['type'] === "elephant") {
+                    $capturing_piece_location = array((int) $game_data['pieces'][$cap_id]['x'], (int) $game_data['pieces'][$cap_id]['y']);
+
+                    if (abs($capturing_piece_location[0] - $capture_square[0]) > 2 || abs($capturing_piece_location[1] - $capture_square[1]) > 2) {
+                        return false;
                     }
                 }
             }
         }
 
-        $possible_moves = array_values($possible_moves);
-        $corresponding_captures = array_values($corresponding_captures);
-
-        return array("possible_moves" => $possible_moves, "corresponding_captures" => $corresponding_captures);
+        return true;
     }
 
     // Takes an array of squares and removes any which do not correspond to a currently available capture for the pawn with id $piece_id
-    function removeUnavailablePawnAttacks($piece_id, $all_piece_data, $board_state, $possible_attacks)
+    function removeUnavailablePawnAttacks($piece_id, $possible_attacks, $game_data)
     {
         foreach ($possible_attacks as $index => $possible_attack) {
-            $piece_on_square = $board_state[$possible_attack[0]][$possible_attack[1]]['defending_piece'];
+            $piece_on_square = $game_data['squares'][$possible_attack[0]][$possible_attack[1]]['def_piece'];
 
             // If the square is empty and there is no en passant available there, remove this attack from the array
             if ($piece_on_square === null) {
-                $piece_adjacent = $board_state[$possible_attack[0]][$all_piece_data[$piece_id]['board_rank']]['defending_piece'];
+                $piece_adjacent = $game_data['squares'][$possible_attack[0]][$game_data['pieces'][$piece_id]['y']]['def_piece'];
 
-                if ($piece_adjacent === null || $all_piece_data[$piece_adjacent]['piece_color'] === $all_piece_data[$piece_id]['piece_color'] || $all_piece_data[$piece_adjacent]['en_passant_vulnerable'] === "0") {
+                if (
+                    $piece_adjacent === null
+                    || $game_data['pieces'][$piece_adjacent]['color'] === $game_data['pieces'][$piece_id]['color']
+                    || $game_data['pieces'][$piece_adjacent]['en_passant_vulnerable'] === "0"
+                ) {
                     unset($possible_attacks[$index]);
                 }
             }
@@ -1153,12 +950,15 @@ class ChessSequel extends Table
     }
 
     // Takes an array of possible moves and returns the same array but with any options removed that would leave the player's own king in check 
-    function removeSelfChecks($moving_piece_id, $all_piece_data, $board_state, $friendly_king_ids, $all_enemy_attacked_squares, $possible_moves, $corresponding_captures)
+    function removeSelfChecks($moving_piece_id, $friendly_king_ids, $enemy_attacks, $moves_and_captures, $game_data)
     {
-        $move_piece_location = array((int)$all_piece_data[$moving_piece_id]['board_file'], (int)$all_piece_data[$moving_piece_id]['board_rank']);
-        $move_piece_type = $all_piece_data[$moving_piece_id]['piece_type'];
+        $possible_moves = $moves_and_captures['possible_moves'];
+        $corresponding_captures = $moves_and_captures['corresponding_captures'];
 
-        $enemies_attacking_move_piece_location = $all_enemy_attacked_squares['attacked_squares'][$move_piece_location[0]][$move_piece_location[1]];
+        $move_piece_location = array((int)$game_data['pieces'][$moving_piece_id]['x'], (int)$game_data['pieces'][$moving_piece_id]['y']);
+        $move_piece_type = $game_data['pieces'][$moving_piece_id]['type'];
+
+        $enemies_attacking_move_piece_location = $enemy_attacks['attacked_squares'][$move_piece_location[0]][$move_piece_location[1]];
 
         $king_locations = array();
         $enemies_attacking_king_locations = array();
@@ -1166,12 +966,12 @@ class ChessSequel extends Table
         $attackers_to_recheck = array();
 
         foreach ($friendly_king_ids as $friendly_king_id) {
-            $king_locations[$friendly_king_id] = array((int)$all_piece_data[$friendly_king_id]['board_file'], (int)$all_piece_data[$friendly_king_id]['board_rank']);
+            $king_locations[$friendly_king_id] = array((int)$game_data['pieces'][$friendly_king_id]['x'], (int)$game_data['pieces'][$friendly_king_id]['y']);
         }
 
         foreach ($king_locations as $king_id => $king_location) {
-            $enemies_attacking_king_locations[$king_id]['attacking'] = $all_enemy_attacked_squares['attacked_squares'][$king_location[0]][$king_location[1]];
-            $enemies_attacking_king_locations[$king_id]['semi_attacking'] = $all_enemy_attacked_squares['semi_attacked_squares'][$king_location[0]][$king_location[1]];
+            $enemies_attacking_king_locations[$king_id]['attacking'] = $enemy_attacks['attacked_squares'][$king_location[0]][$king_location[1]];
+            $enemies_attacking_king_locations[$king_id]['semi_attacking'] = $enemy_attacks['semi_attacked_squares'][$king_location[0]][$king_location[1]];
 
             if (count($enemies_attacking_king_locations[$king_id]['attacking']) != 0) {
                 $attackers_to_recheck = array_merge($attackers_to_recheck, $enemies_attacking_king_locations[$king_id]['attacking']);
@@ -1179,9 +979,9 @@ class ChessSequel extends Table
         }
 
         // If the moving piece is a king or warriorking, it can't move onto an attacked square
-        if ($move_piece_type === "king" || $move_piece_type === "warriorking") {
+        if (in_array($move_piece_type, ["king", "warriorking"])) {
             foreach ($possible_moves as $move_index => $possible_move) {
-                if (count($all_enemy_attacked_squares['attacked_squares'][$possible_move[0]][$possible_move[1]]) != 0) {
+                if (count($enemy_attacks['attacked_squares'][$possible_move[0]][$possible_move[1]]) != 0) {
                     unset($possible_moves[$move_index]);
                     unset($corresponding_captures[$move_index]);
                     continue;
@@ -1207,12 +1007,12 @@ class ChessSequel extends Table
                     $attackers_to_recheck_copy = array_merge($attackers_to_recheck_copy, array_intersect($enemies_attacking_move_piece_location, $enemies['semi_attacking']));
                 }
 
-                if ($move_piece_type === "pawn" || $move_piece_type === "warriorking" || $move_piece_type === "tiger" || $move_piece_type === "elephant") {
+                if (in_array($move_piece_type, ["pawn", "warriorking", "tiger", "elephant"])) {
                     foreach ($corresponding_captures[$move_index] as $capture_location) {
                         // If any pieces would be captured were this move made (by a piece which might not land where it captures)
-                        if ($board_state[$capture_location[0]][$capture_location[1]]['defending_piece'] != null) {
+                        if ($game_data['squares'][$capture_location[0]][$capture_location[1]]['def_piece'] != null) {
                             // Any enemy pieces which are attacking the capture location and semi-attacking this king MIGHT be attacking the king if this move were made
-                            $enemies_attacking_capture_location = $all_enemy_attacked_squares['attacked_squares'][$capture_location[0]][$capture_location[1]];
+                            $enemies_attacking_capture_location = $enemy_attacks['attacked_squares'][$capture_location[0]][$capture_location[1]];
 
                             foreach ($enemies_attacking_king_locations as $enemies) {
                                 $attackers_to_recheck_copy = array_merge($attackers_to_recheck_copy, array_intersect($enemies_attacking_capture_location, $enemies['semi_attacking']));
@@ -1227,14 +1027,14 @@ class ChessSequel extends Table
                     continue;
                 }
 
-                $simulated_move = $this->simulatePossibleMove($moving_piece_id, $all_piece_data, $board_state, $possible_move, $corresponding_captures[$move_index]);
+                $simulated_move = $this->simulatePossibleMove($moving_piece_id, $possible_move, $corresponding_captures[$move_index], $game_data);
                 $all_piece_data_sim = $simulated_move['all_piece_data_sim'];
                 $board_state_sim = $simulated_move['board_state_sim'];
 
                 foreach ($friendly_king_ids as $friendly_king_id) {
-                    $king_location_sim = array((int)$all_piece_data_sim[$friendly_king_id]['board_file'], (int)$all_piece_data_sim[$friendly_king_id]['board_rank']);
+                    $king_location_sim = array((int)$all_piece_data_sim[$friendly_king_id]['x'], (int)$all_piece_data_sim[$friendly_king_id]['y']);
 
-                    if ($this->arePiecesAttackingSquare($all_piece_data_sim, $board_state_sim, $attackers_to_recheck_copy, $king_location_sim)) {
+                    if ($this->arePiecesAttackingSquare($attackers_to_recheck_copy, $king_location_sim, array("pieces" => $all_piece_data_sim, "squares" => $board_state_sim))) {
                         unset($possible_moves[$move_index]);
                         unset($corresponding_captures[$move_index]);
                         continue;
@@ -1243,65 +1043,58 @@ class ChessSequel extends Table
             }
         }
 
-        $possible_moves = array_values($possible_moves);
-        $corresponding_captures = array_values($corresponding_captures);
-        return array("possible_moves" => $possible_moves, "corresponding_captures" => $corresponding_captures);
+        return array_values($possible_moves);
     }
 
-    function simulatePossibleMove($piece_id, $all_piece_data, $board_state, $possible_move, $capture_squares_for_this_move)
+    function simulatePossibleMove($piece_id, $possible_move, $capture_squares_for_this_move, $game_data)
     {
         // Starting location of the moving piece
-        $piece_starting_file = $all_piece_data[$piece_id]['board_file'];
-        $piece_starting_rank = $all_piece_data[$piece_id]['board_rank'];
+        $piece_starting_x = $game_data['pieces'][$piece_id]['x'];
+        $piece_starting_y = $game_data['pieces'][$piece_id]['y'];
 
         // Remove the moving piece from its starting location
-        $board_state[$piece_starting_file][$piece_starting_rank]['defending_piece'] = null;
+        $game_data['squares'][$piece_starting_x][$piece_starting_y]['def_piece'] = null;
 
         // Set as captured any pieces which would be captured in this move
         foreach ($capture_squares_for_this_move as $capture_square) {
-            $piece_on_cap_square = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+            $piece_on_cap_square = $game_data['squares'][$capture_square[0]][$capture_square[1]]['def_piece'];
 
             if ($piece_on_cap_square != null) {
-                $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'] = null;
-                $all_piece_data[$piece_on_cap_square]['captured'] = "1";
+                $game_data['squares'][$capture_square[0]][$capture_square[1]]['def_piece'] = null;
+                $game_data['pieces'][$piece_on_cap_square]['captured'] = "1";
 
-                if ($all_piece_data[$piece_id]['piece_type'] === "tiger") {
-                    $possible_move[0] = $piece_starting_file;
-                    $possible_move[1] = $piece_starting_rank;
+                if ($game_data['pieces'][$piece_id]['type'] === "tiger") {
+                    $possible_move[0] = $piece_starting_x;
+                    $possible_move[1] = $piece_starting_y;
                 }
             }
         }
 
         // Set the updated location of the moving piece
-        $board_state[$possible_move[0]][$possible_move[1]]['defending_piece'] = $piece_id;
-        $all_piece_data[$piece_id]['board_file'] = $possible_move[0];
-        $all_piece_data[$piece_id]['board_rank'] = $possible_move[1];
+        $game_data['squares'][$possible_move[0]][$possible_move[1]]['def_piece'] = $piece_id;
+        $game_data['pieces'][$piece_id]['x'] = $possible_move[0];
+        $game_data['pieces'][$piece_id]['y'] = $possible_move[1];
 
-        return array("all_piece_data_sim" => $all_piece_data, "board_state_sim" => $board_state);
+        return array("all_piece_data_sim" => $game_data['pieces'], "board_state_sim" => $game_data['squares']);
     }
 
-    // Returns true if any of the pieces specified in $piece_ids are attacking $square
-    function arePiecesAttackingSquare($all_piece_data, $board_state, $piece_ids, $square)
+    // Returns true if any of the pieces specified in $piece_ids are attacking $square, else false
+    function arePiecesAttackingSquare($piece_ids, $square, $game_data)
     {
-        //$this->printWithJavascript($square);
-
         foreach ($piece_ids as $piece_id) {
-            if ($all_piece_data[$piece_id]['captured'] === "0") {
-                $attacking_move_squares = $this->getAttackingMoveSquares($piece_id, $all_piece_data[$piece_id]['piece_type'], $all_piece_data, $board_state)['attacking_squares'];
+            if ($game_data['pieces'][$piece_id]['captured'] === "0") {
+                $attacking_move_squares = $this->getAttackingMoveSquares($piece_id, $game_data)['attacking_squares'];
 
-                if ($all_piece_data[$piece_id]['piece_type'] === "pawn" || $all_piece_data[$piece_id]['piece_type'] === "nemesispawn") {
-                    $attacking_move_squares = $this->removeUnavailablePawnAttacks($piece_id, $all_piece_data, $board_state, $attacking_move_squares);
+                if (in_array($game_data['pieces'][$piece_id]['type'], ["pawn", "nemesispawn"])) {
+                    $attacking_move_squares = $this->removeUnavailablePawnAttacks($piece_id, $attacking_move_squares, $game_data);
                 }
 
-                $corresponding_captures = $this->getCorrespondingCaptures($piece_id, $all_piece_data, $board_state, $attacking_move_squares);
-                $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $all_piece_data, $board_state, $attacking_move_squares, $corresponding_captures);
+                $corresponding_captures = $this->getCorrespondingCaptures($piece_id, $attacking_move_squares, $game_data);
+                $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $attacking_move_squares, $corresponding_captures, $game_data);
                 $attacking_move_squares = $moves_and_captures['possible_moves'];
                 $corresponding_captures = $moves_and_captures['corresponding_captures'];
 
-                //$this->printWithJavascript("arePiecesAttackingSquare, attacking_squares:");
-                //$this->printWithJavascript($attacking_squares);
-
-                foreach ($attacking_move_squares as $attacking_move_index => $attacking_move_square) {
+                foreach (array_keys($attacking_move_squares) as $attacking_move_index) {
                     foreach ($corresponding_captures[$attacking_move_index] as $corresponding_capture_square) {
                         if ($corresponding_capture_square === $square) {
                             return true;
@@ -1330,12 +1123,19 @@ class ChessSequel extends Table
         }
 
         if ($counter > 0) {
-            self::DbQuery("INSERT INTO legal_moves (move_id, moving_piece_id, board_file, board_rank) VALUES " . implode(',', $moves));
+            self::DbQuery("INSERT INTO legal_moves (move_id, moving_piece_id, x, y) VALUES " . implode(',', $moves));
         }
 
         self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
 
         return $counter;
+    }
+
+    function getCostToDuel($cap_id, $def_id, $pieces)
+    {
+        $cap_piece_rank = $this->piece_ranks[$pieces[$cap_id]['type']];
+        $def_piece_rank = $this->piece_ranks[$pieces[$def_id]['type']];
+        return ($cap_piece_rank > $def_piece_rank) ? 1 : 0;
     }
 
     // Change player_stones by $amount for the player with color $player_color (max 6)
@@ -1361,159 +1161,90 @@ class ChessSequel extends Table
         );
     }
 
-    // TODO: Poorly designed and can be improved
-    function resolveNextCapture($both_pieces_capture, $all_piece_data = null, $board_state = null, $capture_queue = null)
+    // TODO: Look to improve further
+    function resolveNextCapture($both_cap, $game_data = [])
     {
-        if ($all_piece_data === null) {
-            $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
+        if (count($game_data) === 0) {
+            $game_data['pieces'] = self::getCollectionFromDB("SELECT * FROM pieces");
+            $game_data['squares'] = $this->getSquaresData($game_data['pieces']);
+            $game_data['cap_q'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
         }
 
-        if ($board_state === null) {
-            $board_state = $this->getBoardState($all_piece_data);
-        }
+        $min_cq_id = min(array_keys($game_data['cap_q']));
 
-        if ($capture_queue === null) {
-            $capture_queue = self::getCollectionFromDB("SELECT * FROM capture_queue");
-        }
+        $cap_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'cap_id'");
+        $def_id = $game_data['squares'][(int) $game_data['cap_q'][$min_cq_id]['x']][(int) $game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
 
-        $capturing_piece_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'cap_id'");
+        $same_color = ($game_data['pieces'][$def_id]['color'] === $game_data['pieces'][$cap_id]['color']);
 
-        if ($both_pieces_capture) {
-            $capture_ids = array();
-            $capture_squares = array();
-            for ($i = 1; $i <= 8; $i++) {
-                if (array_key_exists($i, $capture_queue)) {
-                    $capture_ids[] = $i;
-                    $capture_squares[] = array((int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank']);
-                }
-            }
+        $pieces_to_cap = array($def_id);
 
-            $defending_piece_id = $board_state[$capture_squares[0][0]][$capture_squares[0][1]]['defending_piece'];
-
-            // Update piece data for defending piece
-            self::DbQuery("UPDATE pieces SET captured = 1 WHERE piece_id = '$defending_piece_id'");
-
-            self::notifyAllPlayers(
-                "updateAllPieceData",
-                "",
-                array(
-                    "piece_id" => $defending_piece_id,
-                    "values_updated" => array("captured" => "1")
-                )
-            );
-
-            if ($all_piece_data[$defending_piece_id]['piece_type'] === "pawn" || $all_piece_data[$defending_piece_id]['piece_type'] === "nemesispawn") {
-                if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
-                    // Player with the color of the capturing piece gets a stone
-                    $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
-                    $this->updateStones($capturing_color, 1);
-                }
-            }
-
-            // Update piece data for capturing piece
-            self::DbQuery("UPDATE pieces SET captured = 1, capturing = 0 WHERE piece_id = '$capturing_piece_id'");
-
-            self::DbQuery("UPDATE game_variables SET var_value = NULL WHERE var_id = 'cap_id'");
-
-            self::notifyAllPlayers(
-                "updateAllPieceData",
-                "",
-                array(
-                    "piece_id" => $capturing_piece_id,
-                    "values_updated" => array("captured" => "1", "capturing" => "0")
-                )
-            );
-
-            if ($all_piece_data[$capturing_piece_id]['piece_type'] === "pawn" || $all_piece_data[$capturing_piece_id]['piece_type'] === "nemesispawn") {
-                if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
-                    // Player with the color of the defending piece gets a stone
-                    $defending_color = $all_piece_data[$defending_piece_id]['piece_color'];
-                    $this->updateStones($defending_color, 1);
-                }
-            }
-
-            // Clear entire capture queue
-            foreach ($capture_ids as $capture_id) {
-                self::DbQuery("DELETE FROM capture_queue WHERE capture_id = '$capture_id'");
-
-                self::notifyAllPlayers("deleteFromCaptureQueue", "", array("capture_id" => $capture_id));
-            }
+        if ($both_cap) {
+            $pieces_to_cap[] = $cap_id;
+            self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'cap_id'");
+            self::DbQuery("DELETE FROM capture_queue");
         } else {
-            $capture_id = 0;
-            $capture_square = array();
-            for ($i = 1; $i <= 8; $i++) {
-                if (array_key_exists($i, $capture_queue)) {
-                    $capture_id = $i;
-                    $capture_square = array((int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank']);
-                    break;
-                }
-            }
+            self::DbQuery("DELETE FROM capture_queue WHERE cq_id = '$min_cq_id'");
 
-            $defending_piece_id = $board_state[$capture_square[0]][$capture_square[1]]['defending_piece'];
+            if (count($game_data['cap_q']) === 1) {
+                self::DbQuery("UPDATE pieces SET capturing = 0 WHERE piece_id = '$cap_id'");
 
-            self::DbQuery("UPDATE pieces SET captured = 1 WHERE piece_id = '$defending_piece_id'");
-
-            self::notifyAllPlayers(
-                "updateAllPieceData",
-                "",
-                array(
-                    "piece_id" => $defending_piece_id,
-                    "values_updated" => array("captured" => "1")
-                )
-            );
-
-            if ($all_piece_data[$defending_piece_id]['piece_type'] === "pawn" || $all_piece_data[$defending_piece_id]['piece_type'] === "nemesispawn") {
-                if ($all_piece_data[$defending_piece_id]['piece_color'] != $all_piece_data[$capturing_piece_id]['piece_color']) {
-                    // Player with the color of the capturing piece gets a stone
-                    $capturing_color = $all_piece_data[$capturing_piece_id]['piece_color'];
-                    $this->updateStones($capturing_color, 1);
-                }
-            }
-
-            if (count($capture_queue) === 1) {
-                self::DbQuery("UPDATE pieces SET capturing = 0 WHERE piece_id = '$capturing_piece_id'");
-
-                self::DbQuery("UPDATE game_variables SET var_value = NULL WHERE var_id = 'cap_id'");
+                self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'cap_id'");
 
                 self::notifyAllPlayers(
                     "updateAllPieceData",
                     "",
                     array(
-                        "piece_id" => $capturing_piece_id,
+                        "piece_id" => $cap_id,
                         "values_updated" => array("capturing" => "0")
                     )
                 );
             }
+        }
 
-            self::DbQuery("DELETE FROM capture_queue WHERE capture_id = '$capture_id'");
+        foreach ($pieces_to_cap as $id) {
+            self::DbQuery("UPDATE pieces SET captured = 1, capturing = 0 WHERE piece_id = '$id'");
 
-            self::notifyAllPlayers("deleteFromCaptureQueue", "", array("capture_id" => $capture_id));
+            self::notifyAllPlayers(
+                "updateAllPieceData",
+                "",
+                array(
+                    "piece_id" => $id,
+                    "values_updated" => array("captured" => "1", "capturing" => 0)
+                )
+            );
+
+            if (in_array($game_data['pieces'][$id]['type'], ["pawn", "nemesispawn"]) && !$same_color) {
+                // Player with the other color gets a stone
+                $other_color = ($game_data['pieces'][$id]['color'] === "000000") ? "ffffff" : "000000";
+                $this->updateStones($other_color, 1);
+            }
         }
     }
 
-    function resolveCastle($all_piece_data, $king_id)
+    function resolveCastle($king_id, $pieces)
     {
-        $king_file = $all_piece_data[$king_id]['board_file'];
-        $king_rank = $all_piece_data[$king_id]['board_rank'];
-        $board_state = $this->getBoardState($all_piece_data);
+        $king_x = $pieces[$king_id]['x'];
+        $king_y = $pieces[$king_id]['y'];
+        $squares = $this->getSquaresData($pieces);
 
         // Find the rook
-        $rook_dir = ($king_file === "7") ? 1 : -1;
-        $castling_rook_id = $board_state[$king_file + $rook_dir][$king_rank]['defending_piece'];
-        $rook_destination_file = $king_file - $rook_dir;
+        $rook_dir = ($king_x === "7") ? 1 : -1;
+        $castling_rook_id = $squares[$king_x + $rook_dir][$king_y]['def_piece'];
+        $rook_dest_x = $king_x - $rook_dir;
 
         // Update the rook's position in the pieces database table
-        self::DbQuery("UPDATE pieces SET board_file = '$rook_destination_file' WHERE piece_id = '$castling_rook_id'");
+        self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
 
-        // Update the game_variables database table to no longer have this piece castling
-        self::DbQuery("UPDATE game_variables SET var_value = NULL WHERE var_id = 'cas_id'");
+        // Update the game_vars database table to no longer have this piece castling
+        self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'cas_id'");
 
         self::notifyAllPlayers(
             "updateAllPieceData",
             "",
             array(
                 "piece_id" => $castling_rook_id,
-                "values_updated" => array("location" => array($rook_destination_file, $king_rank))
+                "values_updated" => array("location" => array($rook_dest_x, $king_y))
             )
         );
 
@@ -1521,53 +1252,46 @@ class ChessSequel extends Table
     }
 
     // Returns true if active player has met the midline invasion win condition, else returns false
-    function activePlayerInvaded($all_piece_data)
+    function hasActivePlayerInvaded($pieces)
     {
         $king_ids = $this->getPlayerKingIds($this->getActivePlayerId());
 
-        $invasion_direction = ($all_piece_data[$king_ids['player_king_id']]['piece_color'] === "000000") ? -1 : 1;
+        $invasion_direction = ($pieces[$king_ids['player_king_id']]['color'] === "000000") ? -1 : 1;
 
         foreach ($king_ids as $king_id) {
-            if (($all_piece_data[$king_id]['board_rank'] - 4.5) * $invasion_direction < 0) {
+            if (($pieces[$king_id]['y'] - 4.5) * $invasion_direction < 0) {
                 return false;
             }
         }
         return true;
     }
 
-    function processCapture($all_piece_data, $capturing_piece_id)
+    function processCapture($cap_id, $pieces)
     {
-        $board_state = $this->getBoardState($all_piece_data);
-        $capture_queue = self::getCollectionFromDB("SELECT * FROM capture_queue");
+        $squares = $this->getSquaresData($pieces);
+        $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
 
         // The first square in the capture queue
-        $capture_square = array();
-        for ($i = 1; $i <= 8; $i++) {
-            if (array_key_exists($i, $capture_queue)) {
-                $capture_square = array((int) $capture_queue[$i]['board_file'], (int) $capture_queue[$i]['board_rank']);
-                break;
-            }
-        }
+        $min_cq_id = min(array_keys($cap_q));
+        $cap_square = array((int) $cap_q[$min_cq_id]['x'], (int) $cap_q[$min_cq_id]['y']);
 
-        $capturing_piece_data = $all_piece_data[$capturing_piece_id];
-        $defending_piece_data = $all_piece_data[$board_state[$capture_square[0]][$capture_square[1]]['defending_piece']];
+        $def_id = $squares[$cap_square[0]][$cap_square[1]]['def_piece'];
 
         $this->activeNextPlayer();
-        $defender_player_id = $this->getActivePlayerId();
-        $capturing_piece_rank = $this->piece_ranks[$capturing_piece_data['piece_type']];
-        $defending_piece_rank = $this->piece_ranks[$defending_piece_data['piece_type']];
 
-        $defender_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_id = '$defender_player_id'");
-        $cost_to_duel = ($capturing_piece_rank > $defending_piece_rank) ? 1 : 0;
+        $def_player_id = $this->getActivePlayerId();
+        $defender_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_id = '$def_player_id'");
+
+        $cost_to_duel = $this->getCostToDuel($cap_id, $def_id, $pieces);
 
         // If capturing (warrior)king or defending friendly or can't afford duel, capturing proceeds with no duel
         if (
-            in_array($capturing_piece_data['piece_type'], ["king", "warriorking"])
-            || $defending_piece_data['piece_color'] === $capturing_piece_data['piece_color']
+            in_array($pieces[$cap_id]['type'], ["king", "warriorking"])
+            || $pieces[$squares[$cap_square[0]][$cap_square[1]]['def_piece']]['color'] === $pieces[$cap_id]['color']
             || $defender_stones <= $cost_to_duel
         ) {
             $this->activeNextPlayer();
-            $this->resolveNextCapture(false, $all_piece_data, $board_state, $capture_queue);
+            $this->resolveNextCapture(false, array("pieces" => $pieces, "squares" => $squares, "cap_q" => $cap_q));
             $this->gamestate->nextState('whereNext');
         } else {
             $this->gamestate->nextState('duelOffer');
@@ -1634,7 +1358,7 @@ class ChessSequel extends Table
             throw new BgaSystemException("Invalid army selection");
     }
 
-    function movePiece($target_file, $target_rank, $moving_piece_id)
+    function movePiece($target_x, $target_y, $moving_piece_id)
     {
         // Check this action is allowed according to the game state
         $this->checkAction('movePiece');
@@ -1647,52 +1371,50 @@ class ChessSequel extends Table
         // Get some information
         $player_id = $this->getActivePlayerId();
         $player_color = $this->getPlayerColorById($player_id);
-        $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
+        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
 
         // Check that the player is trying to move their own piece
-        if ($all_piece_data[$moving_piece_id]['piece_color'] != $player_color) {
+        if ($pieces[$moving_piece_id]['color'] != $player_color) {
             return;
         }
 
         // More information
-        $board_state = $this->getBoardState($all_piece_data);
-        $target_location = array((int)$target_file, (int)$target_rank);
-        $legal_moves = self::getObjectListFromDB("SELECT moving_piece_id, board_file, board_rank FROM legal_moves");
+        $squares = $this->getSquaresData($pieces);
+        $target_location = array((int)$target_x, (int)$target_y);
+        $legal_moves = self::getObjectListFromDB("SELECT moving_piece_id, x, y FROM legal_moves");
 
         foreach ($legal_moves as $move) {
             // If the attempted move is found in the array of possible moves
-            if ($move['board_file'] === $target_file && $move['board_rank'] === $target_rank && $move['moving_piece_id'] === $moving_piece_id) {
-                // $this->printWithJavascript("The target location IS in the array of legal moves");
-
-                $moving_piece_starting_location = array($all_piece_data[$moving_piece_id]['board_file'], $all_piece_data[$moving_piece_id]['board_rank']);
+            if ($move['x'] === $target_x && $move['y'] === $target_y && $move['moving_piece_id'] === $moving_piece_id) {
+                $moving_piece_starting_location = array($pieces[$moving_piece_id]['x'], $pieces[$moving_piece_id]['y']);
 
                 // If the moving piece is a pawn making its initial double move, set its en_passant_vulnerable value to 2
-                if ($all_piece_data[$moving_piece_id]['piece_type'] === "pawn" && abs($moving_piece_starting_location[1] - $target_location[1]) === 2) {
+                if ($pieces[$moving_piece_id]['type'] === "pawn" && abs($moving_piece_starting_location[1] - $target_location[1]) === 2) {
                     //$this->printWithJavascript("double pawn push");
                     $pieces_values_to_set['en_passant_vulnerable'] = "2";
                 }
                 // If the moving piece is a castling king, set cas_id
-                elseif ($all_piece_data[$moving_piece_id]['piece_type'] === "king" && abs($moving_piece_starting_location[0] - $target_location[0]) === 2) {
-                    self::DbQuery("UPDATE game_variables SET var_value = '$moving_piece_id' WHERE var_id = 'cas_id'");
+                elseif ($pieces[$moving_piece_id]['type'] === "king" && abs($moving_piece_starting_location[0] - $target_location[0]) === 2) {
+                    self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'cas_id'");
                 }
 
                 // If the moving piece is a pawn reaching the enemy backline, set pro_id
-                if (in_array($all_piece_data[$moving_piece_id]['piece_type'],  ["pawn", "nemesispawn"])) {
-                    $backline = ($all_piece_data[$moving_piece_id]['piece_color'] === "000000") ? "1" : "8";
+                if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
+                    $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
 
-                    if ($target_rank === $backline) {
-                        self::DbQuery("UPDATE game_variables SET var_value = '$moving_piece_id' WHERE var_id = 'pro_id'");
+                    if ($target_y === $backline) {
+                        self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'pro_id'");
                     }
                 }
 
-                $corresponding_captures = $this->getCorrespondingCaptures($moving_piece_id, $all_piece_data, $board_state, array($target_location))[0];
+                $corresponding_captures = $this->getCorrespondingCaptures($moving_piece_id, array($target_location), array("pieces" => $pieces, "squares" => $squares))[0];
 
                 $capture_queue = array();
 
                 $counter = 0;
                 foreach ($corresponding_captures as $corresponding_capture_square) {
-                    if ($board_state[$corresponding_capture_square[0]][$corresponding_capture_square[1]]['defending_piece'] != null) {
-                        if ($all_piece_data[$moving_piece_id]['piece_type'] === "tiger") {
+                    if ($squares[$corresponding_capture_square[0]][$corresponding_capture_square[1]]['def_piece'] != null) {
+                        if ($pieces[$moving_piece_id]['type'] === "tiger") {
                             $target_location[0] = $moving_piece_starting_location[0];
                             $target_location[1] = $moving_piece_starting_location[1];
                         }
@@ -1710,15 +1432,15 @@ class ChessSequel extends Table
                 $pieces_values_to_set_notif = $pieces_values_to_set;
                 $pieces_values_to_set_notif['location'] = $target_location;
 
-                $pieces_values_to_set['board_file'] = (string) $target_location[0];
-                $pieces_values_to_set['board_rank'] = (string) $target_location[1];
+                $pieces_values_to_set['x'] = (string) $target_location[0];
+                $pieces_values_to_set['y'] = (string) $target_location[1];
 
                 if (count($capture_queue) != 0) {
-                    $sql = "INSERT INTO capture_queue (capture_id,board_file,board_rank) VALUES ";
+                    $sql = "INSERT INTO capture_queue (cq_id,x,y) VALUES ";
                     $sql .= implode(',', $capture_queue);
                     self::DbQuery($sql);
 
-                    self::DbQuery("UPDATE game_variables SET var_value = '$moving_piece_id' WHERE var_id = 'cap_id'");
+                    self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'cap_id'");
                 }
 
                 // Update pieces table for the moving piece
@@ -1731,10 +1453,6 @@ class ChessSequel extends Table
                 self::DbQuery($sql);
 
                 // Send notifications
-                if (count($capture_queue) != 0) {
-                    self::notifyAllPlayers("fillCaptureQueue", "", array("capture_queue" => $capture_queue));
-                }
-
                 self::notifyAllPlayers(
                     "updateAllPieceData",
                     "",
@@ -1761,7 +1479,6 @@ class ChessSequel extends Table
         $this->checkAction('passKingMove');
 
         $this->gamestate->nextState('whereNext');
-        return;
     }
 
     function acceptDuel()
@@ -1769,29 +1486,20 @@ class ChessSequel extends Table
         $this->checkAction('acceptDuel');
 
         // Pay the cost to duel
-        $capture_queue = self::getCollectionFromDB("SELECT * FROM capture_queue");
-        $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
-        $board_state = $this->getBoardState($all_piece_data);
+        $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
+        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
+        $squares = $this->getSquaresData($pieces);
 
-        $defending_piece_id = 0;
-        for ($i = 1; $i <= 8; $i++) {
-            if (array_key_exists($i, $capture_queue)) {
-                $defending_piece_id = $board_state[(int) $capture_queue[$i]['board_file']][(int) $capture_queue[$i]['board_rank']]['defending_piece'];
-                break;
-            }
-        }
+        $min_cq_id = min(array_keys($cap_q));
 
-        $capturing_piece_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'cap_id'");
+        $cap_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'cap_id'");
+        $def_id = $squares[(int) $cap_q[$min_cq_id]['x']][(int) $cap_q[$min_cq_id]['y']]['def_piece'];
 
-        $capturing_piece_rank = $this->piece_ranks[$all_piece_data[$capturing_piece_id]['piece_type']];
-        $defending_piece_rank = $this->piece_ranks[$all_piece_data[$defending_piece_id]['piece_type']];
-
-        $cost_to_duel = ($capturing_piece_rank > $defending_piece_rank) ? 1 : 0;
+        $cost_to_duel = $this->getCostToDuel($cap_id, $def_id, $pieces);
 
         $this->updateStones($this->getCurrentPlayerColor(), $cost_to_duel * -1);
 
         $this->gamestate->nextState('duelBidding');
-        return;
     }
 
     function rejectDuel()
@@ -1801,7 +1509,6 @@ class ChessSequel extends Table
         $this->resolveNextCapture(false);
 
         $this->gamestate->nextState('nextPlayer');
-        return;
     }
 
     function pickBid($bid_amount)
@@ -1819,8 +1526,6 @@ class ChessSequel extends Table
         if (in_array($bid_amount, [0, 1, 2]) && $bid_amount <= $player_stones) {
             // Update the current player's bid in the database
             self::DbQuery("UPDATE player SET player_bid = '$bid_amount' WHERE player_id = '$player_id'");
-
-            // Notify?
 
             // Deactivate player. If none left, transition to 'resolveDuel' state
             $this->gamestate->setPlayerNonMultiactive($player_id, 'resolveDuel');
@@ -1842,7 +1547,6 @@ class ChessSequel extends Table
             $this->updateStones($choosing_color, 1);
 
             $this->gamestate->nextState('whereNext');
-            return;
         }
     }
 
@@ -1851,10 +1555,7 @@ class ChessSequel extends Table
         $this->checkAction('destroyStone');
 
         $choosing_color = $this->getCurrentPlayerColor();
-        $other_color = "000000";
-        if ($choosing_color === "000000") {
-            $other_color = "ffffff";
-        }
+        $other_color = ($choosing_color === "000000") ? "ffffff" : "000000";
         $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$other_color'");
 
         if ($current_stones == 0) {
@@ -1863,7 +1564,6 @@ class ChessSequel extends Table
             $this->updateStones($other_color, -1);
 
             $this->gamestate->nextState('whereNext');
-            return;
         }
     }
 
@@ -1881,19 +1581,18 @@ class ChessSequel extends Table
             return;
         }
 
-        $promoting_pawn_id = self::getUniqueValueFromDB("SELECT var_value FROM game_variables WHERE var_id = 'pro_id'");
+        $promoting_pawn_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'pro_id'");
 
-        self::DbQuery("UPDATE pieces SET piece_type = '$chosen_promotion' WHERE piece_id = '$promoting_pawn_id'");
+        self::DbQuery("UPDATE pieces SET type = '$chosen_promotion' WHERE piece_id = '$promoting_pawn_id'");
 
-        self::DbQuery("UPDATE game_variables SET var_value = NULL WHERE var_id = 'pro_id'");
+        self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'pro_id'");
 
         self::notifyAllPlayers("updateAllPieceData", "", array(
             "piece_id" => $promoting_pawn_id,
-            "values_updated" => array("piece_type" => $chosen_promotion)
+            "values_updated" => array("type" => $chosen_promotion)
         ));
 
         $this->gamestate->nextState('whereNext');
-        return;
     }
 
     /*
@@ -1973,7 +1672,7 @@ class ChessSequel extends Table
         $pieces_table_update_information = array();
 
         // Adding a row to the pieces database table for each piece in each player's starting layout
-        $sql = "INSERT INTO pieces (piece_id,piece_color,piece_type,board_file,board_rank) VALUES ";
+        $sql = "INSERT INTO pieces (piece_id,color,type,x,y) VALUES ";
         $sql_values = array();
 
         $all_king_ids = array();
@@ -1986,17 +1685,12 @@ class ChessSequel extends Table
 
             // Add to $sql_values the information for a database entry for each piece in the starting layout
             foreach ($army_starting_layout as $piece_name => $piece_info) {
-                // Adjust ranks for black player pieces
-                $piece_rank = 0;
-                if ($player_color === "000000") {
-                    $piece_rank = 9 - $piece_info[1];
-                } else {
-                    $piece_rank = $piece_info[1];
-                }
+                // Adjust y for black player pieces
+                $piece_y = ($player_color === "000000") ? 9 - $piece_info[1] : $piece_info[1];
 
                 $piece_id = $player_color . '_' . $piece_name;
-                $sql_values[] = "('$piece_id','$player_color','$piece_info[2]','$piece_info[0]','$piece_rank')";
-                $pieces_table_update_information[] = array($piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_rank);
+                $sql_values[] = "('$piece_id','$player_color','$piece_info[2]','$piece_info[0]','$piece_y')";
+                $pieces_table_update_information[] = array($piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_y);
 
                 if ($piece_info[2] === "king" || $piece_info[2] === "warriorking") {
                     $all_king_ids[$player_data['id']][] = $piece_id;
@@ -2022,7 +1716,7 @@ class ChessSequel extends Table
             'player_armies' => self::getCollectionFromDB("SELECT player_id, player_army FROM player", true)
         ));
 
-        self::DbQuery("INSERT INTO game_variables (var_id) VALUES ('cap_id'), ('cas_id'), ('pro_id')");
+        self::DbQuery("INSERT INTO game_vars (var_id) VALUES ('cap_id'), ('cas_id'), ('pro_id')");
 
         $this->activeNextPlayer();
         $this->activeNextPlayer();
@@ -2031,37 +1725,37 @@ class ChessSequel extends Table
 
     function stWhereNext()
     {
-        $all_piece_data = self::getCollectionFromDB("SELECT * FROM pieces");
+        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
 
         // Check for midline invasion win condition
-        if ($this->activePlayerInvaded($all_piece_data)) {
+        if ($this->hasActivePlayerInvaded($pieces)) {
             $this->activePlayerWins();
             return;
         }
 
-        $game_variables = self::getCollectionFromDB("SELECT * FROM game_variables", true);
+        $game_vars = self::getCollectionFromDB("SELECT * FROM game_vars", true);
 
         // Check for a pawn promoting
-        if ($game_variables['pro_id']) {
+        if ($game_vars['pro_id']) {
             $this->gamestate->nextState('pawnPromotion');
             return;
         }
 
         // Check for a piece capturing
-        if ($game_variables['cap_id']) {
-            $this->processCapture($all_piece_data, $game_variables['cap_id']);
+        if ($game_vars['cap_id']) {
+            $this->processCapture($game_vars['cap_id'], $pieces);
             return;
         }
 
         // Check for a king castling
-        if ($game_variables['cas_id']) {
-            $this->resolveCastle($all_piece_data, $game_variables['cas_id']);
+        if ($game_vars['cas_id']) {
+            $this->resolveCastle($game_vars['cas_id'], $pieces);
             return;
         }
 
         // Now the state is resolved
 
-        $board_state = $this->getBoardState($all_piece_data);
+        $squares = $this->getSquaresData($pieces);
 
         // Give the active player a king turn if available
         $active_player_id = $this->getActivePlayerId();
@@ -2070,7 +1764,7 @@ class ChessSequel extends Table
             self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$active_player_id'");
 
             $kings = array_values($this->getPlayerKingIds($active_player_id));
-            $king_moves = $this->getAllMovesForPieces($kings, $active_player_id, $all_piece_data, $board_state);
+            $king_moves = $this->getAllMovesForPieces($kings, $active_player_id, array("pieces" => $pieces, "squares" => $squares));
 
             if ($this->replaceLegalMoves($king_moves)) {
                 $this->gamestate->nextState('playerKingMove');
@@ -2081,8 +1775,8 @@ class ChessSequel extends Table
         // Now the turn can pass to the other player
 
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
-        foreach ($all_piece_data as $piece_id => $piece_data) {
-            if ($piece_data['piece_type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
+        foreach ($pieces as $piece_id => $piece_data) {
+            if ($piece_data['type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
                 $en_passant_vulnerable = $piece_data['en_passant_vulnerable'] - 1;
                 self::DbQuery("UPDATE pieces SET en_passant_vulnerable = '$en_passant_vulnerable' WHERE piece_id = '$piece_id'");
 
@@ -2098,9 +1792,9 @@ class ChessSequel extends Table
 
         $active_player_id = $this->getActivePlayerId();
         $active_player_color = $this->getPlayerColorById($active_player_id);
-        $pieces = self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE piece_color = '$active_player_color' AND captured = 0", true);
+        $act_pieces = self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE color = '$active_player_color' AND captured = 0", true);
 
-        $all_legal_moves = $this->getAllMovesForPieces($pieces, $active_player_id, $all_piece_data, $board_state);
+        $all_legal_moves = $this->getAllMovesForPieces($act_pieces, $active_player_id, array("pieces" => $pieces, "squares" => $squares));
 
         if (!$this->replaceLegalMoves($all_legal_moves)) {
             $this->activeNextPlayer();
@@ -2115,7 +1809,6 @@ class ChessSequel extends Table
         }
 
         $this->gamestate->nextState('playerMove');
-        return;
 
         /*
 
@@ -2123,47 +1816,39 @@ class ChessSequel extends Table
 
         */
     }
-
+    
     function stResolveDuel()
     {
         // Get bid amounts and the piece colors from the database
         $player_bids = self::getCollectionFromDB("SELECT player_color, player_bid FROM player", true);
-        $capturing_piece_color = self::getUniqueValueFromDB("SELECT piece_color FROM pieces WHERE capturing='1'");
-        $other_color = "000000";
-        if ($capturing_piece_color === "000000") {
-            $other_color = "ffffff";
-        }
-
+        $cap_piece_color = self::getUniqueValueFromDB("SELECT color FROM pieces WHERE capturing = '1'");
+        $other_color = ($cap_piece_color === "000000") ? "ffffff" : "000000";
+        
         // Determine outcome of duel and resolve capture
-        $both_pieces_capture = false;
-
-        if ($player_bids[$capturing_piece_color] < $player_bids[$other_color]) {
-            $both_pieces_capture = true;
-        }
-
+        $both_cap = ($player_bids[$cap_piece_color] < $player_bids[$other_color]) ? true : false;
+        
         // Update bids database
         self::DbQuery("UPDATE player SET player_bid = null");
-
+        
         // Update player stones in database and notify
         foreach ($player_bids as $player_color => $bid) {
             $this->updateStones($player_color, $bid * -1);
         }
-
-        $this->resolveNextCapture($both_pieces_capture);
-
+        
+        $this->resolveNextCapture($both_cap);
+        
         $this->activeNextPlayer();
-
+        
         // If both bid 0 stones, the attacker can choose to gain 1 stone or destroy 1 of the defender's stones
-        if ($player_bids[$capturing_piece_color] == 0 && $player_bids[$other_color] == 0) {
+        if ($player_bids[$cap_piece_color] == 0 && $player_bids[$other_color] == 0) {
             $this->gamestate->nextState('calledBluff');
             return;
         }
-
+        
         // Transition to whereNext
         $this->gamestate->nextState('whereNext');
-        return;
     }
-
+    
     function stNextPlayer()
     {
         $this->activeNextPlayer();
