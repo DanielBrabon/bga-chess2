@@ -146,20 +146,10 @@ define([
                             }
 
                             this.addActionButton('btn_confirm_army', _('Confirm Army'), 'confirmArmy', null, false, 'red');
-
-                            break;
-
-                        case 'playerMove':
-                            if (this.gamedatas.players[this.getActivePlayerId()].army === "twokings") {
-                                this.addActionButton('btn_whirlwind', _('Whirlwind Attack'), 'whirlwindClicked');
-                            }
-
                             break;
 
                         case 'playerKingMove':
-                            this.addActionButton('btn_whirlwind', _('Whirlwind Attack'), 'whirlwindClicked');
                             this.addActionButton('btn_pass_king_move', _('Pass King Move'), 'passKingMove', null, false, 'red');
-
                             break;
 
                         case 'duelOffer':
@@ -185,7 +175,6 @@ define([
                                 var piece_type = args.promoteOptions[player_army][piece_type_index];
                                 this.addActionButton('btn_promote_' + piece_type, _(piece_type), 'choosePromotion');
                             }
-
                             break;
                         /*               
                                          Example:
@@ -412,26 +401,6 @@ define([
                             }
                         }
                     }
-                }
-            },
-
-            whirlwindClicked: function (evt) {
-                // We stop the propagation of the Javascript "onclick" event. 
-                // Otherwise, it can lead to random behavior so it's always a good idea.
-                dojo.stopEvent(evt);
-
-                var player_id = this.getActivePlayerId();
-
-                if (dojo.query('.selected_piece').length != 0 && this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['type'] === "warriorking" && this.checkAction('movePiece')) {
-                    // Find the location of the piece being clicked on
-                    var target_piece_file = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['x'];
-                    var target_piece_rank = this.gamedatas.pieces[this.gamedatas.players[player_id].piece_selected]['y'];
-
-                    this.ajaxcallWrapper("movePiece", {
-                        target_file: target_piece_file,
-                        target_rank: target_piece_rank,
-                        moving_piece_id: this.gamedatas.players[player_id].piece_selected
-                    });
                 }
             },
 
