@@ -692,28 +692,35 @@ class ChessSequel extends Table
                 $elephant_location = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
 
                 foreach ($possible_moves as $move_index => $possible_move) {
-                    $corresponding_captures[$move_index] = array();
+                    $corr_caps = array();
 
                     $difference = array($possible_move[0] - $elephant_location[0], $possible_move[1] - $elephant_location[1]);
-
-                    $difference_magnitude = abs($difference[0]);
-                    if ($difference_magnitude === 0) {
-                        $difference_magnitude = abs($difference[1]);
-                    }
-
+                    $difference_magnitude = (abs($difference[0]) === 0) ? abs($difference[1]) : abs($difference[0]);
                     $direction = array($difference[0] / $difference_magnitude, $difference[1] / $difference_magnitude);
 
                     $square = $elephant_location;
 
-                    for ($i = 1; $i <= 3; $i++) {
+                    $capturing = false;
+
+                    for ($i = 0; $i < 3; $i++) {
                         $square[0] += $direction[0];
                         $square[1] += $direction[1];
 
-                        $corresponding_captures[$move_index][] = $square;
+                        if ($game_data['squares'][$square[0]][$square[1]]['def_piece'] != null) {
+                            $capturing = true;
+                        }
+
+                        $corr_caps[] = $square;
 
                         if ($square === $possible_move) {
                             break;
                         }
+                    }
+
+                    if ($capturing) {
+                        $corresponding_captures[$move_index] = $corr_caps;
+                    } else {
+                        $corresponding_captures[$move_index] = array();
                     }
                 }
                 break;
