@@ -981,10 +981,12 @@ class ChessSequel extends Table
         // If the moving piece is a king or warriorking, it can't move onto an attacked square
         if (in_array($move_piece_type, ["king", "warriorking"])) {
             foreach ($possible_moves as $move_index => $possible_move) {
-                if (count($enemy_attacks['attacked_squares'][$possible_move[0]][$possible_move[1]]) != 0) {
+                if (
+                    $possible_move != $move_piece_location
+                    && count($enemy_attacks['attacked_squares'][$possible_move[0]][$possible_move[1]]) != 0
+                ) {
                     unset($possible_moves[$move_index]);
                     unset($corresponding_captures[$move_index]);
-                    continue;
                 }
             }
         }
@@ -1037,7 +1039,7 @@ class ChessSequel extends Table
                     if ($this->arePiecesAttackingSquare($attackers_to_recheck_copy, $king_location_sim, array("pieces" => $all_piece_data_sim, "squares" => $board_state_sim))) {
                         unset($possible_moves[$move_index]);
                         unset($corresponding_captures[$move_index]);
-                        continue;
+                        break;
                     }
                 }
             }
