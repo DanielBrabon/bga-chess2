@@ -1277,6 +1277,9 @@ class ChessSequel extends Table
 
     function processCapture($cap_id, $pieces)
     {
+        // 50 move rule
+        self::DbQuery("UPDATE game_vars SET var_val = 51 WHERE var_id = 'fifty_counter'");
+
         $squares = $this->getSquaresData($pieces);
         $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
 
@@ -1402,10 +1405,12 @@ class ChessSequel extends Table
                 self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'cas_id'");
             }
 
-            // If the moving piece is a pawn reaching the enemy backline, set pro_id
             else if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
+                // 50 move rule
+                self::DbQuery("UPDATE game_vars SET var_val = 51 WHERE var_id = 'fifty_counter'");
+                
+                // If the moving piece is a pawn reaching the enemy backline, set pro_id
                 $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
-
                 if ($target_y === $backline) {
                     self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'pro_id'");
                 }
@@ -1727,6 +1732,7 @@ class ChessSequel extends Table
         ));
 
         self::DbQuery("INSERT INTO game_vars (var_id) VALUES ('cap_id'), ('cas_id'), ('pro_id')");
+        self::DbQuery("INSERT INTO game_vars (var_id, var_val) VALUES ('fifty_counter', 51)");
 
         $this->activeNextPlayer();
         $this->activeNextPlayer();
@@ -1784,6 +1790,16 @@ class ChessSequel extends Table
 
         // Now the turn can pass to the other player
 
+        // 50 move rule
+        // Reduce fifty_counter by 1 at the end of each black player's turn. Reset to 51 when moving a pawn or capturing. If it reaches 0, draw
+        if ($this->getPlayerColorById($active_player_id) === "000000") {
+            $fifty_counter = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'fifty_counter'") - 1;
+            if ($fifty_counter === 0) {
+                $this->gamestate->nextState('gameEnd');
+            }
+            self::DbQuery("UPDATE game_vars SET var_val = '$fifty_counter' WHERE var_id = 'fifty_counter'");
+        }
+
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($pieces as $piece_id => $piece_data) {
             if ($piece_data['type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
@@ -1822,7 +1838,7 @@ class ChessSequel extends Table
 
         /*
 
-        // Check for threefold repetition, 50 turn rule(?), out of resources and resolve
+        // Check for threefold repetition, out of resources and resolve
 
         */
     }
