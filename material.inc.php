@@ -251,6 +251,28 @@ $this->effective_types = array(
   "junglequeen" => array("knight", "rook")
 );
 
+$this->type_code = array(
+  "pawn" => "p",
+  "knight" => "n",
+  "bishop" => "b",
+  "rook" => "r",
+  "queen" => "q",
+  "king" => "k",
+  "nemesispawn" => "o",
+  "nemesis" => "m",
+  "empoweredknight" => "i",
+  "empoweredbishop" => "s",
+  "empoweredrook" => "c",
+  "elegantqueen" => "l",
+  "ghost" => "g",
+  "reaper" => "a",
+  "warriorking" => "w",
+  "elephant" => "e",
+  "wildhorse" => "h",
+  "tiger" => "t",
+  "junglequeen" => "j"
+);
+
 /*
 
 Example:

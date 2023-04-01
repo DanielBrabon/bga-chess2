@@ -1794,18 +1794,15 @@ class ChessSequel extends Table
             self::DbQuery("UPDATE game_vars SET var_val = '$fifty_counter' WHERE var_id = 'fifty_counter'");
         }
 
-        // TODO
-        // Check for threefold repetition
-
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($pieces as $piece_id => $piece_data) {
             if ($piece_data['type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
-                $en_passant_vulnerable = $piece_data['en_passant_vulnerable'] - 1;
-                self::DbQuery("UPDATE pieces SET en_passant_vulnerable = '$en_passant_vulnerable' WHERE piece_id = '$piece_id'");
+                $piece_data['en_passant_vulnerable'] -= 1;
+                self::DbQuery("UPDATE pieces SET en_passant_vulnerable = {$piece_data['en_passant_vulnerable']} WHERE piece_id = '$piece_id'");
 
                 self::notifyAllPlayers("updateAllPieceData", "", array(
                     "piece_id" => $piece_id,
-                    "values_updated" => array("en_passant_vulnerable" => (string) $en_passant_vulnerable)
+                    "values_updated" => array("en_passant_vulnerable" => (string) $piece_data['en_passant_vulnerable'])
                 ));
             }
         }
@@ -1829,6 +1826,40 @@ class ChessSequel extends Table
 
         if ($army_name === "twokings") {
             self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_id = '$active_player_id'");
+        }
+
+        // String describing the current position
+        $pos_string = $active_player_color[0];
+        for ($i = 1; $i <= 8; $i++) {
+            for ($j = 1; $j <= 8; $j++) {
+                $pid = $squares[$i][$j]['def_piece'];
+
+                if (!$pid) {
+                    $pos_string .= "-";
+                    continue;
+                }
+
+                $pos_string .= $this->type_code[$pieces[$pid]['type']];
+                $pos_string .= $pieces[$pid]['color'][0];
+
+                if (
+                    $pieces[$pid]['type'] === "pawn"
+                    || ($pieces[$pid]['type'] === "king"
+                        && self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_color = '{$pieces[$pid]['color']}'") === "classic")
+                ) {
+                    $owner_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '{$pieces[$pid]['color']}'");
+
+                    $piece_moves = $this->getAllMovesForPieces(array($pid), $owner_id, array("pieces" => $pieces, "squares" => $squares))[$pid];
+                    $pos_string .= count($piece_moves);
+                }
+            }
+        }
+
+        // Check for threefold repetition
+        self::DbQuery("INSERT INTO pos_history (pos_string) VALUES ('$pos_string')");
+        $pos_reps = self::getUniqueValueFromDB("SELECT COUNT(*) FROM pos_history WHERE pos_string = '$pos_string'");
+        if ($pos_reps == 3) {
+            $this->gamestate->nextState('gameEnd');
         }
 
         $this->gamestate->nextState('playerMove');
