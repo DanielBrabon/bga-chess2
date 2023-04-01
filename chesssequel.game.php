@@ -315,7 +315,7 @@ class ChessSequel extends Table
 
         $elephant_location = array((int) $game_data['pieces'][$elephant_id]['x'], (int) $game_data['pieces'][$elephant_id]['y']);
 
-        $directions = array(array(1, 0), array(0, 1), array(-1, 0), array(0, -1));
+        $directions = $this->attack_steps["rook"];
 
         foreach ($directions as $direction_index => $direction) {
             $square = $elephant_location;
@@ -430,7 +430,7 @@ class ChessSequel extends Table
             case "elephant":
                 $elephant_location = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
 
-                $directions = array(array(1, 0), array(0, 1), array(-1, 0), array(0, -1));
+                $directions = $this->attack_steps["rook"];
 
                 foreach ($directions as $direction) {
                     $square = $elephant_location;
@@ -692,35 +692,31 @@ class ChessSequel extends Table
                 $elephant_location = array((int) $game_data['pieces'][$piece_id]['x'], (int) $game_data['pieces'][$piece_id]['y']);
 
                 foreach ($possible_moves as $move_index => $possible_move) {
-                    $corr_caps = array();
+                    $corresponding_captures[$move_index] = array();
 
                     $difference = array($possible_move[0] - $elephant_location[0], $possible_move[1] - $elephant_location[1]);
                     $difference_magnitude = (abs($difference[0]) === 0) ? abs($difference[1]) : abs($difference[0]);
                     $direction = array($difference[0] / $difference_magnitude, $difference[1] / $difference_magnitude);
 
-                    $square = $elephant_location;
+                    if (
+                        $difference_magnitude != 3
+                        && in_array($possible_move[0] + $direction[0], [0, 9])
+                        && in_array($possible_move[1] + $direction[1], [0, 9])
+                    ) {
+                        continue;
+                    }
 
-                    $capturing = false;
+                    $square = $elephant_location;
 
                     for ($i = 0; $i < 3; $i++) {
                         $square[0] += $direction[0];
                         $square[1] += $direction[1];
 
-                        if ($game_data['squares'][$square[0]][$square[1]]['def_piece'] != null) {
-                            $capturing = true;
-                        }
-
-                        $corr_caps[] = $square;
+                        $corresponding_captures[$move_index][] = $square;
 
                         if ($square === $possible_move) {
                             break;
                         }
-                    }
-
-                    if ($capturing) {
-                        $corresponding_captures[$move_index] = $corr_caps;
-                    } else {
-                        $corresponding_captures[$move_index] = array();
                     }
                 }
                 break;
@@ -1403,12 +1399,10 @@ class ChessSequel extends Table
             // If the moving piece is a castling king, set cas_id
             if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
                 self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'cas_id'");
-            }
-
-            else if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
+            } else if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
                 // 50 move rule
                 self::DbQuery("UPDATE game_vars SET var_val = 51 WHERE var_id = 'fifty_counter'");
-                
+
                 // If the moving piece is a pawn reaching the enemy backline, set pro_id
                 $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
                 if ($target_y === $backline) {
@@ -1800,6 +1794,9 @@ class ChessSequel extends Table
             self::DbQuery("UPDATE game_vars SET var_val = '$fifty_counter' WHERE var_id = 'fifty_counter'");
         }
 
+        // TODO
+        // Check for threefold repetition
+
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($pieces as $piece_id => $piece_data) {
             if ($piece_data['type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
@@ -1835,12 +1832,6 @@ class ChessSequel extends Table
         }
 
         $this->gamestate->nextState('playerMove');
-
-        /*
-
-        // Check for threefold repetition, out of resources and resolve
-
-        */
     }
 
     function stResolveDuel()
