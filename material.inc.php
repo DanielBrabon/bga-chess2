@@ -176,7 +176,22 @@ $this->button_labels = array(
   "empowered" => clienttranslate("Empowered"),
   "reaper" => clienttranslate("Reaper"),
   "twokings" => clienttranslate("Two Kings"),
-  "animal" => clienttranslate("Animal")
+  "animal" => clienttranslate("Animal"),
+  "knight" => clienttranslate("Knight"),
+  "bishop" => clienttranslate("Bishop"),
+  "rook" => clienttranslate("Rook"),
+  "queen" => clienttranslate("Queen"),
+  "nemesis" => clienttranslate("Nemesis"),
+  "empoweredknight" => clienttranslate("Empowered Knight"),
+  "empoweredbishop" => clienttranslate("Empowered Bishop"),
+  "empoweredrook" => clienttranslate("Empowered Rook"),
+  "elegantqueen" => clienttranslate("Elegant Queen"),
+  "ghost" => clienttranslate("Ghost"),
+  "reaper" => clienttranslate("Reaper"),
+  "wildhorse" => clienttranslate("Wild Horse"),
+  "tiger" => clienttranslate("Tiger"),
+  "elephant" => clienttranslate("Elephant"),
+  "junglequeen" => clienttranslate("Jungle Queen")
 );
 
 $this->piece_ranks = array(

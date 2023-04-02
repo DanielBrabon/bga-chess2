@@ -176,7 +176,7 @@ define([
 
                             for (var piece_type_index in args.promoteOptions[player_army]) {
                                 var piece_type = args.promoteOptions[player_army][piece_type_index];
-                                this.addActionButton('btn_promote_' + piece_type, _(piece_type), 'choosePromotion');
+                                this.addActionButton('btn_promote_' + piece_type, this.gamedatas.button_labels[piece_type], 'choosePromotion');
                             }
                             break;
                         
