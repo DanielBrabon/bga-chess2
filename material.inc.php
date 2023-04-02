@@ -191,7 +191,10 @@ $this->button_labels = array(
   "wildhorse" => clienttranslate("Wild Horse"),
   "tiger" => clienttranslate("Tiger"),
   "elephant" => clienttranslate("Elephant"),
-  "junglequeen" => clienttranslate("Jungle Queen")
+  "junglequeen" => clienttranslate("Jungle Queen"),
+  "bid_0" => clienttranslate("Bid 0 Stones"),
+  "bid_1" => clienttranslate("Bid 1 Stone"),
+  "bid_2" => clienttranslate("Bid 2 Stones")
 );
 
 $this->piece_ranks = array(

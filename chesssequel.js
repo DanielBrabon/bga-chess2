@@ -161,9 +161,12 @@ define([
                             break;
 
                         case 'duelBidding':
-                            this.addActionButton('btn_bid_zero', _('Bid 0 Stones'), 'pickBid');
-                            this.addActionButton('btn_bid_one', _('Bid 1 Stone'), 'pickBid');
-                            this.addActionButton('btn_bid_two', _('Bid 2 Stones'), 'pickBid');
+                            let stones = $('player_stones_' + this.player_id).innerHTML.split(' ')[1];
+                            let max_bid = (stones > 2) ? 2 : stones;
+
+                            for (let i = 0; i <= max_bid; i++) {
+                                this.addActionButton('btn_bid_' + i, this.gamedatas.button_labels["bid_" + i], 'pickBid');
+                            }
                             break;
 
                         case 'calledBluff':
@@ -449,28 +452,9 @@ define([
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
 
-                console.log("bid chosen: " + evt.currentTarget.id.split('_')[2]);
-                var bid_amount = 0;
-
-                switch (evt.currentTarget.id.split('_')[2]) {
-                    case 'zero':
-                        break;
-
-                    case 'one':
-                        bid_amount = 1;
-                        break;
-
-                    case 'two':
-                        bid_amount = 2;
-                        break;
-
-                    default:
-                        return;
-                }
-
                 if (this.checkAction('pickBid')) {
                     this.ajaxcallWrapper("pickBid", {
-                        bid_amount: bid_amount
+                        bid_amount: evt.currentTarget.id.split('_')[2]
                     });
                 }
             },
