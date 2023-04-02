@@ -161,7 +161,7 @@ define([
                             break;
 
                         case 'duelBidding':
-                            let stones = $('player_stones_' + this.player_id).innerHTML.split(' ')[1];
+                            let stones = this.gamedatas.players[this.player_id]['stones'];
                             let max_bid = (stones > 2) ? 2 : stones;
 
                             for (let i = 0; i <= max_bid; i++) {
@@ -170,7 +170,9 @@ define([
                             break;
 
                         case 'calledBluff':
-                            this.addActionButton('btn_gain_stone', _('Gain 1 Stone'), 'gainStone');
+                            if (this.gamedatas.players[this.player_id]['stones'] != 6) {
+                                this.addActionButton('btn_gain_stone', _('Gain 1 Stone'), 'gainStone');
+                            }
                             this.addActionButton('btn_destroy_stone', _('Destroy 1 Enemy Stone'), 'destroyStone');
                             break;
 
@@ -182,7 +184,7 @@ define([
                                 this.addActionButton('btn_promote_' + piece_type, this.gamedatas.button_labels[piece_type], 'choosePromotion');
                             }
                             break;
-                        
+
                         case 'drawOffer':
                             this.addActionButton('btn_accept_draw', _('Accept Draw'), 'acceptDraw');
                             this.addActionButton('btn_reject_draw', _('Reject Draw'), 'rejectDraw');
