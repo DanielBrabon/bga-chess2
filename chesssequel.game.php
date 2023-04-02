@@ -1604,6 +1604,30 @@ class ChessSequel extends Table
         $this->gamestate->nextState('whereNext');
     }
 
+    function offerDraw()
+    {
+        $this->checkAction('offerDraw');
+        $this->gamestate->nextState('offerDraw');
+    }
+
+    function acceptDraw()
+    {
+        $this->checkAction('acceptDraw');
+        $this->gamestate->nextState('gameEnd');
+    }
+
+    function rejectDraw()
+    {
+        $this->checkAction('rejectDraw');
+        $this->gamestate->nextState('drawRejected');
+    }
+
+    function concedeGame()
+    {
+        $this->checkAction('concedeGame');
+        $this->gamestate->nextState('concedeGame');
+    }
+
     /*
     
     Example:
@@ -1901,6 +1925,24 @@ class ChessSequel extends Table
     {
         $this->activeNextPlayer();
         $this->gamestate->nextState('whereNext');
+    }
+
+    function stOfferDraw()
+    {
+        $this->activeNextPlayer();
+        $this->gamestate->nextState('drawOffer');
+    }
+
+    function stDrawRejected()
+    {
+        $this->activeNextPlayer();
+        $this->gamestate->nextState('playerMove');
+    }
+
+    function stConcedeGame()
+    {
+        $this->activeNextPlayer();
+        $this->activePlayerWins();
     }
 
     /*

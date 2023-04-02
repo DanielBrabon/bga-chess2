@@ -87,8 +87,8 @@ $machinestates = array(
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose a move'),
         "descriptionmyturn" => clienttranslate('${you} must choose a move'),
-        "possibleactions" => array("movePiece"),
-        "transitions" => array("whereNext" => 5)
+        "possibleactions" => array("movePiece", "offerDraw", "concedeGame"),
+        "transitions" => array("whereNext" => 5, "offerDraw" => 13, "concedeGame" => 16)
     ),
 
     // The game decides which state to transition to next and calcualtes legal moves for the next turn
@@ -106,7 +106,7 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose a king move or pass'),
         "descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
         "possibleactions" => array("movePiece", "passKingMove"),
-        "transitions" => array("whereNext" => 5),
+        "transitions" => array("whereNext" => 5)
     ),
 
     // A player choses the promotion for their pawn
@@ -117,7 +117,7 @@ $machinestates = array(
         "descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
         "possibleactions" => array("promotePawn"),
         "args" => "argPawnPromotion",
-        "transitions" => array("whereNext" => 5),
+        "transitions" => array("whereNext" => 5)
     ),
 
     // A player choses whether to initialise a duel
@@ -127,7 +127,7 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose whether to duel'),
         "descriptionmyturn" => clienttranslate('${you} must choose whether to duel'),
         "possibleactions" => array("acceptDuel", "rejectDuel"),
-        "transitions" => array("whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 12),
+        "transitions" => array("whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 12)
     ),
 
     // Both players simultaneously choose how many stones to bid
@@ -138,7 +138,7 @@ $machinestates = array(
         "descriptionmyturn" => clienttranslate('${you} must choose how many stones to bid'),
         "action" => "stMakeEveryoneActive",
         "possibleactions" => array("pickBid"),
-        "transitions" => array("resolveDuel" => 10),
+        "transitions" => array("resolveDuel" => 10)
     ),
 
     10 => array(
@@ -162,6 +162,36 @@ $machinestates = array(
         "type" => "game",
         "action" => "stNextPlayer",
         "transitions" => array("whereNext" => 5)
+    ),
+
+    13 => array(
+        "name" => "offerDraw",
+        "type" => "game",
+        "action" => "stOfferDraw",
+        "transitions" => array("drawOffer" => 14)
+    ),
+
+    14 => array(
+       "name" => "drawOffer",
+       "type" => "activeplayer",
+       "description" => clienttranslate('${actplayer} must choose whether to accept draw'),
+       "descriptionmyturn" => clienttranslate('Your opponent has offered a draw'),
+       "possibleactions" => array("acceptDraw", "rejectDraw"),
+       "transitions" => array("gameEnd" => 99, "drawRejected" => 15)
+    ),
+
+    15 => array(
+        "name" => "drawRejected",
+        "type" => "game",
+        "action" => "stDrawRejected",
+        "transitions" => array("playerMove" => 4)
+    ),
+
+    16 => array(
+        "name" => "concedeGame",
+        "type" => "game",
+        "action" => "stConcedeGame",
+        "transitions" => array("gameEnd" => 99)
     ),
 
     // Final state.

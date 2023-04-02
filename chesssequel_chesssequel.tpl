@@ -35,6 +35,13 @@
 
     </div>
 
+    <div id="buttons">
+
+        <div id="btn_draw" class="bgabutton bgabutton_blue" type="button">Offer Draw</div>
+        <div id="btn_conc" class="bgabutton bgabutton_blue" type="button">Concede Game</div>
+
+    </div>
+
 </div>
 
 

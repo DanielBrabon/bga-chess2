@@ -105,7 +105,7 @@ class action_chesssequel extends APP_GameAction
   {
     // We call a corresponding "destroyStone" method in game.php
     self::setAjaxMode();
-    $result = $this->game->destroySTone();
+    $result = $this->game->destroyStone();
     self::ajaxResponse();
   }
 
@@ -117,6 +117,40 @@ class action_chesssequel extends APP_GameAction
     $result = $this->game->promotePawn($chosen_promotion);
     self::ajaxResponse();
   }
+  
+  public function offerDraw()
+  {
+    // We call a corresponding "offerDraw" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->offerDraw();
+    self::ajaxResponse();
+  }
+
+  public function acceptDraw()
+  {
+    // We call a corresponding "acceptDraw" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->acceptDraw();
+    self::ajaxResponse();
+  }
+
+  public function rejectDraw()
+  {
+    // We call a corresponding "rejectDraw" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->rejectDraw();
+    self::ajaxResponse();
+  }
+
+  public function concedeGame()
+  {
+    // We call a corresponding "concedeGame" method in game.php
+    self::setAjaxMode();
+    $result = $this->game->concedeGame();
+    self::ajaxResponse();
+  }
+
+
 
   /*
     

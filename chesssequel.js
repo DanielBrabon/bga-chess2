@@ -70,6 +70,9 @@ define([
                 dojo.query('.square').connect('onclick', this, 'squareClicked');
                 dojo.query('#main').connect('onclick', this, 'mainClicked');
 
+                dojo.query('#btn_conc').connect('onclick', this, 'concedeGame');
+                dojo.query('#btn_draw').connect('onclick', this, 'offerDraw');
+
                 console.log("Ending game setup");
             },
 
@@ -176,6 +179,11 @@ define([
                                 this.addActionButton('btn_promote_' + piece_type, _(piece_type), 'choosePromotion');
                             }
                             break;
+                        
+                        case 'drawOffer':
+                            this.addActionButton('btn_accept_draw', _('Accept Draw'), 'acceptDraw');
+                            this.addActionButton('btn_reject_draw', _('Reject Draw'), 'rejectDraw');
+                            break;
                         /*               
                                          Example:
                          
@@ -207,9 +215,9 @@ define([
                     args = {};
                 }
                 args.lock = true;
-            
+
                 // Make a call to the server using BGA "ajaxcall" method
-                this.ajaxcall("/chesssequel/chesssequel/" + action + ".html", args, this, (result) => {}, handler);
+                this.ajaxcall("/chesssequel/chesssequel/" + action + ".html", args, this, (result) => { }, handler);
             },
 
             clearSelectedPiece: function () {
@@ -277,7 +285,7 @@ define([
                 // For each piece in the starting layout
                 for (var piece_name in army_starting_layout) {
                     var piece_info = army_starting_layout[piece_name];
-                    
+
                     // Insert the HTML element for the piece as a child of the square it's on
                     dojo.place(this.format_block('jstpl_piece', {
                         color: player_color,
@@ -291,7 +299,7 @@ define([
                     dojo.query('.piece').addClass('flipped');
                 }
             },
-            
+
             updateArmySelectTitleText: function (army) {
                 if (this.gamedatas.players[this.player_id].color === "ffffff") {
                     var you = '<span style="font-weight:bold;color:#ffffff;background-color:#bbbbbb;">You</span>';
@@ -336,7 +344,7 @@ define([
 
                 // Gets the array of valid army names that started in material.inc.php and was returned by getAllDatas
                 var all_army_names = this.gamedatas.all_army_names;
-                
+
                 // Check client side that the army name is valid
                 if (all_army_names.indexOf(army_name) >= 0) {
                     // Place the starting pieces for that army_name on the board for this player
@@ -345,18 +353,18 @@ define([
                     this.updateArmySelectTitleText(this.gamedatas.button_labels[army_name]);
                 }
             },
-            
+
             confirmArmy: function (evt) {
                 // We stop the propagation of the Javascript "onclick" event. 
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
-                
+
                 // Check that "confirmArmy" action is possible, according to current game state
                 if (this.checkAction('confirmArmy')) {
-                    this.ajaxcallWrapper("confirmArmy", {army_name: this.gamedatas.players[this.player_id].army});
+                    this.ajaxcallWrapper("confirmArmy", { army_name: this.gamedatas.players[this.player_id].army });
                 }
             },
-            
+
             mainClicked: function (evt) {
                 // We stop the propagation of the Javascript "onclick" event.
                 // Otherwise, it can lead to random behavior so it's always a good idea.
@@ -369,7 +377,7 @@ define([
                 // We stop the propagation of the Javascript "onclick" event. 
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
-                
+
                 // If this player is not active or movePiece is not allowed in the current game state or the interface is locked, do nothing
                 if (!this.checkAction('movePiece', true)) {
                     return;
@@ -388,14 +396,14 @@ define([
                     this.clearSelectedPiece();
 
                     // If the player clicked a square with a friendly piece, select it
-                    const children = evt.currentTarget.children;                    
+                    const children = evt.currentTarget.children;
                     if (children.length != 0 && this.gamedatas.pieces[children[0].id].color === this.gamedatas.players[this.player_id].color) {
                         this.gamedatas.players[this.player_id].piece_selected = children[0].id;
                         dojo.addClass(children[0].id, 'selected_piece');
-    
+
                         for (var move_index in this.gamedatas.legal_moves) {
                             var move_object = this.gamedatas.legal_moves[move_index];
-    
+
                             if (move_object['moving_piece_id'] === children[0].id) {
                                 dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move');
                             }
@@ -501,6 +509,38 @@ define([
                 }
             },
 
+            offerDraw: function (evt) {
+                dojo.stopEvent(evt);
+
+                if (this.checkAction('offerDraw')) {
+                    this.ajaxcallWrapper("offerDraw");
+                }
+            },
+
+            acceptDraw: function (evt) {
+                dojo.stopEvent(evt);
+
+                if (this.checkAction('acceptDraw')) {
+                    this.ajaxcallWrapper("acceptDraw");
+                }
+            },
+
+            rejectDraw: function (evt) {
+                dojo.stopEvent(evt);
+
+                if (this.checkAction('rejectDraw')) {
+                    this.ajaxcallWrapper("rejectDraw");
+                }
+            },
+
+            concedeGame: function (evt) {
+                dojo.stopEvent(evt);
+
+                if (this.checkAction('concedeGame')) {
+                    this.ajaxcallWrapper("concedeGame");
+                }
+            },
+
             /* Example:
             
             onMyMethodToCall1: function( evt )
@@ -572,7 +612,7 @@ define([
                 dojo.subscribe('updateLegalMovesTable', this, "notif_updateLegalMovesTable");
 
                 dojo.subscribe('updateAllPieceData', this, "notif_updateAllPieceData");
-                
+
                 dojo.subscribe('updatePlayerData', this, "notif_updatePlayerData");
 
                 dojo.subscribe('clearSelectedPiece', this, "notif_clearSelectedPiece");
@@ -638,7 +678,7 @@ define([
                         case "location":
                             this.gamedatas.pieces[notif.args.piece_id]['x'] = String(notif.args.values_updated[field][0]);
                             this.gamedatas.pieces[notif.args.piece_id]['y'] = String(notif.args.values_updated[field][1]);
-                            
+
                             dojo.place(notif.args.piece_id, 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;
 
@@ -675,8 +715,7 @@ define([
                 for (var field in notif.args.values_updated) {
                     this.gamedatas.players[notif.args.player_id][field] = notif.args.values_updated[field];
 
-                    if (field == "stones")
-                    {
+                    if (field == "stones") {
                         $('player_stones_' + notif.args.player_id).innerHTML = "Stones: " + notif.args.values_updated[field];
                     }
                 }

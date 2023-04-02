@@ -76,6 +76,13 @@
     margin: 0 auto;
 }
 
+#buttons {
+    width: 520px;
+    height: 100px;
+    position: relative;
+    margin: 0 auto;
+}
+
 .square {
     width: 60px;
     height: 60px;
