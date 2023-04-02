@@ -23,7 +23,7 @@
 // The variables defined here are accessible everywhere in your game logic file (and also view.php file)
 
 // All valid army names
-$this->all_army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy");
+$this->all_army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal");
 
 // The starting board layouts for all armies on white side
 $this->all_armies_starting_layout = array(
@@ -158,17 +158,6 @@ $this->all_armies_starting_layout = array(
     "empty_14" => array(6, 1, "empty"),
     "empty_15" => array(4, 1, "empty"),
     "empty_16" => array(5, 1, "empty")
-  ),
-
-  "testarmy" => array(
-    "pawn" => array(1, 2, "pawn"),
-    "knight" => array(3, 4, "knight"),
-    "bishop" => array(4, 3, "bishop"),
-    "rook" => array(5, 3, "rook"),
-    "king" => array(5, 2, "king"),
-    "queen_1" => array(6, 4, "queen"),
-    "queen_2" => array(6, 1, "queen"),
-    "queen_3" => array(8, 1, "queen")
   )
 );
 
@@ -178,8 +167,7 @@ $this->all_armies_promote_options = array(
   "empowered" => array("empoweredknight", "empoweredbishop", "empoweredrook", "elegantqueen"),
   "reaper" => array("knight", "bishop", "ghost", "reaper"),
   "twokings" => array("knight", "bishop", "rook"),
-  "animal" => array("wildhorse", "tiger", "elephant", "junglequeen"),
-  "testarmy" => array("knight", "bishop", "rook", "queen")
+  "animal" => array("wildhorse", "tiger", "elephant", "junglequeen")
 );
 
 $this->button_labels = array(
@@ -188,8 +176,7 @@ $this->button_labels = array(
   "empowered" => clienttranslate("Empowered"),
   "reaper" => clienttranslate("Reaper"),
   "twokings" => clienttranslate("Two Kings"),
-  "animal" => clienttranslate("Animal"),
-  "testarmy" => clienttranslate("Test Army")
+  "animal" => clienttranslate("Animal")
 );
 
 $this->piece_ranks = array(
