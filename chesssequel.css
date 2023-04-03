@@ -154,6 +154,16 @@
     cursor: pointer;
 }
 
+.cap_piece {
+    top: 75%;
+    left: 75%;
+}
+
+.def_piece {
+    top: 25%;
+    left: 25%;
+}
+
 .attacked_square {
     background-color: darkred;
     opacity: 0.8;

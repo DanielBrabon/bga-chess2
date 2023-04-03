@@ -106,6 +106,22 @@ define([
                             break;
                     }
                 }
+
+                if (stateName == 'duelOffer' || stateName == 'duelBidding') {
+                    this.gamedatas.cap_id = args.args.capID;
+                    this.gamedatas.def_id = args.args.defID;
+
+                    // Place capturing piece on current capture square
+                    dojo.place(args.args.capID,
+                        'square_' + this.gamedatas.pieces[args.args.defID]['x'] + '_' + this.gamedatas.pieces[args.args.defID]['y']
+                    );
+
+                    // Offset pieces
+                    dojo.addClass(args.args.capID, 'cap_piece');
+                    dojo.addClass(args.args.defID, 'def_piece');
+
+                    // Maybe highlight/outline cap piece
+                }
             },
 
             // onLeavingState: this method is called each time we are leaving a game state.
@@ -113,6 +129,18 @@ define([
             //
             onLeavingState: function (stateName) {
                 console.log('Leaving state: ' + stateName);
+
+                if (stateName == 'duelOffer' || stateName == 'duelBidding') {
+                    // Place capturing piece back on its own square
+                    dojo.place(
+                        this.gamedatas.cap_id,
+                        'square_' + this.gamedatas.pieces[this.gamedatas.cap_id]['x'] + '_' + this.gamedatas.pieces[this.gamedatas.cap_id]['y']
+                    );
+
+                    // Remove offset
+                    dojo.query('.cap_piece').removeClass('cap_piece');
+                    dojo.query('.def_piece').removeClass('def_piece');
+                }
 
                 switch (stateName) {
 

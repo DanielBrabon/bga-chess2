@@ -127,7 +127,8 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose whether to duel'),
         "descriptionmyturn" => clienttranslate('${you} must choose whether to duel'),
         "possibleactions" => array("acceptDuel", "rejectDuel"),
-        "transitions" => array("whereNext" => 5, "duelBidding" => 9, "nextPlayer" => 12)
+        "args" => "argDuelOffer",
+        "transitions" => array("duelBidding" => 9, "nextPlayer" => 12)
     ),
 
     // Both players simultaneously choose how many stones to bid
@@ -138,6 +139,7 @@ $machinestates = array(
         "descriptionmyturn" => clienttranslate('${you} must choose how many stones to bid'),
         "action" => "stMakeEveryoneActive",
         "possibleactions" => array("pickBid"),
+        "args" => "argDuelBidding",
         "transitions" => array("resolveDuel" => 10)
     ),
 

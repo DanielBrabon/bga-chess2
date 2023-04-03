@@ -1312,6 +1312,20 @@ class ChessSequel extends Table
         $this->gamestate->nextState('gameEnd');
     }
 
+    function getCapIDAndDefID()
+    {
+        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
+        $squares = $this->getSquaresData($pieces);
+        $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
+
+        $min_cq_id = min(array_keys($cap_q));
+        $cap_square = array((int) $cap_q[$min_cq_id]['x'], (int) $cap_q[$min_cq_id]['y']);
+
+        $cap_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'cap_id'");
+
+        return array("capID" => $cap_id, "defID" => $squares[$cap_square[0]][$cap_square[1]]['def_piece']);
+    }
+
     // Can be called anywhere in the game.php, just calls console.log on the client side with whatever argument you pass in
     function printWithJavascript($x)
     {
@@ -1668,6 +1682,16 @@ class ChessSequel extends Table
     function argPawnPromotion()
     {
         return array("promoteOptions" => $this->all_armies_promote_options);
+    }
+
+    function argDuelOffer()
+    {
+        return $this->getCapIDAndDefID();
+    }
+
+    function argDuelBidding()
+    {
+        return $this->getCapIDAndDefID();
     }
 
     /*
