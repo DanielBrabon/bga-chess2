@@ -1239,9 +1239,14 @@ class ChessSequel extends Table
         $squares = $this->getSquaresData($pieces);
 
         // Find the rook
-        $rook_dir = ($king_x === "7") ? 1 : -1;
-        $castling_rook_id = $squares[$king_x + $rook_dir][$king_y]['def_piece'];
-        $rook_dest_x = $king_x - $rook_dir;
+        $rook_x = 8;
+        $rook_dest_x = 6;
+        if ($king_x == 3) {
+            $rook_x = 1;
+            $rook_dest_x = 4;
+        }
+        
+        $castling_rook_id = $squares[$rook_x][$king_y]['def_piece'];
 
         // Update the rook's position in the pieces database table
         self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
