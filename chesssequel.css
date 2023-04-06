@@ -127,11 +127,15 @@
 .piecetype_elephant { background-position: -1020px 0px; }
 .piecetype_junglequeen { background-position: -1080px 0px; }
 
-/* Temporary */
 .piecetype_empty {
-    background-image: url('img/pregunta.png');
-    width: 40px;
-    height: 40px;
+    background-position: -1140px 0px;
+    animation: Pulsate 2s linear infinite;
+}
+
+@keyframes Pulsate {
+    from { opacity: 0.75; }
+    50% { opacity: 0.25; }
+    to { opacity: 0.75; }
 }
 
 .flipped {
