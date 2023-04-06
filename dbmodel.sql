@@ -37,8 +37,8 @@ ALTER TABLE `player` ADD `player_army` VARCHAR(16) NOT NULL DEFAULT 'classic';
 ALTER TABLE `player` ADD `player_stones` TINYINT(1) UNSIGNED NOT NULL DEFAULT '3';
 ALTER TABLE `player` ADD `player_bid` TINYINT(1) UNSIGNED DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
-ALTER TABLE `player` ADD `player_king_id` VARCHAR(17) DEFAULT NULL;
-ALTER TABLE `player` ADD `player_king_id_2` VARCHAR(17) DEFAULT NULL;
+ALTER TABLE `player` ADD `player_king_id` TINYINT(1) UNSIGNED DEFAULT NULL;
+ALTER TABLE `player` ADD `player_king_id_2` TINYINT(1) UNSIGNED DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS `pieces` (
   `piece_id` TINYINT(1) UNSIGNED NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `pieces` (
 
 CREATE TABLE IF NOT EXISTS `legal_moves` (
   `move_id` INT(10) UNSIGNED NOT NULL,
-  `moving_piece_id` VARCHAR(17) NOT NULL,
+  `moving_piece_id` TINYINT(1) UNSIGNED NOT NULL,
   `x` TINYINT(1) UNSIGNED NOT NULL,
   `y` TINYINT(1) UNSIGNED NOT NULL,
   PRIMARY KEY (`move_id`)
