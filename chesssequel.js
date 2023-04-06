@@ -112,13 +112,13 @@ define([
                     this.gamedatas.def_id = args.args.defID;
 
                     // Place capturing piece on current capture square
-                    dojo.place(args.args.capID,
+                    dojo.place(String(args.args.capID),
                         'square_' + this.gamedatas.pieces[args.args.defID]['x'] + '_' + this.gamedatas.pieces[args.args.defID]['y']
                     );
 
                     // Offset pieces
-                    dojo.addClass(args.args.capID, 'cap_piece');
-                    dojo.addClass(args.args.defID, 'def_piece');
+                    dojo.addClass(String(args.args.capID), 'cap_piece');
+                    dojo.addClass(String(args.args.defID), 'def_piece');
 
                     // Maybe highlight/outline cap piece
                 }
@@ -133,7 +133,7 @@ define([
                 if (stateName == 'duelOffer' || stateName == 'duelBidding') {
                     // Place capturing piece back on its own square
                     dojo.place(
-                        this.gamedatas.cap_id,
+                        String(this.gamedatas.cap_id),
                         'square_' + this.gamedatas.pieces[this.gamedatas.cap_id]['x'] + '_' + this.gamedatas.pieces[this.gamedatas.cap_id]['y']
                     );
 
@@ -265,12 +265,7 @@ define([
             populateBoard: function () {
                 if (this.gamedatas.pieces.length === 0) { // We're in armySelect and pieces haven't been added to the database yet
                     for (var player_id in this.gamedatas.players) {
-                        if (player_id == this.player_id) {
-                            var army = "classic";
-                        }
-                        else {
-                            var army = "empty";
-                        }
+                        let army = (player_id == this.player_id) ? "classic" : "empty";
                         this.placeStartingPiecesOnBoard(army, this.gamedatas.players[player_id].color);
                     }
                 }
@@ -300,30 +295,31 @@ define([
             },
 
             placeStartingPiecesOnBoard: function (army_name, player_color) {
-                // Gets an array of starting pieces for that army type where:
-                // Keys are a name for the piece e.g. "pawn_1"
-                // Values are the array [ file, rank, type ] for that piece (on white side)
-                var army_starting_layout = JSON.parse(JSON.stringify(this.gamedatas.all_armies_starting_layout[army_name]));
+                // Gets an array of starting pieces for that army type where
+                // values are the array [ file, rank, type ] for that piece (on white side)
+                let army_starting_layout = JSON.parse(JSON.stringify(this.gamedatas.all_armies_starting_layout[army_name]));
+                let id_offset = 1;
 
                 // If this is for black, change the ranks to be correct for this player
                 if (player_color === "000000") {
-                    for (var piece_name in army_starting_layout) {
-                        army_starting_layout[piece_name][1] = 9 - army_starting_layout[piece_name][1];
+                    for (let i = 0; i < 16; i++) {
+                        army_starting_layout[i][1] = 9 - army_starting_layout[i][1];
                     }
+                    id_offset = 17;
                 }
 
                 // If pieces have already been placed for that color, remove those HTML elements
                 dojo.query('.piececolor_' + player_color).forEach(dojo.destroy);
 
                 // For each piece in the starting layout
-                for (var piece_name in army_starting_layout) {
-                    var piece_info = army_starting_layout[piece_name];
+                for (let i = 0; i < 16; i++) {
+                    let piece_info = army_starting_layout[i];
 
                     // Insert the HTML element for the piece as a child of the square it's on
                     dojo.place(this.format_block('jstpl_piece', {
                         color: player_color,
                         type: piece_info[2],
-                        piece_id: player_color + '_' + piece_name
+                        piece_id: i + id_offset
                     }), 'square_' + piece_info[0] + '_' + piece_info[1]);
                 }
 
@@ -693,11 +689,11 @@ define([
                             this.gamedatas.pieces[notif.args.piece_id]['x'] = String(notif.args.values_updated[field][0]);
                             this.gamedatas.pieces[notif.args.piece_id]['y'] = String(notif.args.values_updated[field][1]);
 
-                            dojo.place(notif.args.piece_id, 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
+                            dojo.place(String(notif.args.piece_id), 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;
 
                         case "captured":
-                            dojo.destroy(notif.args.piece_id);
+                            dojo.destroy(String(notif.args.piece_id));
                             break;
 
                         case "capturing":

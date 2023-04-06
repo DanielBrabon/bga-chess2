@@ -647,7 +647,11 @@ class ChessSequel extends Table
                     ) {
                         $piece_adjacent = $game_data['squares'][$possible_move[0]][$game_data['pieces'][$piece_id]['y']]['def_piece'];
                         // If the condition is met for an en passant move, the capture square is altered
-                        if ($piece_adjacent != null && $game_data['pieces'][$piece_adjacent]['color'] != $game_data['pieces'][$piece_id]['color'] && $game_data['pieces'][$piece_adjacent]['en_passant_vulnerable'] != "0") {
+                        if (
+                            $piece_adjacent != null
+                            && $game_data['pieces'][$piece_adjacent]['color'] != $game_data['pieces'][$piece_id]['color']
+                            && $game_data['pieces'][$piece_adjacent]['en_passant_vulnerable'] != "0"
+                        ) {
                             $corresponding_captures[] = array(array($possible_move[0], (int)$game_data['pieces'][$piece_id]['y']));
                         } else {
                             $corresponding_captures[] = array(array($possible_move[0], $possible_move[1]));
@@ -1739,17 +1743,23 @@ class ChessSequel extends Table
             // Get the starting layout for this player's chosen army, and their color
             $army_starting_layout = $all_datas['all_armies_starting_layout'][$player_data['army']];
             $player_color = $player_data['color'];
+            $id_offset = 1;
+
+            // If this is for black, change the ranks to be correct for this player
+            if ($player_color === "000000") {
+                for ($i = 0; $i < 16; $i++) {
+                    $army_starting_layout[$i][1] = 9 - $army_starting_layout[$i][1];
+                }
+                $id_offset = 17;
+            }
 
             // Add to $sql_values the information for a database entry for each piece in the starting layout
-            foreach ($army_starting_layout as $piece_name => $piece_info) {
-                // Adjust y for black player pieces
-                $piece_y = ($player_color === "000000") ? 9 - $piece_info[1] : $piece_info[1];
+            foreach ($army_starting_layout as $piece_index => $piece_info) {
+                $piece_id = $piece_index + $id_offset;
+                $sql_values[] = "('$piece_id','$player_color','$piece_info[2]','$piece_info[0]','$piece_info[1]')";
+                $pieces_table_update_information[] = array($piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_info[1]);
 
-                $piece_id = $player_color . '_' . $piece_name;
-                $sql_values[] = "('$piece_id','$player_color','$piece_info[2]','$piece_info[0]','$piece_y')";
-                $pieces_table_update_information[] = array($piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_y);
-
-                if ($piece_info[2] === "king" || $piece_info[2] === "warriorking") {
+                if (in_array($piece_info[2], ["king", "warriorking"])) {
                     $all_king_ids[$player_data['id']][] = $piece_id;
                 }
             }
@@ -1882,7 +1892,7 @@ class ChessSequel extends Table
             for ($j = 1; $j <= 8; $j++) {
                 $pid = $squares[$i][$j]['def_piece'];
 
-                if (!$pid) {
+                if ($pid === null) {
                     $pos_string .= "-";
                     continue;
                 }

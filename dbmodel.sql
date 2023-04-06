@@ -41,7 +41,7 @@ ALTER TABLE `player` ADD `player_king_id` VARCHAR(17) DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_id_2` VARCHAR(17) DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS `pieces` (
-  `piece_id` VARCHAR(17) NOT NULL,
+  `piece_id` TINYINT(1) UNSIGNED NOT NULL,
   `color` CHAR(6) NOT NULL,
   `type` VARCHAR(15) NOT NULL,
   `x` TINYINT(1) UNSIGNED,
