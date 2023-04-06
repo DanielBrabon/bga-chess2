@@ -68,12 +68,6 @@ CREATE TABLE IF NOT EXISTS `capture_queue` (
   PRIMARY KEY (`cq_id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS `game_vars` (
-  `var_id` VARCHAR(17) NOT NULL,
-  `var_val` VARCHAR(17) DEFAULT NULL,
-  PRIMARY KEY (`var_id`)
-) ENGINE=InnoDB;
-
 CREATE TABLE IF NOT EXISTS `pos_history` (
   `ph_id` INT(10) UNSIGNED AUTO_INCREMENT,
   `pos_string` VARCHAR(115) NOT NULL,

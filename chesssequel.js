@@ -112,13 +112,13 @@ define([
                     this.gamedatas.def_id = args.args.defID;
 
                     // Place capturing piece on current capture square
-                    dojo.place(String(args.args.capID),
+                    dojo.place(args.args.capID,
                         'square_' + this.gamedatas.pieces[args.args.defID]['x'] + '_' + this.gamedatas.pieces[args.args.defID]['y']
                     );
 
                     // Offset pieces
-                    dojo.addClass(String(args.args.capID), 'cap_piece');
-                    dojo.addClass(String(args.args.defID), 'def_piece');
+                    dojo.addClass(args.args.capID, 'cap_piece');
+                    dojo.addClass(args.args.defID, 'def_piece');
 
                     // Maybe highlight/outline cap piece
                 }
@@ -133,7 +133,7 @@ define([
                 if (stateName == 'duelOffer' || stateName == 'duelBidding') {
                     // Place capturing piece back on its own square
                     dojo.place(
-                        String(this.gamedatas.cap_id),
+                        this.gamedatas.cap_id,
                         'square_' + this.gamedatas.pieces[this.gamedatas.cap_id]['x'] + '_' + this.gamedatas.pieces[this.gamedatas.cap_id]['y']
                     );
 

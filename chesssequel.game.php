@@ -34,12 +34,10 @@ class ChessSequel extends Table
         parent::__construct();
 
         self::initGameStateLabels(array(
-            //    "my_first_global_variable" => 10,
-            //    "my_second_global_variable" => 11,
-            //      ...
-            //    "my_first_game_variant" => 100,
-            //    "my_second_game_variant" => 101,
-            //      ...
+            "cap_id" => 10,
+            "cas_id" => 11,
+            "pro_id" => 12,
+            "fifty_counter" => 13
         ));
     }
 
@@ -79,7 +77,10 @@ class ChessSequel extends Table
         /************ Start the game initialization *****/
 
         // Init global values with their initial values
-        //self::setGameStateInitialValue( 'my_first_global_variable', 0 );
+        self::setGameStateInitialValue('cap_id', 0);
+        self::setGameStateInitialValue('cas_id', 0);
+        self::setGameStateInitialValue('pro_id', 0);
+        self::setGameStateInitialValue('fifty_counter', 51);
 
         // Init game statistics
         // (note: statistics used in this file must be defined in your stats.inc.php file)
@@ -1181,7 +1182,7 @@ class ChessSequel extends Table
 
         $min_cq_id = min(array_keys($game_data['cap_q']));
 
-        $cap_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'cap_id'");
+        $cap_id = $this->getGameStateValue('cap_id');
         $def_id = $game_data['squares'][(int) $game_data['cap_q'][$min_cq_id]['x']][(int) $game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
 
         $same_color = ($game_data['pieces'][$def_id]['color'] === $game_data['pieces'][$cap_id]['color']);
@@ -1190,7 +1191,7 @@ class ChessSequel extends Table
 
         if ($both_cap) {
             $pieces_to_cap[] = $cap_id;
-            self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'cap_id'");
+            $this->setGameStateValue('cap_id', 0);
             self::DbQuery("DELETE FROM capture_queue");
         } else {
             self::DbQuery("DELETE FROM capture_queue WHERE cq_id = '$min_cq_id'");
@@ -1198,7 +1199,7 @@ class ChessSequel extends Table
             if (count($game_data['cap_q']) === 1) {
                 self::DbQuery("UPDATE pieces SET capturing = 0 WHERE piece_id = '$cap_id'");
 
-                self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'cap_id'");
+                $this->setGameStateValue('cap_id', 0);
 
                 self::notifyAllPlayers(
                     "updateAllPieceData",
@@ -1245,8 +1246,8 @@ class ChessSequel extends Table
         // Update the rook's position in the pieces database table
         self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
 
-        // Update the game_vars database table to no longer have this piece castling
-        self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'cas_id'");
+        // Update the global variable to no longer have this piece castling
+        $this->setGameStateValue('cas_id', 0);
 
         self::notifyAllPlayers(
             "updateAllPieceData",
@@ -1278,7 +1279,7 @@ class ChessSequel extends Table
     function processCapture($cap_id, $pieces)
     {
         // 50 move rule
-        self::DbQuery("UPDATE game_vars SET var_val = 51 WHERE var_id = 'fifty_counter'");
+        $this->setGameStateValue('fifty_counter', 51);
 
         $squares = $this->getSquaresData($pieces);
         $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
@@ -1325,9 +1326,9 @@ class ChessSequel extends Table
         $min_cq_id = min(array_keys($cap_q));
         $cap_square = array((int) $cap_q[$min_cq_id]['x'], (int) $cap_q[$min_cq_id]['y']);
 
-        $cap_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'cap_id'");
+        $cap_id = $this->getGameStateValue('cap_id');
 
-        return array("capID" => $cap_id, "defID" => $squares[$cap_square[0]][$cap_square[1]]['def_piece']);
+        return array("capID" => (string) $cap_id, "defID" => (string) $squares[$cap_square[0]][$cap_square[1]]['def_piece']);
     }
 
     // Can be called anywhere in the game.php, just calls console.log on the client side with whatever argument you pass in
@@ -1416,15 +1417,15 @@ class ChessSequel extends Table
 
             // If the moving piece is a castling king, set cas_id
             if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
-                self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'cas_id'");
+                $this->setGameStateValue('cas_id', $moving_piece_id);
             } else if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
                 // 50 move rule
-                self::DbQuery("UPDATE game_vars SET var_val = 51 WHERE var_id = 'fifty_counter'");
+                $this->setGameStateValue('fifty_counter', 51);
 
                 // If the moving piece is a pawn reaching the enemy backline, set pro_id
                 $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
                 if ($target_y === $backline) {
-                    self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'pro_id'");
+                    $this->setGameStateValue('pro_id', $moving_piece_id);
                 }
 
                 // If the moving piece is a pawn making its initial double move, set its en_passant_vulnerable value to 2
@@ -1470,7 +1471,7 @@ class ChessSequel extends Table
                 $sql .= implode(',', $capture_queue);
                 self::DbQuery($sql);
 
-                self::DbQuery("UPDATE game_vars SET var_val = '$moving_piece_id' WHERE var_id = 'cap_id'");
+                $this->setGameStateValue('cap_id', $moving_piece_id);
             }
 
             // Update pieces table for the moving piece
@@ -1519,7 +1520,7 @@ class ChessSequel extends Table
 
         $min_cq_id = min(array_keys($cap_q));
 
-        $cap_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'cap_id'");
+        $cap_id = $this->getGameStateValue('cap_id');
         $def_id = $squares[(int) $cap_q[$min_cq_id]['x']][(int) $cap_q[$min_cq_id]['y']]['def_piece'];
 
         $cost_to_duel = $this->getCostToDuel($cap_id, $def_id, $pieces);
@@ -1608,11 +1609,11 @@ class ChessSequel extends Table
             return;
         }
 
-        $promoting_pawn_id = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'pro_id'");
+        $promoting_pawn_id = $this->getGameStateValue('pro_id');
 
         self::DbQuery("UPDATE pieces SET type = '$chosen_promotion' WHERE piece_id = '$promoting_pawn_id'");
 
-        self::DbQuery("UPDATE game_vars SET var_val = NULL WHERE var_id = 'pro_id'");
+        $this->setGameStateValue('pro_id', 0);
 
         self::notifyAllPlayers("updateAllPieceData", "", array(
             "piece_id" => $promoting_pawn_id,
@@ -1783,9 +1784,6 @@ class ChessSequel extends Table
             'player_armies' => self::getCollectionFromDB("SELECT player_id, player_army FROM player", true)
         ));
 
-        self::DbQuery("INSERT INTO game_vars (var_id) VALUES ('cap_id'), ('cas_id'), ('pro_id')");
-        self::DbQuery("INSERT INTO game_vars (var_id, var_val) VALUES ('fifty_counter', 51)");
-
         $this->activeNextPlayer();
         $this->activeNextPlayer();
         $this->gamestate->nextState('whereNext');
@@ -1801,23 +1799,23 @@ class ChessSequel extends Table
             return;
         }
 
-        $game_vars = self::getCollectionFromDB("SELECT * FROM game_vars", true);
-
         // Check for a pawn promoting
-        if ($game_vars['pro_id']) {
+        if ($this->getGameStateValue('pro_id') != 0) {
             $this->gamestate->nextState('pawnPromotion');
             return;
         }
 
         // Check for a piece capturing
-        if ($game_vars['cap_id']) {
-            $this->processCapture($game_vars['cap_id'], $pieces);
+        $cap_id = $this->getGameStateValue('cap_id');
+        if ($cap_id != 0) {
+            $this->processCapture($cap_id, $pieces);
             return;
         }
 
         // Check for a king castling
-        if ($game_vars['cas_id']) {
-            $this->resolveCastle($game_vars['cas_id'], $pieces);
+        $cas_id = $this->getGameStateValue('cas_id');
+        if ($cas_id != 0) {
+            $this->resolveCastle($cas_id, $pieces);
             return;
         }
 
@@ -1845,11 +1843,11 @@ class ChessSequel extends Table
         // 50 move rule
         // Reduce fifty_counter by 1 at the end of each black player's turn. Reset to 51 when moving a pawn or capturing. If it reaches 0, draw
         if ($this->getPlayerColorById($active_player_id) === "000000") {
-            $fifty_counter = self::getUniqueValueFromDB("SELECT var_val FROM game_vars WHERE var_id = 'fifty_counter'") - 1;
+            $fifty_counter = $this->getGameStateValue('fifty_counter') - 1;
             if ($fifty_counter === 0) {
                 $this->gamestate->nextState('gameEnd');
             }
-            self::DbQuery("UPDATE game_vars SET var_val = '$fifty_counter' WHERE var_id = 'fifty_counter'");
+            $this->setGameStateValue('fifty_counter', $fifty_counter);
         }
 
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
