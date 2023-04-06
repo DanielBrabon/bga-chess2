@@ -280,10 +280,6 @@ define([
                                 type: piece_info['type'],
                                 piece_id: piece_info['piece_id']
                             }), 'square_' + piece_info['x'] + '_' + piece_info['y']);
-
-                            if (piece_info['capturing'] === "1") {
-                                this.pieceCapturing(piece_info['piece_id'], piece_info['x'], piece_info['y']);
-                            }
                         }
                     }
 
@@ -336,16 +332,6 @@ define([
                     var you = '<span style="font-weight:bold;color:#000000;">You</span>';
                 }
                 $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
-            },
-
-            pieceCapturing: function (capturing_piece_id, location) {
-                console.log("pieceCapturing called");
-                // Move the attacking piece off centre on the square so both can be seen, and highlight the square
-            },
-
-            pieceNoLongerCapturing: function (capturing_piece_id, location) {
-                console.log("pieceNoLongerCapturing called");
-                // Undo the effect of pieceCapturing
             },
 
             ///////////////////////////////////////////////////
@@ -693,15 +679,6 @@ define([
 
                         case "captured":
                             dojo.destroy(String(notif.args.piece_id));
-                            break;
-
-                        case "capturing":
-                            if (notif.args.values_updated[field] === "1") {
-                                this.pieceCapturing(notif.args.piece_id, notif.args.location);
-                            }
-                            else {
-                                this.pieceNoLongerCapturing(notif.args.piece_id, notif.args.location);
-                            }
                             break;
 
                         case "type":
