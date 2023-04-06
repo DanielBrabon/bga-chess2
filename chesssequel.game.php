@@ -122,7 +122,7 @@ class ChessSequel extends Table
 
         // Gathering variables from material.inc.php
         $result['all_army_names'] = $this->all_army_names;
-        $result['all_armies_starting_layout'] = $this->all_armies_starting_layout;
+        $result['all_armies_layouts'] = $this->all_armies_layouts;
         $result['button_labels'] = $this->button_labels;
 
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
@@ -1245,7 +1245,7 @@ class ChessSequel extends Table
             $rook_x = 1;
             $rook_dest_x = 4;
         }
-        
+
         $castling_rook_id = $squares[$rook_x][$king_y]['def_piece'];
 
         // Update the rook's position in the pieces database table
@@ -1746,26 +1746,27 @@ class ChessSequel extends Table
 
         // For each player
         foreach ($all_datas['players'] as $player_data) {
-            // Get the starting layout for this player's chosen army, and their color
-            $army_starting_layout = $all_datas['all_armies_starting_layout'][$player_data['army']];
             $player_color = $player_data['color'];
-            $id_offset = 1;
 
-            // If this is for black, change the ranks to be correct for this player
+            $piece_id_offset = 1;
+            $y_values = [1, 2];
+            // If this is for black, change the y values and ids to be correct for this player
             if ($player_color === "000000") {
-                for ($i = 0; $i < 16; $i++) {
-                    $army_starting_layout[$i][1] = 9 - $army_starting_layout[$i][1];
-                }
-                $id_offset = 17;
+                $piece_id_offset = 17;
+                $y_values = [8, 7];
             }
 
-            // Add to $sql_values the information for a database entry for each piece in the starting layout
-            foreach ($army_starting_layout as $piece_index => $piece_info) {
-                $piece_id = $piece_index + $id_offset;
-                $sql_values[] = "('$piece_id','$player_color','$piece_info[2]','$piece_info[0]','$piece_info[1]')";
-                $pieces_table_update_information[] = array($piece_id, $player_color, $piece_info[2], $piece_info[0], $piece_info[1]);
+            // For each piece in their army's layout
+            foreach ($all_datas['all_armies_layouts'][$player_data['army']] as $piece_index => $piece_type) {
+                $x = ($piece_index % 8) + 1;
+                $y = $y_values[floor($piece_index / 8)];
+                $piece_id = $piece_id_offset + $piece_index;
 
-                if (in_array($piece_info[2], ["king", "warriorking"])) {
+                // Add the piece's data to be sent to the database and in a notification
+                $sql_values[] = "('$piece_id','$player_color','$piece_type','$x','$y')";
+                $pieces_table_update_information[] = array($piece_id, $player_color, $piece_type, $x, $y);
+
+                if (in_array($piece_type, ["king", "warriorking"])) {
                     $all_king_ids[$player_data['id']][] = $piece_id;
                 }
             }

@@ -25,139 +25,41 @@
 // All valid army names
 $this->all_army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal");
 
-// The starting board layouts for all armies on white side
-$this->all_armies_starting_layout = array(
+// The board layouts for all armies
+$this->all_armies_layouts = array(
   "classic" => array(
-    array(1, 2, "pawn"),
-    array(2, 2, "pawn"),
-    array(3, 2, "pawn"),
-    array(4, 2, "pawn"),
-    array(5, 2, "pawn"),
-    array(6, 2, "pawn"),
-    array(7, 2, "pawn"),
-    array(8, 2, "pawn"),
-    array(1, 1, "rook"),
-    array(8, 1, "rook"),
-    array(2, 1, "knight"),
-    array(7, 1, "knight"),
-    array(3, 1, "bishop"),
-    array(6, 1, "bishop"),
-    array(4, 1, "queen"),
-    array(5, 1, "king")
+    "rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook",
+    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
   ),
 
   "nemesis" => array(
-    array(1, 2, "nemesispawn"),
-    array(2, 2, "nemesispawn"),
-    array(3, 2, "nemesispawn"),
-    array(4, 2, "nemesispawn"),
-    array(5, 2, "nemesispawn"),
-    array(6, 2, "nemesispawn"),
-    array(7, 2, "nemesispawn"),
-    array(8, 2, "nemesispawn"),
-    array(1, 1, "rook"),
-    array(8, 1, "rook"),
-    array(2, 1, "knight"),
-    array(7, 1, "knight"),
-    array(3, 1, "bishop"),
-    array(6, 1, "bishop"),
-    array(4, 1, "nemesis"),
-    array(5, 1, "king")
+    "rook", "knight", "bishop", "nemesis", "king", "bishop", "knight", "rook",
+    "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn"
   ),
 
   "empowered" => array(
-    array(1, 2, "pawn"),
-    array(2, 2, "pawn"),
-    array(3, 2, "pawn"),
-    array(4, 2, "pawn"),
-    array(5, 2, "pawn"),
-    array(6, 2, "pawn"),
-    array(7, 2, "pawn"),
-    array(8, 2, "pawn"),
-    array(1, 1, "empoweredrook"),
-    array(8, 1, "empoweredrook"),
-    array(2, 1, "empoweredknight"),
-    array(7, 1, "empoweredknight"),
-    array(3, 1, "empoweredbishop"),
-    array(6, 1, "empoweredbishop"),
-    array(4, 1, "elegantqueen"),
-    array(5, 1, "king")
+    "empoweredrook", "empoweredknight", "empoweredbishop", "elegantqueen", "king", "empoweredbishop", "empoweredknight", "empoweredrook",
+    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
   ),
 
   "reaper" => array(
-    array(1, 2, "pawn"),
-    array(2, 2, "pawn"),
-    array(3, 2, "pawn"),
-    array(4, 2, "pawn"),
-    array(5, 2, "pawn"),
-    array(6, 2, "pawn"),
-    array(7, 2, "pawn"),
-    array(8, 2, "pawn"),
-    array(1, 1, "ghost"),
-    array(8, 1, "ghost"),
-    array(2, 1, "knight"),
-    array(7, 1, "knight"),
-    array(3, 1, "bishop"),
-    array(6, 1, "bishop"),
-    array(4, 1, "reaper"),
-    array(5, 1, "king")
+    "ghost", "knight", "bishop", "reaper", "king", "bishop", "knight", "ghost",
+    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
   ),
 
   "twokings" => array(
-    array(1, 2, "pawn"),
-    array(2, 2, "pawn"),
-    array(3, 2, "pawn"),
-    array(4, 2, "pawn"),
-    array(5, 2, "pawn"),
-    array(6, 2, "pawn"),
-    array(7, 2, "pawn"),
-    array(8, 2, "pawn"),
-    array(1, 1, "rook"),
-    array(8, 1, "rook"),
-    array(2, 1, "knight"),
-    array(7, 1, "knight"),
-    array(3, 1, "bishop"),
-    array(6, 1, "bishop"),
-    array(4, 1, "warriorking"),
-    array(5, 1, "warriorking")
+    "rook", "knight", "bishop", "warriorking", "warriorking", "bishop", "knight", "rook",
+    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
   ),
 
   "animal" => array(
-    array(1, 2, "pawn"),
-    array(2, 2, "pawn"),
-    array(3, 2, "pawn"),
-    array(4, 2, "pawn"),
-    array(5, 2, "pawn"),
-    array(6, 2, "pawn"),
-    array(7, 2, "pawn"),
-    array(8, 2, "pawn"),
-    array(1, 1, "elephant"),
-    array(8, 1, "elephant"),
-    array(2, 1, "wildhorse"),
-    array(7, 1, "wildhorse"),
-    array(3, 1, "tiger"),
-    array(6, 1, "tiger"),
-    array(4, 1, "junglequeen"),
-    array(5, 1, "king")
+    "elephant", "wildhorse", "tiger", "junglequeen", "king", "tiger", "wildhorse", "elephant",
+    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
   ),
 
   "empty" => array(
-    array(1, 2, "empty"),
-    array(2, 2, "empty"),
-    array(3, 2, "empty"),
-    array(4, 2, "empty"),
-    array(5, 2, "empty"),
-    array(6, 2, "empty"),
-    array(7, 2, "empty"),
-    array(8, 2, "empty"),
-    array(1, 1, "empty"),
-    array(8, 1, "empty"),
-    array(2, 1, "empty"),
-    array(7, 1, "empty"),
-    array(3, 1, "empty"),
-    array(6, 1, "empty"),
-    array(4, 1, "empty"),
-    array(5, 1, "empty")
+    "empty", "empty", "empty", "empty", "empty", "empty", "empty", "empty",
+    "empty", "empty", "empty", "empty", "empty", "empty", "empty", "empty"
   )
 );
 

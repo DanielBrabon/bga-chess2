@@ -295,32 +295,31 @@ define([
             },
 
             placeStartingPiecesOnBoard: function (army_name, player_color) {
-                // Gets an array of starting pieces for that army type where
-                // values are the array [ file, rank, type ] for that piece (on white side)
-                let army_starting_layout = JSON.parse(JSON.stringify(this.gamedatas.all_armies_starting_layout[army_name]));
-                let id_offset = 1;
+                // Gets the array of piece types in this army's layout
+                var types = this.gamedatas.all_armies_layouts[army_name];
 
-                // If this is for black, change the ranks to be correct for this player
+                var piece_id_offset = 1;
+                var y_values = [1, 2];
+                // If this is for black, change the y values and ids to be correct for this player
                 if (player_color === "000000") {
-                    for (let i = 0; i < 16; i++) {
-                        army_starting_layout[i][1] = 9 - army_starting_layout[i][1];
-                    }
-                    id_offset = 17;
+                    piece_id_offset = 17;
+                    y_values = [8, 7];
                 }
 
                 // If pieces have already been placed for that color, remove those HTML elements
                 dojo.query('.piececolor_' + player_color).forEach(dojo.destroy);
 
-                // For each piece in the starting layout
-                for (let i = 0; i < 16; i++) {
-                    let piece_info = army_starting_layout[i];
+                // For each piece in the layout
+                for (let piece_index in types) {
+                    let x = (piece_index % 8) + 1;
+                    let y = y_values[Math.floor(piece_index / 8)];
 
                     // Insert the HTML element for the piece as a child of the square it's on
                     dojo.place(this.format_block('jstpl_piece', {
                         color: player_color,
-                        type: piece_info[2],
-                        piece_id: i + id_offset
-                    }), 'square_' + piece_info[0] + '_' + piece_info[1]);
+                        type: types[piece_index],
+                        piece_id: piece_id_offset + Number(piece_index)
+                    }), 'square_' + x + '_' + y);
                 }
 
                 // Flip the pieces for the black player
