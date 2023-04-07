@@ -22,19 +22,19 @@ $gameinfos = array(
     'artist' => 'Daniel Brabon',
 
     // Year of FIRST publication of this game. Can be negative.
-    'year' => 2014,
+    'year' => 2010,
 
     // Game publisher (use empty string if there is no publisher)
-    'publisher' => '',
+    'publisher' => 'Sirlin Games',
 
     // Url of game publisher website
-    'publisher_website' => '',
+    'publisher_website' => 'https://sirlingames.com/',
 
     // Board Game Geek ID of the publisher
-    'publisher_bgg_id' => '',
+    'publisher_bgg_id' => 11738,
 
     // Board game geek ID of the game
-    'bgg_id' => '',
+    'bgg_id' => 85165,
 
 
     // Players configuration that can be played (ex: 2 to 4 players)
@@ -50,7 +50,7 @@ $gameinfos = array(
 
 
     // Estimated game duration, in minutes (used only for the launch, afterward the real duration is computed)
-    'estimated_duration' => 15,
+    'estimated_duration' => 30,
 
     // Time in second add to a player when "giveExtraTime" is called (speed profile = fast)
     'fast_additional_time' => 30,
@@ -88,7 +88,7 @@ $gameinfos = array(
     'language_dependency' => false,
 
     // Complexity of the game, from 0 (extremely simple) to 5 (extremely complex)
-    'complexity' => 5,
+    'complexity' => 3,
 
     // Luck of the game, from 0 (absolutely no luck in this game) to 5 (totally luck driven)
     'luck' => 0,
