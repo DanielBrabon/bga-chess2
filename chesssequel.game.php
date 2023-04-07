@@ -1739,7 +1739,7 @@ class ChessSequel extends Table
         $all_king_ids = array();
 
         // For each player
-        foreach ($all_datas['players'] as $player_data) {
+        foreach ($all_datas['players'] as $player_id => $player_data) {
             $player_color = $player_data['color'];
 
             $piece_id_offset = 1;
@@ -1764,6 +1764,8 @@ class ChessSequel extends Table
                     $all_king_ids[$player_data['id']][] = $piece_id;
                 }
             }
+
+            self::DbQuery("UPDATE player SET player_remaining_reflexion_time = 1800 WHERE player_id = '$player_id'");
         }
 
         // Send the information to the pieces database table
