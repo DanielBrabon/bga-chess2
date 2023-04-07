@@ -60,19 +60,6 @@ class view_chesssequel_chesssequel extends game_view
       }
     }
 
-    /*$this->page->begin_block("chesssequel_chesssequel", "army_buttons");
-
-        $army_names = array( "classic", "nemesis", "empowered", "reaper", "twokings", "animal", "testarmy" );
-
-        foreach ($army_names as $army_name) {
-          $this->page->insert_block("army_buttons", array(
-            "BTN_ID" => "btn_2_".$army_name,
-            "ARMY_ID" => $army_name
-          ));
-        }*/
-
-
-
     /*
         
         // Examples: set the value of some element defined in your tpl file like this: {MY_VARIABLE_ELEMENT}
