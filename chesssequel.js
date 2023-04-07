@@ -184,7 +184,8 @@ define([
                             break;
 
                         case 'duelOffer':
-                            this.addActionButton('btn_accept_duel', _('Accept Duel'), 'acceptDuel');
+                            let accept_label = (args.costToDuel == 1) ? _('Accept Duel (Pay 1 Stone)') : _('Accept Duel');
+                            this.addActionButton('btn_accept_duel', accept_label, 'acceptDuel');
                             this.addActionButton('btn_reject_duel', _('Reject Duel'), 'rejectDuel');
                             break;
 

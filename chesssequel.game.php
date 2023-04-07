@@ -1322,18 +1322,22 @@ class ChessSequel extends Table
         $this->gamestate->nextState('gameEnd');
     }
 
-    function getCapIDAndDefID()
+    function getDuelData()
     {
         $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
         $squares = $this->getSquaresData($pieces);
         $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
 
         $min_cq_id = min(array_keys($cap_q));
-        $cap_square = array((int) $cap_q[$min_cq_id]['x'], (int) $cap_q[$min_cq_id]['y']);
 
         $cap_id = $this->getGameStateValue('cap_id');
+        $def_id = $squares[(int) $cap_q[$min_cq_id]['x']][(int) $cap_q[$min_cq_id]['y']]['def_piece'];
 
-        return array("capID" => (string) $cap_id, "defID" => (string) $squares[$cap_square[0]][$cap_square[1]]['def_piece']);
+        return array(
+            "capID" => (string) $cap_id,
+            "defID" => (string) $def_id,
+            "costToDuel" => $this->getCostToDuel($cap_id, $def_id, $pieces)
+        );
     }
 
     // Can be called anywhere in the game.php, just calls console.log on the client side with whatever argument you pass in
@@ -1519,17 +1523,7 @@ class ChessSequel extends Table
         $this->checkAction('acceptDuel');
 
         // Pay the cost to duel
-        $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-        $squares = $this->getSquaresData($pieces);
-
-        $min_cq_id = min(array_keys($cap_q));
-
-        $cap_id = $this->getGameStateValue('cap_id');
-        $def_id = $squares[(int) $cap_q[$min_cq_id]['x']][(int) $cap_q[$min_cq_id]['y']]['def_piece'];
-
-        $cost_to_duel = $this->getCostToDuel($cap_id, $def_id, $pieces);
-
+        $cost_to_duel = $this->getDuelData()['costToDuel'];
         $this->updateStones($this->getCurrentPlayerColor(), $cost_to_duel * -1);
 
         $this->gamestate->nextState('duelBidding');
@@ -1696,12 +1690,12 @@ class ChessSequel extends Table
 
     function argDuelOffer()
     {
-        return $this->getCapIDAndDefID();
+        return $this->getDuelData();
     }
 
     function argDuelBidding()
     {
-        return $this->getCapIDAndDefID();
+        return $this->getDuelData();
     }
 
     /*
