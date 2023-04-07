@@ -13,28 +13,28 @@
 $gameinfos = array(
 
     // Name of the game in English (will serve as the basis for translation) 
-    'game_name' => "My Great Game",
+    'game_name' => "Chess 2: The Sequel",
 
     // Game designer (or game designers, separated by commas)
-    'designer' => 'John Doe',
+    'designer' => 'David Sirlin',
 
     // Game artist (or game artists, separated by commas)
-    'artist' => 'Jane Doe',
+    'artist' => 'Daniel Brabon',
 
     // Year of FIRST publication of this game. Can be negative.
-    'year' => 2000,
+    'year' => 2014,
 
     // Game publisher (use empty string if there is no publisher)
-    'publisher' => 'My Publishing Company',
+    'publisher' => '',
 
     // Url of game publisher website
-    'publisher_website' => 'http://www.mypublishingcompany.com/',
+    'publisher_website' => '',
 
     // Board Game Geek ID of the publisher
-    'publisher_bgg_id' => 1234,
+    'publisher_bgg_id' => '',
 
     // Board game geek ID of the game
-    'bgg_id' => 0,
+    'bgg_id' => '',
 
 
     // Players configuration that can be played (ex: 2 to 4 players)
@@ -50,7 +50,7 @@ $gameinfos = array(
 
 
     // Estimated game duration, in minutes (used only for the launch, afterward the real duration is computed)
-    'estimated_duration' => 30,
+    'estimated_duration' => 15,
 
     // Time in second add to a player when "giveExtraTime" is called (speed profile = fast)
     'fast_additional_time' => 30,
@@ -71,7 +71,7 @@ $gameinfos = array(
 
     // If in the game, all losers are equal (no score to rank them or explicit in the rules that losers are not ranked between them), set this to true 
     // The game end result will display "Winner" for the 1st player and "Loser" for all other players
-    'losers_not_ranked' => false,
+    'losers_not_ranked' => true,
 
     // Allow to rank solo games for games where it's the only available mode (ex: Thermopyles). Should be left to false for games where solo mode exists in addition to multiple players mode.
     'solo_mode_ranked' => false,
@@ -88,27 +88,27 @@ $gameinfos = array(
     'language_dependency' => false,
 
     // Complexity of the game, from 0 (extremely simple) to 5 (extremely complex)
-    'complexity' => 3,
+    'complexity' => 5,
 
     // Luck of the game, from 0 (absolutely no luck in this game) to 5 (totally luck driven)
-    'luck' => 3,
+    'luck' => 0,
 
     // Strategy of the game, from 0 (no strategy can be setup) to 5 (totally based on strategy)
-    'strategy' => 3,
+    'strategy' => 5,
 
     // Diplomacy of the game, from 0 (no interaction in this game) to 5 (totally based on interaction and discussion between players)
-    'diplomacy' => 3,
+    'diplomacy' => 0,
 
     // Colors attributed to players
-    'player_colors' => array("ff0000", "008000", "0000ff", "ffa500", "773300"),
+    'player_colors' => array("ffffff", "000000"),
 
     // Favorite colors support : if set to "true", support attribution of favorite colors based on player's preferences (see reattributeColorsBasedOnPreferences PHP method)
     // NB: this parameter is used only to flag games supporting this feature; you must use (or not use) reattributeColorsBasedOnPreferences PHP method to actually enable or disable the feature.
-    'favorite_colors_support' => true,
+    'favorite_colors_support' => false,
 
     // When doing a rematch, the player order is swapped using a "rotation" so the starting player is not the same
     // If you want to disable this, set this to true
-    'disable_player_order_swap_on_rematch' => false,
+    'disable_player_order_swap_on_rematch' => true,
 
     // Game interface width range (pixels)
     // Note: game interface = space on the left side, without the column on the right
