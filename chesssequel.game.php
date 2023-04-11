@@ -35,7 +35,6 @@ class ChessSequel extends Table
 
         self::initGameStateLabels(array(
             "cap_id" => 10,
-            "cas_id" => 11,
             "pro_id" => 12,
             "fifty_counter" => 13,
             "ruleset_version" => 100
@@ -79,7 +78,6 @@ class ChessSequel extends Table
 
         // Init global values with their initial values
         self::setGameStateInitialValue('cap_id', 0);
-        self::setGameStateInitialValue('cas_id', 0);
         self::setGameStateInitialValue('pro_id', 0);
         self::setGameStateInitialValue('fifty_counter', 51);
 
@@ -495,8 +493,11 @@ class ChessSequel extends Table
         foreach (array(-1, 1) as $direction) {
             $square = array($king_x + $direction, $king_y);
 
-            // If the next square along in this direction is attacked, the king cannot castle on this side
-            if (count($enemy_attacks['attacked_squares'][$square[0]][$square[1]]) != 0) {
+            // If the king would be moving through or into check, it cannot castle on this side
+            if (
+                count($enemy_attacks['attacked_squares'][$square[0]][$square[1]]) != 0
+                || count($enemy_attacks['attacked_squares'][$square[0] + $direction][$square[1]]) != 0
+            ) {
                 continue;
             }
 
@@ -506,10 +507,12 @@ class ChessSequel extends Table
                     // Get the data for this encountered piece
                     $piece_on_square = $game_data['pieces'][$game_data['squares'][$square[0]][$square[1]]['def_piece']];
 
-                    // If it's a friendly unmoved rook, we can castle in this direction
+                    // If it's a friendly unmoved rook at least 3 squares away, we can castle in this direction
                     if (
-                        $piece_on_square['color'] === $game_data['pieces'][$king_id]['color']
-                        && $piece_on_square['type'] === "rook" && $piece_on_square['moves_made'] === "0"
+                        abs($square[0] - $king_x) >= 3
+                        && $piece_on_square['color'] === $game_data['pieces'][$king_id]['color']
+                        && $piece_on_square['type'] === "rook"
+                        && $piece_on_square['moves_made'] === "0"
                     ) {
                         $castle_moves[] = array($king_x + (2 * $direction), $king_y);
                     }
@@ -1235,40 +1238,6 @@ class ChessSequel extends Table
         }
     }
 
-    function resolveCastle($king_id, $pieces)
-    {
-        $king_x = $pieces[$king_id]['x'];
-        $king_y = $pieces[$king_id]['y'];
-        $squares = $this->getSquaresData($pieces);
-
-        // Find the rook
-        $rook_x = 8;
-        $rook_dest_x = 6;
-        if ($king_x == 3) {
-            $rook_x = 1;
-            $rook_dest_x = 4;
-        }
-
-        $castling_rook_id = $squares[$rook_x][$king_y]['def_piece'];
-
-        // Update the rook's position in the pieces database table
-        self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
-
-        // Update the global variable to no longer have this piece castling
-        $this->setGameStateValue('cas_id', 0);
-
-        self::notifyAllPlayers(
-            "updateAllPieceData",
-            "",
-            array(
-                "piece_id" => $castling_rook_id,
-                "values_updated" => array("location" => array($rook_dest_x, $king_y))
-            )
-        );
-
-        $this->gamestate->nextState('whereNext');
-    }
-
     // Returns true if active player has met the midline invasion win condition, else returns false
     function hasActivePlayerInvaded($pieces)
     {
@@ -1479,10 +1448,7 @@ class ChessSequel extends Table
             // More information
             $squares = $this->getSquaresData($pieces);
 
-            // If the moving piece is a castling king, set cas_id
-            if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
-                $this->setGameStateValue('cas_id', $moving_piece_id);
-            } else if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
+            if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
                 // 50 move rule
                 $this->setGameStateValue('fifty_counter', 51);
 
@@ -1558,6 +1524,34 @@ class ChessSequel extends Table
             );
 
             self::notifyAllPlayers("clearSelectedPiece", "", array());
+
+            // If the moving piece is a castling king, resolve the castle
+            if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
+                $dir = ($target_x - $pieces[$moving_piece_id]['x']) / abs($pieces[$moving_piece_id]['x'] - $target_x);
+
+                for ($i = 1; $i < 5; $i++) {
+                    $x = $target_x + ($dir * $i);
+
+                    if ($squares[$x][$target_y]['def_piece'] != null) {
+                        $castling_rook_id = $squares[$x][$target_y]['def_piece'];
+
+                        $rook_dest_x = $target_x - $dir;
+
+                        self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
+
+                        self::notifyAllPlayers(
+                            "updateAllPieceData",
+                            "",
+                            array(
+                                "piece_id" => $castling_rook_id,
+                                "values_updated" => array("location" => array($rook_dest_x, $target_y))
+                            )
+                        );
+
+                        break;
+                    }
+                }
+            }
 
             // Change player state
             $this->gamestate->nextState('whereNext');
@@ -1868,13 +1862,6 @@ class ChessSequel extends Table
         $cap_id = $this->getGameStateValue('cap_id');
         if ($cap_id != 0) {
             $this->processCapture($cap_id, $pieces);
-            return;
-        }
-
-        // Check for a king castling
-        $cas_id = $this->getGameStateValue('cas_id');
-        if ($cas_id != 0) {
-            $this->resolveCastle($cas_id, $pieces);
             return;
         }
 
