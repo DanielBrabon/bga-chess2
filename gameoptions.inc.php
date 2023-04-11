@@ -25,6 +25,22 @@
  */
 
 $game_options = array(
+    100 => array(
+        "name" => totranslate("Ruleset"),
+        "values" => array(
+            2 => array(
+                "name" => totranslate("Version 2.4"),
+                "description" => totranslate("Dueling"),
+                "tmdisplay" => totranslate("Ruleset version 2.4")
+            ),
+            3 => array(
+                "name" => totranslate("Version 3.0"),
+                "description" => totranslate("Randomized starting positions"),
+                "tmdisplay" => totranslate("Ruleset version 3.0")
+            )
+        ),
+        "default" => 3
+    )
 
     /*
     
@@ -51,4 +67,5 @@ $game_options = array(
                 'default' => 1
             ),
 
-    */);
+    */
+);

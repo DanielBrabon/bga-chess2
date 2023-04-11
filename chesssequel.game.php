@@ -37,7 +37,8 @@ class ChessSequel extends Table
             "cap_id" => 10,
             "cas_id" => 11,
             "pro_id" => 12,
-            "fifty_counter" => 13
+            "fifty_counter" => 13,
+            "ruleset_version" => 100
         ));
     }
 
@@ -124,6 +125,8 @@ class ChessSequel extends Table
         $result['all_army_names'] = $this->all_army_names;
         $result['all_armies_layouts'] = $this->all_armies_layouts;
         $result['button_labels'] = $this->button_labels;
+
+        $result['ruleset_version'] = $this->getGameStateValue('ruleset_version');
 
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
         // Will need to involve full current board state and piece state
@@ -1300,9 +1303,10 @@ class ChessSequel extends Table
         $def_player_id = $this->getActivePlayerId();
         $defender_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_id = '$def_player_id'");
 
-        // If capturing (warrior)king or defending friendly or can't afford duel, capturing proceeds with no duel
+        // If not ruleset version 2/capturing (warrior)king/defending friendly/can't afford duel: capturing proceeds with no duel
         if (
-            in_array($pieces[$cap_id]['type'], ["king", "warriorking"])
+            $this->getGameStateValue('ruleset_version') != 2
+            || in_array($pieces[$cap_id]['type'], ["king", "warriorking"])
             || $pieces[$def_id]['color'] === $pieces[$cap_id]['color']
             || $defender_stones <= $this->getCostToDuel($cap_id, $def_id, $pieces)
         ) {
@@ -1338,6 +1342,57 @@ class ChessSequel extends Table
             "defID" => (string) $def_id,
             "costToDuel" => $this->getCostToDuel($cap_id, $def_id, $pieces)
         );
+    }
+
+    // TODO: Optimise
+    function rollXOffsets()
+    {
+        $x_offsets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        $squares = [1, 2, 3, 4, 5, 6, 7, 8];
+
+        // The 5 needed rolls
+        $rolls = array();
+        foreach ([4, 4, 6, 5, 4] as $max_roll) {
+            $rolls[] = bga_rand(1, $max_roll);
+        }
+
+        // Move the black square bishop
+        $bb_square_index = ($rolls[0] - 1) * 2;
+        $x_offsets[2] = $squares[$bb_square_index] - 3;
+
+        // Move the white square bishop
+        $wb_square_index = ($rolls[1] * 2) - 1;
+        $x_offsets[5] = $squares[$wb_square_index] - 6;
+
+        unset($squares[$bb_square_index]);
+        unset($squares[$wb_square_index]);
+        $squares = array_values($squares);
+
+        // Move the queen
+        $square_index = $rolls[2] - 1;
+        $x_offsets[3] = $squares[$square_index] - 4;
+        unset($squares[$square_index]);
+        $squares = array_values($squares);
+
+        // Move the first knight
+        $square_index = $rolls[3] - 1;
+        $x_offsets[1] = $squares[$square_index] - 2;
+        unset($squares[$square_index]);
+        $squares = array_values($squares);
+
+        // Move the second knight
+        $square_index = $rolls[4] - 1;
+        $x_offsets[6] = $squares[$square_index] - 7;
+        unset($squares[$square_index]);
+        $squares = array_values($squares);
+
+        // Move the remaining pieces
+        $x_offsets[0] = $squares[0] - 1;
+        $x_offsets[4] = $squares[1] - 5;
+        $x_offsets[7] = $squares[2] - 8;
+
+        return $x_offsets;
     }
 
     // Can be called anywhere in the game.php, just calls console.log on the client side with whatever argument you pass in
@@ -1738,6 +1793,8 @@ class ChessSequel extends Table
 
         $all_king_ids = array();
 
+        $x_offsets = ($this->getGameStateValue('ruleset_version') == 3) ? $this->rollXOffsets() : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
         // For each player
         foreach ($all_datas['players'] as $player_id => $player_data) {
             $player_color = $player_data['color'];
@@ -1752,7 +1809,7 @@ class ChessSequel extends Table
 
             // For each piece in their army's layout
             foreach ($all_datas['all_armies_layouts'][$player_data['army']] as $piece_index => $piece_type) {
-                $x = ($piece_index % 8) + 1;
+                $x = ($piece_index % 8) + 1 + $x_offsets[$piece_index];
                 $y = $y_values[floor($piece_index / 8)];
                 $piece_id = $piece_id_offset + $piece_index;
 

@@ -47,12 +47,14 @@ define([
             setup: function (gamedatas) {
                 console.log("Starting game setup");
 
-                // Setting up player boards
-                for (var player_id in gamedatas.players) {
-                    var player = gamedatas.players[player_id];
+                if (this.gamedatas.ruleset_version == 2) {
+                    // Setting up player boards
+                    for (var player_id in gamedatas.players) {
+                        var player = gamedatas.players[player_id];
 
-                    var player_board_div = $('player_board_' + player_id);
-                    dojo.place(this.format_block('jstpl_player_stones', player), player_board_div);
+                        var player_board_div = $('player_board_' + player_id);
+                        dojo.place(this.format_block('jstpl_player_stones', player), player_board_div);
+                    }
                 }
 
                 // Placing pieces on the board
@@ -648,8 +650,10 @@ define([
 
                 for (var player_id in notif.args.player_armies) {
                     this.gamedatas.players[player_id].army = notif.args.player_armies[player_id];
-                    this.placeStartingPiecesOnBoard(this.gamedatas.players[player_id].army, this.gamedatas.players[player_id].color);
                 }
+
+                dojo.query('.piece').forEach(dojo.destroy);
+                this.populateBoard();
             },
 
             notif_updateLegalMovesTable: function (notif) {
@@ -702,7 +706,7 @@ define([
                 for (var field in notif.args.values_updated) {
                     this.gamedatas.players[notif.args.player_id][field] = notif.args.values_updated[field];
 
-                    if (field == "stones") {
+                    if (field == "stones" && this.gamedatas.ruleset_version == 2) {
                         $('player_stones_' + notif.args.player_id).innerHTML = "Stones: " + notif.args.values_updated[field];
                     }
                 }
