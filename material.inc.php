@@ -119,45 +119,6 @@ $this->piece_ranks = array(
   "junglequeen" => 3
 );
 
-$this->attack_steps = array(
-  "wpawn" => array([1, 1], [-1, 1]),
-  "bpawn" => array([1, -1], [-1, -1]),
-  "knight" => array([2, 1], [1, 2], [2, -1], [1, -2], [-2, 1], [-1, 2], [-2, -1], [-1, -2]),
-  "bishop" => array([1, 1], [-1, 1], [-1, -1], [1, -1]),
-  "rook" => array([1, 0], [-1, 0], [0, 1], [0, -1]),
-  "king" => array([1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]),
-  "tiger" => array([1, 1], [-1, 1], [-1, -1], [1, -1])
-);
-
-$this->attack_reps = array(
-  "wpawn" => 1,
-  "bpawn" => 1,
-  "knight" => 1,
-  "bishop" => 7,
-  "rook" => 7,
-  "king" => 1,
-  "tiger" => 2
-);
-
-$this->effective_types = array(
-  "wpawn" => array("wpawn"),
-  "bpawn" => array("bpawn"),
-  "knight" => array("knight"),
-  "bishop" => array("bishop"),
-  "rook" => array("rook"),
-  "king" => array("king"),
-  "tiger" => array("tiger"),
-  "queen" => array("bishop", "rook"),
-  "nemesis" => array("bishop", "rook"),
-  "empoweredknight" => array("knight"),
-  "empoweredbishop" => array("bishop"),
-  "empoweredrook" => array("rook"),
-  "elegantqueen" => array("king"),
-  "warriorking" => array("king"),
-  "wildhorse" => array("knight"),
-  "junglequeen" => array("knight", "rook")
-);
-
 $this->type_code = array(
   "pawn" => "p",
   "knight" => "n",
