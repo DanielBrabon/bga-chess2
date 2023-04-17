@@ -660,7 +660,7 @@ define([
                 this.gamedatas.legal_moves = [];
 
                 for (var piece_id in notif.args.moves_added) {
-                    var moves_for_piece = notif.args.moves_added[piece_id];
+                    var moves_for_piece = notif.args.moves_added[piece_id]['possible_moves'];
 
                     for (move_index in moves_for_piece) {
                         move = moves_for_piece[move_index];

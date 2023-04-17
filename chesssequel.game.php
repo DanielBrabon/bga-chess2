@@ -212,14 +212,15 @@ class ChessSequel extends Table
 
         $counter = 0;
         foreach ($all_legal_moves as $piece_id => $moves_for_piece) {
-            foreach ($moves_for_piece as $move_square) {
-                $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]')";
+            foreach ($moves_for_piece['possible_moves'] as $index => $move_square) {
+                $cap_squares = json_encode($moves_for_piece['corresponding_captures'][$index]);
+                $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]','$cap_squares')";
                 $counter++;
             }
         }
 
         if ($counter > 0) {
-            self::DbQuery("INSERT INTO legal_moves (move_id, moving_piece_id, x, y) VALUES " . implode(',', $moves));
+            self::DbQuery("INSERT INTO legal_moves (move_id, moving_piece_id, x, y, cap_squares) VALUES " . implode(',', $moves));
         }
 
         self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
@@ -516,127 +517,127 @@ class ChessSequel extends Table
             return;
         }
 
-        $move_match = self::getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM legal_moves 
+        // Get the capture squares for the attempted move
+        $cap_squares = self::getUniqueValueFromDB(
+            "SELECT cap_squares FROM legal_moves 
             WHERE moving_piece_id = '$moving_piece_id'
             AND x = '$target_x'
             AND y = '$target_y'"
         );
 
-        // If the attempted move is found in legal_moves table
-        if ($move_match) {
-            // More information
-            $squares = $this->getSquaresData($pieces);
+        // If the attempted move is not found in legal_moves table, throw an error
+        if ($cap_squares == null) {
+            throw new BgaSystemException("Illegal move");
+            return;
+        }
 
-            if (in_array($pieces[$moving_piece_id]['type'],  ["pawn", "nemesispawn"])) {
-                // 50 move rule
-                $this->setGameStateValue('fifty_counter', 51);
+        // Array of values to set for the moving piece
+        $pieces_values_to_set = array();
 
-                // If the moving piece is a pawn reaching the enemy backline, set pro_id
-                $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
-                if ($target_y === $backline) {
-                    $this->setGameStateValue('pro_id', $moving_piece_id);
+        // Special conditions for pawns
+        if (in_array($pieces[$moving_piece_id]['type'], ["pawn", "nemesispawn"])) {
+            // 50 move rule
+            $this->setGameStateValue('fifty_counter', 51);
+
+            // If the moving piece is a pawn reaching the enemy backline, set pro_id
+            $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
+            if ($target_y === $backline) {
+                $this->setGameStateValue('pro_id', $moving_piece_id);
+            }
+
+            // If the moving piece is a pawn making its initial double move, set its en_passant_vulnerable value to 2
+            if (abs($pieces[$moving_piece_id]['y'] - $target_y) === 2) {
+                $pieces_values_to_set['en_passant_vulnerable'] = "2";
+            }
+        }
+
+        $squares = $this->getSquaresData($pieces);
+        $cap_squares = json_decode($cap_squares);
+        $capture_queue = array();
+
+        // Add all occupied capture squares to the capture queue
+        $counter = 0;
+        foreach ($cap_squares as $square) {
+            if ($squares[$square[0]][$square[1]]['def_piece'] != null) {
+                if ($pieces[$moving_piece_id]['type'] === "tiger") {
+                    $target_x = $pieces[$moving_piece_id]['x'];
+                    $target_y = $pieces[$moving_piece_id]['y'];
                 }
 
-                // If the moving piece is a pawn making its initial double move, set its en_passant_vulnerable value to 2
-                if (abs($pieces[$moving_piece_id]['y'] - $target_y) === 2) {
-                    $pieces_values_to_set['en_passant_vulnerable'] = "2";
-                }
+                $counter++;
+                $capture_queue[] = "('$counter','$square[0]','$square[1]')";
             }
+        }
 
-            $corresponding_captures = $this->moves->getCorrespondingCaptures(
-                $moving_piece_id,
-                [[(int)$target_x, (int)$target_y]],
-                array("pieces" => $pieces, "squares" => $squares)
-            )[0];
-
-            $capture_queue = array();
-
-            $counter = 0;
-            foreach ($corresponding_captures as $corresponding_capture_square) {
-                if ($squares[$corresponding_capture_square[0]][$corresponding_capture_square[1]]['def_piece'] != null) {
-                    if ($pieces[$moving_piece_id]['type'] === "tiger") {
-                        $target_x = $pieces[$moving_piece_id]['x'];
-                        $target_y = $pieces[$moving_piece_id]['y'];
-                    }
-
-                    $pieces_values_to_set['capturing'] = "1";
-
-                    $counter++;
-                    $capture_queue[] = "('$counter','$corresponding_capture_square[0]','$corresponding_capture_square[1]')";
-                }
-            }
-
-            $sql = "SELECT moves_made FROM pieces WHERE piece_id = '$moving_piece_id'";
-            $pieces_values_to_set['moves_made'] = (string) (self::getUniqueValueFromDB($sql) + 1);
-
-            $pieces_values_to_set_notif = $pieces_values_to_set;
-            $pieces_values_to_set_notif['location'] = array((int)$target_x, (int)$target_y);
-
-            $pieces_values_to_set['x'] = $target_x;
-            $pieces_values_to_set['y'] = $target_y;
-
-            if (count($capture_queue) != 0) {
-                $sql = "INSERT INTO capture_queue (cq_id,x,y) VALUES ";
-                $sql .= implode(',', $capture_queue);
-                self::DbQuery($sql);
-
-                $this->setGameStateValue('cap_id', $moving_piece_id);
-            }
-
-            // Update pieces table for the moving piece
-            $sql = "UPDATE pieces SET";
-            foreach ($pieces_values_to_set as $column => $value) {
-                $sql .= " $column = '$value',";
-            }
-            $sql = rtrim($sql, ',');
-            $sql .= " WHERE piece_id = '$moving_piece_id'";
+        if (count($capture_queue) != 0) {
+            $sql = "INSERT INTO capture_queue (cq_id,x,y) VALUES ";
+            $sql .= implode(',', $capture_queue);
             self::DbQuery($sql);
 
-            // Send notifications
-            self::notifyAllPlayers(
-                "updateAllPieceData",
-                "",
-                array(
-                    "piece_id" => $moving_piece_id,
-                    "values_updated" => $pieces_values_to_set_notif
-                )
-            );
+            $pieces_values_to_set['capturing'] = "1";
+            $this->setGameStateValue('cap_id', $moving_piece_id);
+        }
 
-            self::notifyAllPlayers("clearSelectedPiece", "", array());
+        $sql = "SELECT moves_made FROM pieces WHERE piece_id = '$moving_piece_id'";
+        $pieces_values_to_set['moves_made'] = (string) (self::getUniqueValueFromDB($sql) + 1);
 
-            // If the moving piece is a castling king, resolve the castle
-            if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
-                $dir = ($target_x - $pieces[$moving_piece_id]['x']) / abs($pieces[$moving_piece_id]['x'] - $target_x);
+        $pieces_values_to_set_notif = $pieces_values_to_set;
+        $pieces_values_to_set_notif['location'] = array((int)$target_x, (int)$target_y);
 
-                for ($i = 1; $i < 5; $i++) {
-                    $x = $target_x + ($dir * $i);
+        $pieces_values_to_set['x'] = $target_x;
+        $pieces_values_to_set['y'] = $target_y;
 
-                    if ($squares[$x][$target_y]['def_piece'] != null) {
-                        $castling_rook_id = $squares[$x][$target_y]['def_piece'];
+        // Update pieces table for the moving piece
+        $sql = "UPDATE pieces SET";
+        foreach ($pieces_values_to_set as $column => $value) {
+            $sql .= " $column = '$value',";
+        }
+        $sql = rtrim($sql, ',');
+        $sql .= " WHERE piece_id = '$moving_piece_id'";
+        self::DbQuery($sql);
 
-                        $rook_dest_x = $target_x - $dir;
+        // Send notifications
+        self::notifyAllPlayers(
+            "updateAllPieceData",
+            "",
+            array(
+                "piece_id" => $moving_piece_id,
+                "values_updated" => $pieces_values_to_set_notif
+            )
+        );
 
-                        self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
+        self::notifyAllPlayers("clearSelectedPiece", "", array());
 
-                        self::notifyAllPlayers(
-                            "updateAllPieceData",
-                            "",
-                            array(
-                                "piece_id" => $castling_rook_id,
-                                "values_updated" => array("location" => array($rook_dest_x, $target_y))
-                            )
-                        );
+        // If the moving piece is a castling king, resolve the castle
+        if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
+            $dir = ($target_x - $pieces[$moving_piece_id]['x']) / abs($pieces[$moving_piece_id]['x'] - $target_x);
 
-                        break;
-                    }
+            for ($i = 1; $i < 5; $i++) {
+                $x = $target_x + ($dir * $i);
+
+                if ($squares[$x][$target_y]['def_piece'] != null) {
+                    $castling_rook_id = $squares[$x][$target_y]['def_piece'];
+
+                    $rook_dest_x = $target_x - $dir;
+
+                    self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
+
+                    self::notifyAllPlayers(
+                        "updateAllPieceData",
+                        "",
+                        array(
+                            "piece_id" => $castling_rook_id,
+                            "values_updated" => array("location" => array($rook_dest_x, $target_y))
+                        )
+                    );
+
+                    break;
                 }
             }
+        }
 
-            // Change player state
-            $this->gamestate->nextState('whereNext');
-        } else
-            throw new BgaSystemException("Illegal move");
+        // Change player state
+        $this->gamestate->nextState('whereNext');
     }
 
     function passKingMove()

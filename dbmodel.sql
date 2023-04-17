@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS `legal_moves` (
   `moving_piece_id` TINYINT(1) UNSIGNED NOT NULL,
   `x` TINYINT(1) UNSIGNED NOT NULL,
   `y` TINYINT(1) UNSIGNED NOT NULL,
+  `cap_squares` VARCHAR(49) NOT NULL,
   PRIMARY KEY (`move_id`)
 ) ENGINE=InnoDB;
 

@@ -101,9 +101,9 @@ class CHSMoves
         $corresponding_captures = $this->getCorrespondingCaptures($piece_id, $possible_moves, $game_data);
         $moves_and_captures = $this->removeIllegalCaptureMoves($piece_id, $possible_moves, $corresponding_captures, $game_data);
 
-        $possible_moves = $this->removeSelfChecks($piece_id, $friendly_king_ids, $enemy_attacks, $moves_and_captures, $game_data);
+        $moves_and_captures = $this->removeSelfChecks($piece_id, $friendly_king_ids, $enemy_attacks, $moves_and_captures, $game_data);
 
-        return $possible_moves;
+        return $moves_and_captures;
     }
 
     private function getAttackingMoveSquares($piece_id, $game_data)
@@ -451,7 +451,7 @@ class CHSMoves
     }
 
     // Returns an array containing all capture squares for each possible move in $possible_moves
-    public function getCorrespondingCaptures($piece_id, $possible_moves, $game_data)
+    private function getCorrespondingCaptures($piece_id, $possible_moves, $game_data)
     {
         $corresponding_captures = array();
 
@@ -906,7 +906,10 @@ class CHSMoves
             }
         }
 
-        return array_values($possible_moves);
+        $possible_moves = array_values($possible_moves);
+        $corresponding_captures = array_values($corresponding_captures);
+
+        return array("possible_moves" => $possible_moves, "corresponding_captures" => $corresponding_captures);
     }
 
     private function simulatePossibleMove($piece_id, $possible_move, $capture_squares_for_this_move, $game_data)
