@@ -178,6 +178,11 @@ class ChessSequel extends Table
         return $king_ids;
     }
 
+    function getPlayerArmy($player_color)
+    {
+        return self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_color = '$player_color'");
+    }
+
     function getSquaresData($pieces)
     {
         $squares = [];
@@ -212,9 +217,9 @@ class ChessSequel extends Table
 
         $counter = 0;
         foreach ($all_legal_moves as $piece_id => $moves_for_piece) {
-            foreach ($moves_for_piece['possible_moves'] as $index => $move_square) {
-                $cap_squares = json_encode($moves_for_piece['corresponding_captures'][$index]);
-                $moves[] = "('$counter','$piece_id','$move_square[0]','$move_square[1]','$cap_squares')";
+            foreach ($moves_for_piece as $move) {
+                $cap_squares = json_encode($move['cap_squares']);
+                $moves[] = "('$counter','$piece_id','{$move['x']}','{$move['y']}','$cap_squares')";
                 $counter++;
             }
         }
@@ -248,6 +253,7 @@ class ChessSequel extends Table
             true
         );
 
+        // TODO
         $resolved_player_pieces_moves = $this->moves->getAllMovesForPieces(
             $resolved_player_pieces_to_calc,
             $resolved_player_id,
@@ -274,9 +280,9 @@ class ChessSequel extends Table
                         && $armies[$game_data['pieces'][$pid]['color']] === "classic")
                 ) {
                     if ($game_data['pieces'][$pid]['color'] === $active_color) {
-                        $pos_string .= count($all_legal_moves[$pid]['possible_moves']);
+                        $pos_string .= count($all_legal_moves[$pid]);
                     } else {
-                        $pos_string .= count($resolved_player_pieces_moves[$pid]['possible_moves']);
+                        $pos_string .= count($resolved_player_pieces_moves[$pid]);
                     }
                 }
             }

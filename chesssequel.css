@@ -168,7 +168,7 @@
     left: 25%;
 }
 
-.attacked_square {
+.check {
     background-color: darkred;
     opacity: 0.8;
     filter: alpha(opacity=20);
@@ -176,7 +176,7 @@
     cursor: pointer;
 }
 
-.semi_attacked_square {
+.threat {
     background-color: darkorange;
     opacity: 0.8;
     filter: alpha(opacity=20);

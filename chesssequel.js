@@ -660,12 +660,12 @@ define([
                 this.gamedatas.legal_moves = [];
 
                 for (var piece_id in notif.args.moves_added) {
-                    var moves_for_piece = notif.args.moves_added[piece_id]['possible_moves'];
+                    var moves_for_piece = notif.args.moves_added[piece_id];
 
                     for (move_index in moves_for_piece) {
                         move = moves_for_piece[move_index];
 
-                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'x': String(move[0]), 'y': String(move[1]) });
+                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'x': String(move['x']), 'y': String(move['y']) });
                     }
                 }
 
@@ -719,16 +719,16 @@ define([
             },
 
             notif_highlightAttackedSquares: function (notif) {
-                dojo.query('.attacked_square').removeClass('attacked_square');
-                dojo.query('.semi_attacked_square').removeClass('semi_attacked_square');
+                dojo.query('.check').removeClass('check');
+                dojo.query('.threat').removeClass('threat');
 
                 for (var i = 1; i <= 8; i++) {
                     for (var j = 1; j <= 8; j++) {
-                        if (notif.args.attacked_squares[i][j].length != 0) {
-                            dojo.addClass('square_' + i + '_' + j, 'attacked_square');
+                        if (notif.args[i][j].checks.length != 0) {
+                            dojo.addClass('square_' + i + '_' + j, 'check');
                         }
-                        else if (notif.args.semi_attacked_squares[i][j].length != 0) {
-                            dojo.addClass('square_' + i + '_' + j, 'semi_attacked_square');
+                        else if (notif.args[i][j].threats.length != 0) {
+                            dojo.addClass('square_' + i + '_' + j, 'threat');
                         }
                     }
                 }
