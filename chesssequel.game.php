@@ -233,33 +233,8 @@ class ChessSequel extends Table
         return $counter;
     }
 
-    function getPositionString($active_color, $resolved_color, $resolved_player_id, $armies, $all_legal_moves, $game_data)
+    function getPositionString($active_color, $armies, $all_legal_moves, $game_data)
     {
-        $resolved_player_types_to_calc = "('pawn')";
-        switch ($armies[$resolved_color]) {
-            case "classic":
-                $resolved_player_types_to_calc = "('pawn', 'king')";
-                break;
-            case "nemesis":
-                $resolved_player_types_to_calc = "('nemesispawn')";
-                break;
-        }
-
-        $resolved_player_pieces_to_calc = self::getObjectListFromDB(
-            "SELECT piece_id FROM pieces
-            WHERE color = '$resolved_color'
-            AND captured = 0
-            AND type IN {$resolved_player_types_to_calc}",
-            true
-        );
-
-        // TODO
-        $resolved_player_pieces_moves = $this->moves->getAllMovesForPieces(
-            $resolved_player_pieces_to_calc,
-            $resolved_player_id,
-            $game_data
-        );
-
         $pos_string = $active_color[0];
 
         for ($i = 1; $i <= 8; $i++) {
@@ -274,15 +249,23 @@ class ChessSequel extends Table
                 $pos_string .= $this->type_code[$game_data['pieces'][$pid]['type']];
                 $pos_string .= $game_data['pieces'][$pid]['color'][0];
 
-                if (
-                    $game_data['pieces'][$pid]['type'] === "pawn"
-                    || ($game_data['pieces'][$pid]['type'] === "king"
-                        && $armies[$game_data['pieces'][$pid]['color']] === "classic")
-                ) {
-                    if ($game_data['pieces'][$pid]['color'] === $active_color) {
+                if (in_array($game_data['pieces'][$pid]['type'], ["pawn", "nemesispawn"])) {
+                    if ($game_data['pieces'][$pid]['color'] == $active_color) {
                         $pos_string .= count($all_legal_moves[$pid]);
                     } else {
-                        $pos_string .= count($resolved_player_pieces_moves[$pid]);
+                        $pos_string .= count($this->moves->getAvailableEnPassants($pid, $game_data));
+                    }
+                } else if (
+                    $game_data['pieces'][$pid]['type'] == "king"
+                    && $armies[$game_data['pieces'][$pid]['color']] == "classic"
+                ) {
+                    if ($game_data['pieces'][$pid]['color'] == $active_color) {
+                        $pos_string .= count($all_legal_moves[$pid]);
+                    } else {
+                        foreach ([-2, -1, 0, 1, 2] as $dx) {
+                            $game_data['squares'][$game_data['pieces'][$pid]['x'] + $dx][$game_data['pieces'][$pid]['y']]['checks'] = [];
+                        }
+                        $pos_string .= count($this->moves->getAvailableCastleMoves($pid, $game_data));
                     }
                 }
             }
@@ -1029,21 +1012,21 @@ class ChessSequel extends Table
         }
 
         // Now the turn can pass to the other player
-        $resolved_color = $this->getPlayerColorById($resolved_player_id);
 
         // 50 move rule
         // Reduce fifty_counter by 1 at the end of each black player's turn. Reset to 51 when moving a pawn or capturing. If it reaches 0, draw
-        if ($resolved_color === "000000") {
+        if ($this->getPlayerColorById($resolved_player_id) == "000000") {
             $fifty_counter = $this->getGameStateValue('fifty_counter') - 1;
-            if ($fifty_counter === 0) {
+            if ($fifty_counter == 0) {
                 $this->gamestate->nextState('gameEnd');
+                return;
             }
             $this->setGameStateValue('fifty_counter', $fifty_counter);
         }
 
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($pieces as $piece_id => $piece_data) {
-            if ($piece_data['type'] === "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
+            if ($piece_data['type'] == "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
                 $piece_data['en_passant_vulnerable'] -= 1;
                 self::DbQuery("UPDATE pieces SET en_passant_vulnerable = {$piece_data['en_passant_vulnerable']} WHERE piece_id = '$piece_id'");
 
@@ -1071,15 +1054,13 @@ class ChessSequel extends Table
 
         $armies = self::getCollectionFromDB("SELECT player_color, player_army FROM player", true);
 
-        if ($armies[$active_color] === "twokings") {
+        if ($armies[$active_color] == "twokings") {
             self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_id = '$active_player_id'");
         }
 
         // String describing the current position
         $pos_string = $this->getPositionString(
             $active_color,
-            $resolved_color,
-            $resolved_player_id,
             $armies,
             $all_legal_moves,
             array("pieces" => $pieces, "squares" => $squares)

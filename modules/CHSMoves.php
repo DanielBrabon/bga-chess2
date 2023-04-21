@@ -423,16 +423,16 @@ class CHSMoves
         switch ($game_data['pieces'][$piece_id]['type']) {
             case "pawn":
                 $this->getAvailablePawnPushes($piece_id, $game_data);
-                $this->getAvailableEnPassants($piece_id, $game_data);
+                $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableEnPassants($piece_id, $game_data));
                 break;
 
             case "king":
-                $this->getAvailableCastleMoves($piece_id, $game_data);
+                $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableCastleMoves($piece_id, $game_data));
                 break;
 
             case "nemesispawn":
                 $this->getAvailableNemesisPawnPushes($piece_id, $game_data);
-                $this->getAvailableEnPassants($piece_id, $game_data);
+                $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableEnPassants($piece_id, $game_data));
                 break;
 
             case "ghost":
@@ -472,12 +472,15 @@ class CHSMoves
         }
     }
 
-    private function getAvailableEnPassants($pawn_id, $game_data)
+    public function getAvailableEnPassants($pawn_id, $game_data)
     {
+        $enps = array();
+
+        $x_i = (int) $game_data['pieces'][$pawn_id]['x'];
         $y_i = (int) $game_data['pieces'][$pawn_id]['y'];
 
         foreach ([1, -1] as $dir) {
-            $x = (int) $game_data['pieces'][$pawn_id]['x'] + $dir;
+            $x = $x_i + $dir;
 
             if ($x < 1 || $x > 8) {
                 continue;
@@ -491,63 +494,54 @@ class CHSMoves
             ) {
                 $forward = ($game_data['pieces'][$pawn_id]['color'] == "000000") ? -1 : 1;
 
-                $this->moves[$pawn_id][] = $this->makeMove($x, $y_i + $forward, [[$x, $y_i]]);
+                $enps[] = $this->makeMove($x, $y_i + $forward, [[$x, $y_i]]);
             }
         }
+
+        return $enps;
     }
 
-    private function getAvailableCastleMoves($king_id, $game_data)
+    public function getAvailableCastleMoves($king_id, $game_data)
     {
-        // If the king isn't classic or already moved, it cannot castle
-        if (
-            $this->game->getPlayerArmy($game_data['pieces'][$king_id]['color']) != "classic"
-            || $game_data['pieces'][$king_id]['moves_made'] != "0"
-        ) {
-            return;
-        }
+        $castles = array();
 
         $x_i = (int) $game_data['pieces'][$king_id]['x'];
         $y_i = (int) $game_data['pieces'][$king_id]['y'];
 
-        // If the king is in check right now it cannot castle
-        if (count($game_data['squares'][$x_i][$y_i]['checks']) != 0) {
-            return;
+        // The king cannot castle if it isn't classic, or it already moved, or it is in check
+        if (
+            $this->game->getPlayerArmy($game_data['pieces'][$king_id]['color']) != "classic"
+            || $game_data['pieces'][$king_id]['moves_made'] != "0"
+            || count($game_data['squares'][$x_i][$y_i]['checks']) != 0
+        ) {
+            return $castles;
         }
 
         // Check both directions for possible castle
         foreach (array(-1, 1) as $dir) {
-            $x = $x_i + $dir;
+            for ($x = $x_i + $dir; $x > 0 && $x < 9; $x += $dir) {
+                $pid = $game_data['squares'][$x][$y_i]['def_piece'];
 
-            // If the king would be moving through or into check, it cannot castle on this side
-            if (
-                count($game_data['squares'][$x][$y_i]['checks']) != 0
-                || count($game_data['squares'][$x + $dir][$y_i]['checks']) != 0
-            ) {
-                continue;
-            }
-
-            while ($x > 0 && $x < 9) {
-                // If there is a piece on this square
-                if ($game_data['squares'][$x][$y_i]['def_piece'] !== null) {
-                    // Get the data for this encountered piece
-                    $piece_on_square = $game_data['pieces'][$game_data['squares'][$x][$y_i]['def_piece']];
-
-                    // If it's a friendly unmoved rook at least 3 squares away, we can castle in this direction
+                if ($pid !== null) {
+                    // If it's a friendly unmoved rook at least 3 squares away,
+                    // and we wouldn't be moving through check, we can castle in this direction
                     if (
                         abs($x - $x_i) >= 3
-                        && $piece_on_square['color'] == $game_data['pieces'][$king_id]['color']
-                        && $piece_on_square['type'] == "rook"
-                        && $piece_on_square['moves_made'] == "0"
+                        && $game_data['pieces'][$pid]['color'] == $game_data['pieces'][$king_id]['color']
+                        && $game_data['pieces'][$pid]['type'] == "rook"
+                        && $game_data['pieces'][$pid]['moves_made'] == "0"
+                        && count($game_data['squares'][$x_i + $dir][$y_i]['checks']) == 0
+                        && count($game_data['squares'][$x_i + (2 * $dir)][$y_i]['checks']) == 0
                     ) {
-                        $this->moves[$king_id][] = $this->makeMove($x, $y_i, []);
+                        $castles[] = $this->makeMove($x_i + (2 * $dir), $y_i, []);
                     }
 
                     break;
                 }
-
-                $x += $dir;
             }
         }
+
+        return $castles;
     }
 
     private function getAvailableNemesisPawnPushes($nemesis_pawn_id, $game_data)
