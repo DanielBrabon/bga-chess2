@@ -34,9 +34,9 @@
 -- ALTER TABLE `player` ADD `player_my_custom_field` INT UNSIGNED NOT NULL DEFAULT '0';
 
 ALTER TABLE `player` ADD `player_army` VARCHAR(16) NOT NULL DEFAULT 'classic';
-ALTER TABLE `player` ADD `player_stones` TINYINT(1) UNSIGNED NOT NULL DEFAULT '3';
+ALTER TABLE `player` ADD `player_stones` TINYINT(1) UNSIGNED NOT NULL DEFAULT 3;
 ALTER TABLE `player` ADD `player_bid` TINYINT(1) UNSIGNED DEFAULT NULL;
-ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `player` ADD `player_king_move_available` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0;
 ALTER TABLE `player` ADD `player_king_id` TINYINT(1) UNSIGNED DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_id_2` TINYINT(1) UNSIGNED DEFAULT NULL;
 
@@ -46,10 +46,10 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   `type` VARCHAR(15) NOT NULL,
   `x` TINYINT(1) UNSIGNED,
   `y` TINYINT(1) UNSIGNED,
-  `moves_made` INT(10) UNSIGNED DEFAULT '0',
-  `captured` TINYINT(1) UNSIGNED DEFAULT '0',
-  `capturing` TINYINT(1) UNSIGNED DEFAULT '0',
-  `en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT '0',
+  `moves_made` INT(10) UNSIGNED DEFAULT 0,
+  `captured` TINYINT(1) UNSIGNED DEFAULT 0,
+  `capturing` TINYINT(1) UNSIGNED DEFAULT 0,
+  `en_passant_vulnerable` TINYINT(1) UNSIGNED DEFAULT 0,
   PRIMARY KEY (`piece_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

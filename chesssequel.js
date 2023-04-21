@@ -61,7 +61,7 @@ define([
                 this.populateBoard();
 
                 // Flip the board for the black player
-                if (gamedatas.players[this.player_id].color === "000000") {
+                if (gamedatas.players[this.player_id].color == "000000") {
                     dojo.addClass('board', 'flipped');
                 }
 
@@ -110,17 +110,17 @@ define([
                 }
 
                 if (stateName == 'duelOffer' || stateName == 'duelBidding') {
-                    this.gamedatas.cap_id = args.args.capID;
-                    this.gamedatas.def_id = args.args.defID;
+                    this.gamedatas.cap_id = String(args.args.capID);
+                    this.gamedatas.def_id = String(args.args.defID);
 
                     // Place capturing piece on current capture square
-                    dojo.place(args.args.capID,
-                        'square_' + this.gamedatas.pieces[args.args.defID]['x'] + '_' + this.gamedatas.pieces[args.args.defID]['y']
+                    dojo.place(this.gamedatas.cap_id,
+                        'square_' + this.gamedatas.pieces[this.gamedatas.def_id]['x'] + '_' + this.gamedatas.pieces[this.gamedatas.def_id]['y']
                     );
 
                     // Offset pieces
-                    dojo.addClass(args.args.capID, 'cap_piece');
-                    dojo.addClass(args.args.defID, 'def_piece');
+                    dojo.addClass(this.gamedatas.cap_id, 'cap_piece');
+                    dojo.addClass(this.gamedatas.def_id, 'def_piece');
 
                     // Maybe highlight/outline cap piece
                 }
@@ -266,7 +266,7 @@ define([
             },
 
             populateBoard: function () {
-                if (this.gamedatas.pieces.length === 0) { // We're in armySelect and pieces haven't been added to the database yet
+                if (this.gamedatas.pieces.length == 0) { // We're in armySelect and pieces haven't been added to the database yet
                     for (var player_id in this.gamedatas.players) {
                         let army = (player_id == this.player_id) ? "classic" : "empty";
                         this.placeStartingPiecesOnBoard(army, this.gamedatas.players[player_id].color);
@@ -276,7 +276,7 @@ define([
                     for (var piece_id in this.gamedatas.pieces) {
                         var piece_info = this.gamedatas.pieces[piece_id];
 
-                        if (piece_info['captured'] === "0") {
+                        if (piece_info['captured'] == 0) {
                             // Insert the HTML element for the piece as a child of the square it's on
                             dojo.place(this.format_block('jstpl_piece', {
                                 color: piece_info['color'],
@@ -287,7 +287,7 @@ define([
                     }
 
                     // Flip the pieces for the black player
-                    if (this.gamedatas.players[this.player_id].color === "000000") {
+                    if (this.gamedatas.players[this.player_id].color == "000000") {
                         dojo.query('.piece').addClass('flipped');
                     }
                 }
@@ -300,7 +300,7 @@ define([
                 var piece_id_offset = 1;
                 var y_values = [1, 2];
                 // If this is for black, change the y values and ids to be correct for this player
-                if (player_color === "000000") {
+                if (player_color == "000000") {
                     piece_id_offset = 17;
                     y_values = [8, 7];
                 }
@@ -317,18 +317,18 @@ define([
                     dojo.place(this.format_block('jstpl_piece', {
                         color: player_color,
                         type: types[piece_index],
-                        piece_id: piece_id_offset + Number(piece_index)
+                        piece_id: piece_id_offset + piece_index
                     }), 'square_' + x + '_' + y);
                 }
 
                 // Flip the pieces for the black player
-                if (this.gamedatas.players[this.player_id].color === "000000") {
+                if (this.gamedatas.players[this.player_id].color == "000000") {
                     dojo.query('.piece').addClass('flipped');
                 }
             },
 
             updateArmySelectTitleText: function (army) {
-                if (this.gamedatas.players[this.player_id].color === "ffffff") {
+                if (this.gamedatas.players[this.player_id].color == "ffffff") {
                     var you = '<span style="font-weight:bold;color:#ffffff;background-color:#bbbbbb;">You</span>';
                 }
                 else {
@@ -414,14 +414,14 @@ define([
 
                     // If the player clicked a square with a friendly piece, select it
                     const children = evt.currentTarget.children;
-                    if (children.length != 0 && this.gamedatas.pieces[children[0].id].color === this.gamedatas.players[this.player_id].color) {
+                    if (children.length != 0 && this.gamedatas.pieces[children[0].id].color == this.gamedatas.players[this.player_id].color) {
                         this.gamedatas.players[this.player_id].piece_selected = children[0].id;
                         dojo.addClass(children[0].id, 'selected_piece');
 
                         for (var move_index in this.gamedatas.legal_moves) {
                             var move_object = this.gamedatas.legal_moves[move_index];
 
-                            if (move_object['moving_piece_id'] === children[0].id) {
+                            if (move_object['moving_piece_id'] == children[0].id) {
                                 dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move');
                             }
                         }
@@ -640,18 +640,18 @@ define([
                     pieces_object[pieces_info[piece][0]].piece_id = pieces_info[piece][0];
                     pieces_object[pieces_info[piece][0]].color = pieces_info[piece][1];
                     pieces_object[pieces_info[piece][0]].type = pieces_info[piece][2];
-                    pieces_object[pieces_info[piece][0]].x = String(pieces_info[piece][3]);
-                    pieces_object[pieces_info[piece][0]].y = String(pieces_info[piece][4]);
-                    pieces_object[pieces_info[piece][0]].capturing = String(0);
-                    pieces_object[pieces_info[piece][0]].captured = String(0);
-                    pieces_object[pieces_info[piece][0]].moves_made = String(0);
+                    pieces_object[pieces_info[piece][0]].x = pieces_info[piece][3];
+                    pieces_object[pieces_info[piece][0]].y = pieces_info[piece][4];
+                    pieces_object[pieces_info[piece][0]].capturing = 0;
+                    pieces_object[pieces_info[piece][0]].captured = 0;
+                    pieces_object[pieces_info[piece][0]].moves_made = 0;
                 }
                 this.gamedatas.pieces = pieces_object;
-
+                
                 for (var player_id in notif.args.player_armies) {
                     this.gamedatas.players[player_id].army = notif.args.player_armies[player_id];
                 }
-
+                
                 dojo.query('.piece').forEach(dojo.destroy);
                 this.populateBoard();
             },
@@ -665,7 +665,7 @@ define([
                     for (move_index in moves_for_piece) {
                         move = moves_for_piece[move_index];
 
-                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'x': String(move['x']), 'y': String(move['y']) });
+                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'x': move['x'], 'y': move['y'] });
                     }
                 }
 
@@ -676,8 +676,8 @@ define([
                 for (var field in notif.args.values_updated) {
                     switch (field) {
                         case "location":
-                            this.gamedatas.pieces[notif.args.piece_id]['x'] = String(notif.args.values_updated[field][0]);
-                            this.gamedatas.pieces[notif.args.piece_id]['y'] = String(notif.args.values_updated[field][1]);
+                            this.gamedatas.pieces[notif.args.piece_id]['x'] = notif.args.values_updated[field][0];
+                            this.gamedatas.pieces[notif.args.piece_id]['y'] = notif.args.values_updated[field][1];
 
                             dojo.place(String(notif.args.piece_id), 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;

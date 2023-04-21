@@ -80,7 +80,7 @@ class CHSMoves
         }
 
         foreach ($game_data['pieces'] as $piece_id => $piece_data) {
-            if ($piece_data['color'] != $enemy_color || $piece_data['captured'] == "1" || in_array($piece_data['type'], ["reaper", "ghost"])) {
+            if ($piece_data['color'] != $enemy_color || $piece_data['captured'] == 1 || in_array($piece_data['type'], ["reaper", "ghost"])) {
                 continue;
             }
 
@@ -155,8 +155,8 @@ class CHSMoves
 
             $directions = self::$attack_steps['king'];
             foreach ($directions as $direction) {
-                $x = (int) $game_data['pieces'][$piece_id]['x'] + $direction[0];
-                $y = (int) $game_data['pieces'][$piece_id]['y'] + $direction[1];
+                $x = $game_data['pieces'][$piece_id]['x'] + $direction[0];
+                $y = $game_data['pieces'][$piece_id]['y'] + $direction[1];
 
                 if ($x < 1 || $x > 8 || $y < 1 || $y > 8) {
                     continue;
@@ -174,8 +174,8 @@ class CHSMoves
     private function makeMove($x, $y, $cap_squares)
     {
         return array(
-            "x" => (int) $x,
-            "y" => (int) $y,
+            "x" => $x,
+            "y" => $y,
             "cap_squares" => $cap_squares
         );
     }
@@ -184,8 +184,8 @@ class CHSMoves
     {
         $attacking_moves = array();
 
-        $x_i = (int) $game_data['pieces'][$elephant_id]['x'];
-        $y_i = (int) $game_data['pieces'][$elephant_id]['y'];
+        $x_i = $game_data['pieces'][$elephant_id]['x'];
+        $y_i = $game_data['pieces'][$elephant_id]['y'];
 
         $directions = self::$attack_steps["rook"];
 
@@ -211,8 +211,8 @@ class CHSMoves
 
         $directions = array(array(1, 0), array(0, 1), array(-1, 0), array(0, -1));
 
-        $x = (int) $game_data['pieces'][$piece_id]['x'];
-        $y = (int) $game_data['pieces'][$piece_id]['y'];
+        $x = $game_data['pieces'][$piece_id]['x'];
+        $y = $game_data['pieces'][$piece_id]['y'];
 
         foreach ($directions as $dir) {
             $x_a = $x + $dir[0];
@@ -451,8 +451,8 @@ class CHSMoves
     {
         $forward = ($game_data['pieces'][$pawn_id]['color'] == "000000") ? -1 : 1;
 
-        $x_i = (int) $game_data['pieces'][$pawn_id]['x'];
-        $y_i = (int) $game_data['pieces'][$pawn_id]['y'];
+        $x_i = $game_data['pieces'][$pawn_id]['x'];
+        $y_i = $game_data['pieces'][$pawn_id]['y'];
 
         $y_f = $y_i + $forward;
 
@@ -464,7 +464,7 @@ class CHSMoves
 
             // If one and two squares forward are free and the pawn hasn't moved yet
             if (
-                $game_data['pieces'][$pawn_id]['moves_made'] == "0"
+                $game_data['pieces'][$pawn_id]['moves_made'] == 0
                 && $game_data['squares'][$x_i][$y_2f]['def_piece'] === null
             ) {
                 $this->moves[$pawn_id][] = $this->makeMove($x_i, $y_2f, []);
@@ -476,8 +476,8 @@ class CHSMoves
     {
         $enps = array();
 
-        $x_i = (int) $game_data['pieces'][$pawn_id]['x'];
-        $y_i = (int) $game_data['pieces'][$pawn_id]['y'];
+        $x_i = $game_data['pieces'][$pawn_id]['x'];
+        $y_i = $game_data['pieces'][$pawn_id]['y'];
 
         foreach ([1, -1] as $dir) {
             $x = $x_i + $dir;
@@ -505,13 +505,13 @@ class CHSMoves
     {
         $castles = array();
 
-        $x_i = (int) $game_data['pieces'][$king_id]['x'];
-        $y_i = (int) $game_data['pieces'][$king_id]['y'];
+        $x_i = $game_data['pieces'][$king_id]['x'];
+        $y_i = $game_data['pieces'][$king_id]['y'];
 
         // The king cannot castle if it isn't classic, or it already moved, or it is in check
         if (
             $this->game->getPlayerArmy($game_data['pieces'][$king_id]['color']) != "classic"
-            || $game_data['pieces'][$king_id]['moves_made'] != "0"
+            || $game_data['pieces'][$king_id]['moves_made'] != 0
             || count($game_data['squares'][$x_i][$y_i]['checks']) != 0
         ) {
             return $castles;
@@ -529,7 +529,7 @@ class CHSMoves
                         abs($x - $x_i) >= 3
                         && $game_data['pieces'][$pid]['color'] == $game_data['pieces'][$king_id]['color']
                         && $game_data['pieces'][$pid]['type'] == "rook"
-                        && $game_data['pieces'][$pid]['moves_made'] == "0"
+                        && $game_data['pieces'][$pid]['moves_made'] == 0
                         && count($game_data['squares'][$x_i + $dir][$y_i]['checks']) == 0
                         && count($game_data['squares'][$x_i + (2 * $dir)][$y_i]['checks']) == 0
                     ) {
@@ -546,8 +546,8 @@ class CHSMoves
 
     private function getAvailableNemesisPawnPushes($nemesis_pawn_id, $game_data)
     {
-        $x_i = (int) $game_data['pieces'][$nemesis_pawn_id]['x'];
-        $y_i = (int) $game_data['pieces'][$nemesis_pawn_id]['y'];
+        $x_i = $game_data['pieces'][$nemesis_pawn_id]['x'];
+        $y_i = $game_data['pieces'][$nemesis_pawn_id]['y'];
 
         $forward = ($game_data['pieces'][$nemesis_pawn_id]['color'] == "000000") ? -1 : 1;
 
@@ -559,8 +559,8 @@ class CHSMoves
                 $piece_data['color'] != $game_data['pieces'][$nemesis_pawn_id]['color']
                 && in_array($piece_data['type'], ["king", "warriorking"])
             ) {
-                $enemy_kings[$piece_id]['x'] = (int) $piece_data['x'];
-                $enemy_kings[$piece_id]['y'] = (int) $piece_data['y'];
+                $enemy_kings[$piece_id]['x'] = $piece_data['x'];
+                $enemy_kings[$piece_id]['y'] = $piece_data['y'];
 
                 $enemy_kings[$piece_id]['dist_i'] = abs($enemy_kings[$piece_id]['x'] - $x_i) + abs($enemy_kings[$piece_id]['y'] - $y_i);
             }
@@ -614,8 +614,8 @@ class CHSMoves
 
     private function getAvailableElephantNonAttackingMoves($ele_id, $game_data)
     {
-        $x_i = (int) $game_data['pieces'][$ele_id]['x'];
-        $y_i = (int) $game_data['pieces'][$ele_id]['y'];
+        $x_i = $game_data['pieces'][$ele_id]['x'];
+        $y_i = $game_data['pieces'][$ele_id]['y'];
 
         $directions = self::$attack_steps["rook"];
 
@@ -647,8 +647,8 @@ class CHSMoves
         $king_squares = array();
 
         foreach ($friendly_king_ids as $king) {
-            $king_squares[$king]['x'] = (int) $game_data['pieces'][$king]['x'];
-            $king_squares[$king]['y'] = (int) $game_data['pieces'][$king]['y'];
+            $king_squares[$king]['x'] = $game_data['pieces'][$king]['x'];
+            $king_squares[$king]['y'] = $game_data['pieces'][$king]['y'];
 
             // Recheck pieces which are checking a king
             if (count($game_data['squares'][$king_squares[$king]['x']][$king_squares[$king]['y']]['checks']) != 0) {
@@ -660,8 +660,8 @@ class CHSMoves
         }
 
         foreach ($this->moves as $moving_id => $moves) {
-            $x_i = (int) $game_data['pieces'][$moving_id]['x'];
-            $y_i = (int) $game_data['pieces'][$moving_id]['y'];
+            $x_i = $game_data['pieces'][$moving_id]['x'];
+            $y_i = $game_data['pieces'][$moving_id]['y'];
 
             $moving_type = $game_data['pieces'][$moving_id]['type'];
 
@@ -746,7 +746,7 @@ class CHSMoves
 
             if ($piece_on_cap_square !== null) {
                 $game_data['squares'][$cs[0]][$cs[1]]['def_piece'] = null;
-                $game_data['pieces'][$piece_on_cap_square]['captured'] = "1";
+                $game_data['pieces'][$piece_on_cap_square]['captured'] = 1;
 
                 if ($game_data['pieces'][$piece_id]['type'] == "tiger") {
                     $p_move['x'] = $x_i;
@@ -767,7 +767,7 @@ class CHSMoves
     private function arePiecesAttackingKings($piece_ids, $friendly_king_ids, $game_data)
     {
         foreach ($piece_ids as $piece_id) {
-            if ($game_data['pieces'][$piece_id]['captured'] != "0") {
+            if ($game_data['pieces'][$piece_id]['captured'] != 0) {
                 continue;
             }
 

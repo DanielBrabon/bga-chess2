@@ -299,7 +299,7 @@ class ChessSequel extends Table
             "",
             array(
                 "player_id" => $player_id,
-                "values_updated" => array("stones" => (string) $new_stones)
+                "values_updated" => array("stones" => $new_stones)
             )
         );
     }
@@ -307,7 +307,7 @@ class ChessSequel extends Table
     // TODO: Look to improve further
     function resolveNextCapture($both_cap, $game_data = [])
     {
-        if (count($game_data) === 0) {
+        if (count($game_data) == 0) {
             $game_data['pieces'] = self::getCollectionFromDB("SELECT * FROM pieces");
             $game_data['squares'] = $this->getSquaresData($game_data['pieces']);
             $game_data['cap_q'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
@@ -316,9 +316,9 @@ class ChessSequel extends Table
         $min_cq_id = min(array_keys($game_data['cap_q']));
 
         $cap_id = $this->getGameStateValue('cap_id');
-        $def_id = $game_data['squares'][(int) $game_data['cap_q'][$min_cq_id]['x']][(int) $game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
+        $def_id = $game_data['squares'][$game_data['cap_q'][$min_cq_id]['x']][$game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
 
-        $same_color = ($game_data['pieces'][$def_id]['color'] === $game_data['pieces'][$cap_id]['color']);
+        $same_color = ($game_data['pieces'][$def_id]['color'] == $game_data['pieces'][$cap_id]['color']);
 
         $pieces_to_cap = array($def_id);
 
@@ -329,7 +329,7 @@ class ChessSequel extends Table
         } else {
             self::DbQuery("DELETE FROM capture_queue WHERE cq_id = '$min_cq_id'");
 
-            if (count($game_data['cap_q']) === 1) {
+            if (count($game_data['cap_q']) == 1) {
                 self::DbQuery("UPDATE pieces SET capturing = 0 WHERE piece_id = '$cap_id'");
 
                 $this->setGameStateValue('cap_id', 0);
@@ -339,7 +339,7 @@ class ChessSequel extends Table
                     "",
                     array(
                         "piece_id" => $cap_id,
-                        "values_updated" => array("capturing" => "0")
+                        "values_updated" => array("capturing" => 0)
                     )
                 );
             }
@@ -353,13 +353,13 @@ class ChessSequel extends Table
                 "",
                 array(
                     "piece_id" => $id,
-                    "values_updated" => array("captured" => "1", "capturing" => 0)
+                    "values_updated" => array("captured" => 1, "capturing" => 0)
                 )
             );
 
             if (in_array($game_data['pieces'][$id]['type'], ["pawn", "nemesispawn"]) && !$same_color) {
                 // Player with the other color gets a stone
-                $other_color = ($game_data['pieces'][$id]['color'] === "000000") ? "ffffff" : "000000";
+                $other_color = ($game_data['pieces'][$id]['color'] == "000000") ? "ffffff" : "000000";
                 $this->updateStones($other_color, 1);
             }
         }
@@ -370,7 +370,7 @@ class ChessSequel extends Table
     {
         $king_ids = $this->getPlayerKingIds($this->getActivePlayerId());
 
-        $invasion_direction = ($pieces[$king_ids['player_king_id']]['color'] === "000000") ? -1 : 1;
+        $invasion_direction = ($pieces[$king_ids['player_king_id']]['color'] == "000000") ? -1 : 1;
 
         foreach ($king_ids as $king_id) {
             if (($pieces[$king_id]['y'] - 4.5) * $invasion_direction < 0) {
@@ -390,7 +390,7 @@ class ChessSequel extends Table
 
         // The first square in the capture queue
         $min_cq_id = min(array_keys($cap_q));
-        $cap_square = array((int) $cap_q[$min_cq_id]['x'], (int) $cap_q[$min_cq_id]['y']);
+        $cap_square = array($cap_q[$min_cq_id]['x'], $cap_q[$min_cq_id]['y']);
 
         $def_id = $squares[$cap_square[0]][$cap_square[1]]['def_piece'];
 
@@ -403,7 +403,7 @@ class ChessSequel extends Table
         if (
             $this->getGameStateValue('ruleset_version') != 2
             || in_array($pieces[$cap_id]['type'], ["king", "warriorking"])
-            || $pieces[$def_id]['color'] === $pieces[$cap_id]['color']
+            || $pieces[$def_id]['color'] == $pieces[$cap_id]['color']
             || $defender_stones <= $this->getCostToDuel($cap_id, $def_id, $pieces)
         ) {
             $this->activeNextPlayer();
@@ -431,11 +431,11 @@ class ChessSequel extends Table
         $min_cq_id = min(array_keys($cap_q));
 
         $cap_id = $this->getGameStateValue('cap_id');
-        $def_id = $squares[(int) $cap_q[$min_cq_id]['x']][(int) $cap_q[$min_cq_id]['y']]['def_piece'];
+        $def_id = $squares[$cap_q[$min_cq_id]['x']][$cap_q[$min_cq_id]['y']]['def_piece'];
 
         return array(
-            "capID" => (string) $cap_id,
-            "defID" => (string) $def_id,
+            "capID" => $cap_id,
+            "defID" => $def_id,
             "costToDuel" => $this->getCostToDuel($cap_id, $def_id, $pieces)
         );
     }
@@ -586,14 +586,14 @@ class ChessSequel extends Table
             $this->setGameStateValue('fifty_counter', 51);
 
             // If the moving piece is a pawn reaching the enemy backline, set pro_id
-            $backline = ($pieces[$moving_piece_id]['color'] === "000000") ? "1" : "8";
-            if ($target_y === $backline) {
+            $backline = ($pieces[$moving_piece_id]['color'] == "000000") ? 1 : 8;
+            if ($target_y == $backline) {
                 $this->setGameStateValue('pro_id', $moving_piece_id);
             }
 
             // If the moving piece is a pawn making its initial double move, set its en_passant_vulnerable value to 2
-            if (abs($pieces[$moving_piece_id]['y'] - $target_y) === 2) {
-                $pieces_values_to_set['en_passant_vulnerable'] = "2";
+            if (abs($pieces[$moving_piece_id]['y'] - $target_y) == 2) {
+                $pieces_values_to_set['en_passant_vulnerable'] = 2;
             }
         }
 
@@ -604,8 +604,8 @@ class ChessSequel extends Table
         // Add all occupied capture squares to the capture queue
         $counter = 0;
         foreach ($cap_squares as $square) {
-            if ($squares[$square[0]][$square[1]]['def_piece'] != null) {
-                if ($pieces[$moving_piece_id]['type'] === "tiger") {
+            if ($squares[$square[0]][$square[1]]['def_piece'] !== null) {
+                if ($pieces[$moving_piece_id]['type'] == "tiger") {
                     $target_x = $pieces[$moving_piece_id]['x'];
                     $target_y = $pieces[$moving_piece_id]['y'];
                 }
@@ -620,15 +620,15 @@ class ChessSequel extends Table
             $sql .= implode(',', $capture_queue);
             self::DbQuery($sql);
 
-            $pieces_values_to_set['capturing'] = "1";
+            $pieces_values_to_set['capturing'] = 1;
             $this->setGameStateValue('cap_id', $moving_piece_id);
         }
 
         $sql = "SELECT moves_made FROM pieces WHERE piece_id = '$moving_piece_id'";
-        $pieces_values_to_set['moves_made'] = (string) (self::getUniqueValueFromDB($sql) + 1);
+        $pieces_values_to_set['moves_made'] = self::getUniqueValueFromDB($sql) + 1;
 
         $pieces_values_to_set_notif = $pieces_values_to_set;
-        $pieces_values_to_set_notif['location'] = array((int)$target_x, (int)$target_y);
+        $pieces_values_to_set_notif['location'] = array($target_x, $target_y);
 
         $pieces_values_to_set['x'] = $target_x;
         $pieces_values_to_set['y'] = $target_y;
@@ -655,13 +655,13 @@ class ChessSequel extends Table
         self::notifyAllPlayers("clearSelectedPiece", "", array());
 
         // If the moving piece is a castling king, resolve the castle
-        if ($pieces[$moving_piece_id]['type'] === "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) === 2) {
+        if ($pieces[$moving_piece_id]['type'] == "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) == 2) {
             $dir = ($target_x - $pieces[$moving_piece_id]['x']) / abs($pieces[$moving_piece_id]['x'] - $target_x);
 
             for ($i = 1; $i < 5; $i++) {
                 $x = $target_x + ($dir * $i);
 
-                if ($squares[$x][$target_y]['def_piece'] != null) {
+                if ($squares[$x][$target_y]['def_piece'] !== null) {
                     $castling_rook_id = $squares[$x][$target_y]['def_piece'];
 
                     $rook_dest_x = $target_x - $dir;
@@ -758,7 +758,7 @@ class ChessSequel extends Table
         $this->checkAction('destroyStone');
 
         $choosing_color = $this->getCurrentPlayerColor();
-        $other_color = ($choosing_color === "000000") ? "ffffff" : "000000";
+        $other_color = ($choosing_color == "000000") ? "ffffff" : "000000";
         $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$other_color'");
 
         if ($current_stones == 0) {
@@ -923,7 +923,7 @@ class ChessSequel extends Table
             $piece_id_offset = 1;
             $y_values = [1, 2];
             // If this is for black, change the y values and ids to be correct for this player
-            if ($player_color === "000000") {
+            if ($player_color == "000000") {
                 $piece_id_offset = 17;
                 $y_values = [8, 7];
             }
@@ -953,7 +953,7 @@ class ChessSequel extends Table
         foreach ($all_king_ids as $player_id => $king_ids) {
             self::DbQuery("UPDATE player SET player_king_id = '$king_ids[0]' WHERE player_id = '$player_id'");
 
-            if (count($king_ids) === 2) {
+            if (count($king_ids) == 2) {
                 self::DbQuery("UPDATE player SET player_king_id_2 = '$king_ids[1]' WHERE player_id = '$player_id'");
             }
         }
@@ -1026,13 +1026,13 @@ class ChessSequel extends Table
 
         // Tick down the en_passant_vulnerable value by 1 at the end of each player's turn so an en passant capture is only available for one turn
         foreach ($pieces as $piece_id => $piece_data) {
-            if ($piece_data['type'] == "pawn" && $piece_data['en_passant_vulnerable'] != "0") {
+            if ($piece_data['type'] == "pawn" && $piece_data['en_passant_vulnerable'] != 0) {
                 $piece_data['en_passant_vulnerable'] -= 1;
                 self::DbQuery("UPDATE pieces SET en_passant_vulnerable = {$piece_data['en_passant_vulnerable']} WHERE piece_id = '$piece_id'");
 
                 self::notifyAllPlayers("updateAllPieceData", "", array(
                     "piece_id" => $piece_id,
-                    "values_updated" => array("en_passant_vulnerable" => (string) $piece_data['en_passant_vulnerable'])
+                    "values_updated" => array("en_passant_vulnerable" => $piece_data['en_passant_vulnerable'])
                 ));
             }
         }
@@ -1080,8 +1080,8 @@ class ChessSequel extends Table
     {
         // Get bid amounts and the piece colors from the database
         $player_bids = self::getCollectionFromDB("SELECT player_color, player_bid FROM player", true);
-        $cap_piece_color = self::getUniqueValueFromDB("SELECT color FROM pieces WHERE capturing = '1'");
-        $other_color = ($cap_piece_color === "000000") ? "ffffff" : "000000";
+        $cap_piece_color = self::getUniqueValueFromDB("SELECT color FROM pieces WHERE capturing = 1");
+        $other_color = ($cap_piece_color == "000000") ? "ffffff" : "000000";
 
         // Determine outcome of duel and resolve capture
         $both_cap = ($player_bids[$cap_piece_color] < $player_bids[$other_color]) ? true : false;
