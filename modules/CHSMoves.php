@@ -422,8 +422,8 @@ class CHSMoves
     {
         switch ($game_data['pieces'][$piece_id]['type']) {
             case "pawn":
-                $this->getAvailablePawnPushes($piece_id, $game_data);
                 $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableEnPassants($piece_id, $game_data));
+                $this->getAvailablePawnPushes($piece_id, $game_data);
                 break;
 
             case "king":
@@ -431,8 +431,8 @@ class CHSMoves
                 break;
 
             case "nemesispawn":
-                $this->getAvailableNemesisPawnPushes($piece_id, $game_data);
                 $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableEnPassants($piece_id, $game_data));
+                $this->getAvailableNemesisPawnPushes($piece_id, $game_data);
                 break;
 
             case "ghost":
@@ -594,11 +594,21 @@ class CHSMoves
             foreach ($enemy_kings as $king) {
                 $dist = abs($king['x'] - $x) + abs($king['y'] - $y);
 
-                if ($dist < $king['dist_i']) {
+                if ($dist < $king['dist_i'] && !$this->doesMoveAlreadyExist($nemesis_pawn_id, $x, $y)) {
                     $this->moves[$nemesis_pawn_id][] = $this->makeMove($x, $y, []);
                 }
             }
         }
+    }
+
+    private function doesMoveAlreadyExist($piece_id, $x, $y)
+    {
+        foreach ($this->moves[$piece_id] as $move) {
+            if ($move['x'] == $x && $move['y'] == $y) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function getAvailableGhostMoves($ghost_id, $game_data)
