@@ -99,6 +99,14 @@
     pointer-events: none;
 }
 
+.logpiece {
+    width: 30px;
+    height: 30px;
+    background-size: 600px 30px;
+    display: inline-block;
+    vertical-align: bottom;
+}
+
 .piececolor_000000 {
     background-image: url('img/blackpieces.png');
 }
@@ -126,6 +134,26 @@
 .piecetype_tiger { background-position: -960px 0px; }
 .piecetype_elephant { background-position: -1020px 0px; }
 .piecetype_junglequeen { background-position: -1080px 0px; }
+
+.logpiecetype_queen { background-position: 0px 0px; }
+.logpiecetype_king { background-position: -30px 0px; }
+.logpiecetype_rook { background-position: -60px 0px; }
+.logpiecetype_knight { background-position: -90px 0px; }
+.logpiecetype_bishop { background-position: -120px 0px; }
+.logpiecetype_pawn { background-position: -150px 0px; }
+.logpiecetype_nemesis { background-position: -180px 0px; }
+.logpiecetype_nemesispawn { background-position: -210px 0px; }
+.logpiecetype_empoweredknight { background-position: -240px 0px; }
+.logpiecetype_empoweredbishop { background-position: -270px 0px; }
+.logpiecetype_empoweredrook { background-position: -300px 0px; }
+.logpiecetype_elegantqueen { background-position: -330px 0px; }
+.logpiecetype_reaper { background-position: -360px 0px; }
+.logpiecetype_ghost { background-position: -390px 0px; }
+.logpiecetype_warriorking { background-position: -420px 0px; }
+.logpiecetype_wildhorse { background-position: -450px 0px; }
+.logpiecetype_tiger { background-position: -480px 0px; }
+.logpiecetype_elephant { background-position: -510px 0px; }
+.logpiecetype_junglequeen { background-position: -540px 0px; }
 
 .piecetype_empty {
     background-position: -1140px 0px;

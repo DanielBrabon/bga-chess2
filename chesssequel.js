@@ -337,6 +337,38 @@ define([
                 $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
             },
 
+            format_string_recursive: function format_string_recursive(log, args) {
+                try {
+                    if (log && args) {
+                        for (var key in args) {
+                            let key_split = key.split("_");
+
+                            switch (key_split[0]) {
+                                case 'logpiece':
+                                    args[key] = this.getLogPiece(args[key]);
+                                    break;
+                                case 'army':
+                                    args[key] = this.getColorPlayerText(key_split[1], args[key]);
+                                    break;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error(log, args, "Exception thrown", e.stack);
+                }
+                return this.inherited({ callee: format_string_recursive }, arguments);
+            },
+
+            getLogPiece: function (value) {
+                let split = value.split("_");
+                return this.format_block('jstpl_logpiece', { color: split[0], type: split[1] });
+            },
+
+            getColorPlayerText: function (color, text) {
+                let bg_color = (color == "000000") ? "transparent" : "bbbbbb";
+                return this.format_block('jstpl_player_text', { color: color, bg_color: bg_color, text: text });
+            },
+
             ///////////////////////////////////////////////////
             //// Player's action
 
@@ -647,11 +679,11 @@ define([
                     pieces_object[pieces_info[piece][0]].moves_made = 0;
                 }
                 this.gamedatas.pieces = pieces_object;
-                
-                for (var player_id in notif.args.player_armies) {
-                    this.gamedatas.players[player_id].army = notif.args.player_armies[player_id];
+
+                for (var player_color in notif.args.player_armies) {
+                    this.gamedatas.players[notif.args.player_armies[player_color]['player_id']].army = notif.args.player_armies[player_color]['army'];
                 }
-                
+
                 dojo.query('.piece').forEach(dojo.destroy);
                 this.populateBoard();
             },
