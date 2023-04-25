@@ -75,6 +75,8 @@ define([
                 dojo.query('#btn_conc').connect('onclick', this, 'concedeGame');
                 dojo.query('#btn_draw').connect('onclick', this, 'offerDraw');
 
+                dojo.style('player_board_buttons', 'display', 'none');
+
                 console.log("Ending game setup");
             },
 
@@ -90,6 +92,10 @@ define([
 
                 if (this.isCurrentPlayerActive()) {
                     switch (stateName) {
+                        case 'playerMove':
+                            dojo.style('player_board_buttons', 'display', 'block');
+                            break;
+
                         case 'armySelect':
                             this.updateArmySelectTitleText("Classic");
                             break;
@@ -145,6 +151,9 @@ define([
                 }
 
                 switch (stateName) {
+                    case 'playerMove':
+                        dojo.style('player_board_buttons', 'display', 'none');
+                        break;
 
                     /* Example:
                     
@@ -367,6 +376,11 @@ define([
             getColorPlayerText: function (color, text) {
                 let bg_color = (color == "000000") ? "transparent" : "bbbbbb";
                 return this.format_block('jstpl_player_text', { color: color, bg_color: bg_color, text: text });
+            },
+
+            updatePlayerOrdering() {
+                this.inherited(arguments);
+                dojo.place('player_board_buttons', 'player_boards', 'last');
             },
 
             ///////////////////////////////////////////////////

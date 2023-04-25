@@ -35,15 +35,14 @@
 
     </div>
 
-    <div id="buttons">
-
-        <div id="btn_draw" class="bgabutton bgabutton_blue" type="button">Offer Draw</div>
-        <div id="btn_conc" class="bgabutton bgabutton_blue" type="button">Concede Game</div>
-
-    </div>
-
 </div>
 
+<div class='player-board' id="player_board_buttons">
+
+    <button id="btn_draw" class="bgabutton bgabutton_blue">Offer Draw</button>
+    <button id="btn_conc" class="bgabutton bgabutton_blue">Concede Game</button>
+
+</div>
 
 <script type="text/javascript">
     // Javascript HTML templates
