@@ -418,10 +418,19 @@ class ChessSequel extends Table
         }
     }
 
-    function activePlayerWins()
+    function activePlayerWins($method)
     {
         $active_player_id = $this->getActivePlayerId();
         self::DbQuery("UPDATE player SET player_score = 1 WHERE player_id = '$active_player_id'");
+
+        self::notifyAllPlayers(
+            "message",
+            clienttranslate('${player_name} wins by ${method}'),
+            array(
+                "player_name" => self::getActivePlayerName(),
+                "method" => $method
+            )
+        );
 
         $this->gamestate->nextState('gameEnd');
     }
@@ -730,7 +739,7 @@ class ChessSequel extends Table
         }
 
         self::notifyAllPlayers(
-            "acceptDuel",
+            "message",
             $msg,
             array(
                 "player_name" => self::getActivePlayerName(),
@@ -787,7 +796,7 @@ class ChessSequel extends Table
             $this->updateStones($choosing_color, 1);
 
             self::notifyAllPlayers(
-                "gainStone",
+                "message",
                 clienttranslate('${player_name} gains a stone'),
                 array(
                     "player_name" => self::getActivePlayerName()
@@ -812,7 +821,7 @@ class ChessSequel extends Table
             $this->updateStones($other_color, -1);
 
             self::notifyAllPlayers(
-                "destroyStone",
+                "message",
                 clienttranslate('${player_name} destroys an enemy stone'),
                 array(
                     "player_name" => self::getActivePlayerName()
@@ -862,18 +871,45 @@ class ChessSequel extends Table
     function offerDraw()
     {
         $this->checkAction('offerDraw');
+
+        self::notifyAllPlayers(
+            "message",
+            clienttranslate('${player_name} offers a draw'),
+            array(
+                "player_name" => self::getActivePlayerName()
+            )
+        );
+
         $this->gamestate->nextState('offerDraw');
     }
 
     function acceptDraw()
     {
         $this->checkAction('acceptDraw');
+
+        self::notifyAllPlayers(
+            "message",
+            clienttranslate('${player_name} accepts the draw'),
+            array(
+                "player_name" => self::getActivePlayerName()
+            )
+        );
+
         $this->gamestate->nextState('gameEnd');
     }
 
     function rejectDraw()
     {
         $this->checkAction('rejectDraw');
+
+        self::notifyAllPlayers(
+            "message",
+            clienttranslate('${player_name} rejects the draw'),
+            array(
+                "player_name" => self::getActivePlayerName()
+            )
+        );
+
         $this->gamestate->nextState('drawRejected');
     }
 
@@ -1053,7 +1089,7 @@ class ChessSequel extends Table
 
         // Check for midline invasion win condition
         if ($this->hasActivePlayerInvaded($pieces)) {
-            $this->activePlayerWins();
+            $this->activePlayerWins("midline invasion");
             return;
         }
 
@@ -1096,6 +1132,7 @@ class ChessSequel extends Table
         if ($this->getPlayerColorById($resolved_player_id) == "000000") {
             $fifty_counter = $this->getGameStateValue('fifty_counter') - 1;
             if ($fifty_counter == 0) {
+                self::notifyAllPlayers("message", clienttranslate('The game is a draw by the 50 move rule'), array());
                 $this->gamestate->nextState('gameEnd');
                 return;
             }
@@ -1126,7 +1163,7 @@ class ChessSequel extends Table
 
         if (!$this->replaceLegalMoves($all_legal_moves)) {
             $this->activeNextPlayer();
-            $this->activePlayerWins();
+            $this->activePlayerWins("checkmate/stalemate");
             return;
         }
 
@@ -1148,7 +1185,9 @@ class ChessSequel extends Table
         self::DbQuery("INSERT INTO pos_history (pos_string) VALUES ('$pos_string')");
         $pos_reps = self::getUniqueValueFromDB("SELECT COUNT(*) FROM pos_history WHERE pos_string = '$pos_string'");
         if ($pos_reps == 3) {
+            self::notifyAllPlayers("message", clienttranslate('The game is a draw by threefold repetition'), array());
             $this->gamestate->nextState('gameEnd');
+            return;
         }
 
         $this->gamestate->nextState('playerMove');
@@ -1170,7 +1209,7 @@ class ChessSequel extends Table
         }
 
         self::notifyAllPlayers(
-            "stResolveDuel",
+            "message",
             clienttranslate('Bids: ${logpiece_def} ${bid_def} - ${bid_cap} ${logpiece_cap}'),
             array(
                 "logpiece_def" => $def_color . "_" . $pieces[$duel_data['defID']]['type'],
@@ -1217,7 +1256,7 @@ class ChessSequel extends Table
     function stConcedeGame()
     {
         $this->activeNextPlayer();
-        $this->activePlayerWins();
+        $this->activePlayerWins("concession");
     }
 
     /*
