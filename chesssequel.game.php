@@ -523,7 +523,7 @@ class ChessSequel extends Table
         (note: each method below must match an input method in chesssequel.action.php)
     */
 
-    function confirmArmy($army_name)
+    function confirmArmy($army_name, $player_id = null)
     {
         // Check this action is allowed according to the game state
         $this->checkAction('confirmArmy');
@@ -532,7 +532,9 @@ class ChessSequel extends Table
         if (in_array($army_name, $this->all_army_names)) {
             // Get the id of the CURRENT player (there are multiple active players in armySelect)
             // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
-            $player_id = $this->getCurrentPlayerId();
+            if ($player_id === null) {
+                $player_id = $this->getCurrentPlayerId();
+            }
 
             // Updates the current player's army in the database
             self::DbQuery("UPDATE player SET player_army = '$army_name' WHERE player_id = '$player_id'");
@@ -547,7 +549,7 @@ class ChessSequel extends Table
             // Send notification
             self::notifyAllPlayers("confirmArmy", clienttranslate('${player_name} selects an army'), array(
                 'player_id' => $player_id,
-                'player_name' => $this->getCurrentPlayerName()
+                'player_name' => $this->getPlayerNameById($player_id)
             ));
 
             // If opponent not active, deactivate player after notification (also transitions to boardSetup state)
@@ -811,7 +813,8 @@ class ChessSequel extends Table
     {
         $this->checkAction('destroyStone');
 
-        $choosing_color = $this->getCurrentPlayerColor();
+        $player_id = $this->getActivePlayerId();
+        $choosing_color = $this->getPlayerColorById($player_id);
         $other_color = ($choosing_color == "000000") ? "ffffff" : "000000";
         $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$other_color'");
 
@@ -1291,26 +1294,44 @@ class ChessSequel extends Table
 
     function zombieTurn($state, $active_player)
     {
-        $statename = $state['name'];
+        switch ($state['name']) {
+            case 'playerMove':
+                $move = self::getObjectFromDB("SELECT moving_piece_id, x, y FROM legal_moves LIMIT 1");
+                $this->movePiece($move['x'], $move['y'], $move['moving_piece_id']);
+                return;
 
-        if ($state['type'] === "activeplayer") {
-            switch ($statename) {
-                default:
-                    $this->gamestate->nextState("zombiePass");
-                    break;
-            }
+            case 'playerKingMove':
+                $this->gamestate->nextState('whereNext');
+                return;
 
-            return;
+            case 'pawnPromotion':
+                $army = self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_id = '$active_player'");
+                $this->promotePawn($this->all_armies_promote_options[$army][0]);
+                return;
+
+            case 'duelOffer':
+                $this->rejectDuel();
+                return;
+
+            case 'calledBluff':
+                $this->destroyStone();
+                return;
+
+            case 'drawOffer':
+                $this->rejectDraw();
+                return;
+
+            case 'armySelect':
+                $this->confirmArmy("classic", $active_player);
+                return;
+
+            case 'duelBidding':
+                $this->pickBid(0);
+                return;
+
+            default:
+                throw new feException("Zombie mode not supported at this game state: " . $state['name']);
         }
-
-        if ($state['type'] === "multipleactiveplayer") {
-            // Make sure player is in a non blocking status for role turn
-            $this->gamestate->setPlayerNonMultiactive($active_player, '');
-
-            return;
-        }
-
-        throw new feException("Zombie mode not supported at this game state: " . $statename);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////:
