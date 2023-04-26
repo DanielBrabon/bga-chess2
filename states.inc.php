@@ -88,7 +88,8 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose a move'),
         "descriptionmyturn" => clienttranslate('${you} must choose a move'),
         "possibleactions" => array("movePiece", "offerDraw", "concedeGame"),
-        "transitions" => array("whereNext" => 5, "offerDraw" => 13, "concedeGame" => 16)
+        "transitions" => array("whereNext" => 5, "offerDraw" => 13, "concedeGame" => 16),
+        "updateGameProgression" => true
     ),
 
     // The game decides which state to transition to next and calcualtes legal moves for the next turn

@@ -146,9 +146,8 @@ class ChessSequel extends Table
     */
     function getGameProgression()
     {
-        // TODO: compute and return the game progression
-
-        return 0;
+        $data = self::getObjectFromDB("SELECT SUM(moves_made) AS moves, SUM(captured) AS caps FROM pieces");
+        return $data['moves'] + $data['caps'];
     }
 
 
