@@ -54,8 +54,8 @@ class CHSMoves
     public function getAllMovesForPieces($piece_ids, $player_id, $game_data)
     {
         $enemy_color = ($this->game->getPlayerColorById($player_id) == "000000") ? "ffffff" : "000000";
-        $friendly_king_ids = $this->game->getPlayerKingIds($player_id);
         $game_data = $this->getChecksAndThreats($enemy_color, $game_data);
+        $friendly_kings = $this->getFriendlyKingData($player_id, $game_data);
 
         // $this->game->notifyAllPlayers("highlightAttackedSquares", "", $game_data['squares']);
 
@@ -65,9 +65,9 @@ class CHSMoves
             $this->getAvailableExtraMovesForPiece($piece_id, $game_data);
         }
 
-        $this->removeSelfChecks($friendly_king_ids, $game_data);
+        $this->removeSelfChecks($friendly_kings, $game_data);
 
-        return $this->moves;
+        return array("moves" => $this->moves, "friendly_kings" => $friendly_kings);
     }
 
     private function getChecksAndThreats($enemy_color, $game_data)
@@ -169,6 +169,23 @@ class CHSMoves
         }
 
         return $result;
+    }
+
+    private function getFriendlyKingData($player_id, $game_data)
+    {
+        $friendly_kings = array();
+
+        $friendly_king_ids = $this->game->getPlayerKingIds($player_id);
+
+        foreach ($friendly_king_ids as $king_id) {
+            $friendly_kings[$king_id] = array(
+                "x" => $game_data['pieces'][$king_id]['x'],
+                "y" => $game_data['pieces'][$king_id]['y'],
+                "checked_by" => $game_data['squares'][$game_data['pieces'][$king_id]['x']][$game_data['pieces'][$king_id]['y']]['checks']
+            );
+        }
+
+        return $friendly_kings;
     }
 
     private function makeMove($x, $y, $cap_squares)
@@ -650,23 +667,13 @@ class CHSMoves
     }
 
     // Takes an array of possible moves and returns the same array but with any options removed that would leave the player's own king in check 
-    private function removeSelfChecks($friendly_king_ids, $game_data)
+    private function removeSelfChecks($friendly_kings, $game_data)
     {
         $ids_to_recheck = array();
 
-        $king_squares = array();
-
-        foreach ($friendly_king_ids as $king) {
-            $king_squares[$king]['x'] = $game_data['pieces'][$king]['x'];
-            $king_squares[$king]['y'] = $game_data['pieces'][$king]['y'];
-
-            // Recheck pieces which are checking a king
-            if (count($game_data['squares'][$king_squares[$king]['x']][$king_squares[$king]['y']]['checks']) != 0) {
-                $ids_to_recheck = array_merge(
-                    $ids_to_recheck,
-                    $game_data['squares'][$king_squares[$king]['x']][$king_squares[$king]['y']]['checks']
-                );
-            }
+        // Recheck pieces which are checking a king
+        foreach ($friendly_kings as $king_data) {
+            $ids_to_recheck = array_merge($ids_to_recheck, $king_data['checked_by']);
         }
 
         foreach ($this->moves as $moving_id => $moves) {
@@ -691,12 +698,12 @@ class CHSMoves
             $ids_piece = $ids_to_recheck;
 
             // Recheck pieces which are checking the moving piece and threatening a king
-            foreach ($king_squares as $k_sq) {
+            foreach ($friendly_kings as $king_data) {
                 $ids_piece = array_merge(
                     $ids_piece,
                     array_intersect(
                         $enemies_attacking_start_square,
-                        $game_data['squares'][$k_sq['x']][$k_sq['y']]['threats']
+                        $game_data['squares'][$king_data['x']][$king_data['y']]['threats']
                     )
                 );
             }
@@ -713,12 +720,12 @@ class CHSMoves
                             // Recheck pieces which are checking a capture square and threatening a king
                             $enemies_attacking_square = $game_data['squares'][$cs[0]][$cs[1]]['checks'];
 
-                            foreach ($king_squares as $k_sq) {
+                            foreach ($friendly_kings as $king_data) {
                                 $ids_move = array_merge(
                                     $ids_move,
                                     array_intersect(
                                         $enemies_attacking_square,
-                                        $game_data['squares'][$k_sq['x']][$k_sq['y']]['threats']
+                                        $game_data['squares'][$king_data['x']][$king_data['y']]['threats']
                                     )
                                 );
                             }
@@ -734,7 +741,7 @@ class CHSMoves
 
                 $game_data_sim = $this->simulatePossibleMove($moving_id, $move, $game_data);
 
-                if ($this->arePiecesAttackingKings($ids_move, $friendly_king_ids, $game_data_sim)) {
+                if ($this->arePiecesAttackingKings($ids_move, $friendly_kings, $game_data_sim)) {
                     unset($this->moves[$moving_id][$index]);
                 }
             }
@@ -774,7 +781,7 @@ class CHSMoves
     }
 
     // Returns true if any of the pieces in $piece_ids are attacking any of the squares in $king_squares, else false
-    private function arePiecesAttackingKings($piece_ids, $friendly_king_ids, $game_data)
+    private function arePiecesAttackingKings($piece_ids, $friendly_kings, $game_data)
     {
         foreach ($piece_ids as $piece_id) {
             if ($game_data['pieces'][$piece_id]['captured'] != 0) {
@@ -786,7 +793,7 @@ class CHSMoves
 
             foreach ($attacking_moves as $move) {
                 foreach ($move['cap_squares'] as $cs) {
-                    foreach ($friendly_king_ids as $king) {
+                    foreach (array_keys($friendly_kings) as $king) {
                         if (
                             $cs[0] == $game_data['pieces'][$king]['x']
                             && $cs[1] == $game_data['pieces'][$king]['y']

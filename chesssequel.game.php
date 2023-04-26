@@ -418,17 +418,17 @@ class ChessSequel extends Table
         }
     }
 
-    function activePlayerWins($method)
+    function activePlayerWins($condition)
     {
         $active_player_id = $this->getActivePlayerId();
         self::DbQuery("UPDATE player SET player_score = 1 WHERE player_id = '$active_player_id'");
 
         self::notifyAllPlayers(
             "message",
-            clienttranslate('${player_name} wins by ${method}'),
+            clienttranslate('${player_name} wins by ${condition}'),
             array(
                 "player_name" => self::getActivePlayerName(),
-                "method" => $method
+                "condition" => $condition
             )
         );
 
@@ -1120,7 +1120,7 @@ class ChessSequel extends Table
             self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$resolved_player_id'");
 
             $kings = array_values($this->getPlayerKingIds($resolved_player_id));
-            $king_moves = $this->moves->getAllMovesForPieces($kings, $resolved_player_id, array("pieces" => $pieces, "squares" => $squares));
+            $king_moves = $this->moves->getAllMovesForPieces($kings, $resolved_player_id, array("pieces" => $pieces, "squares" => $squares))['moves'];
 
             if ($this->replaceLegalMoves($king_moves)) {
                 $this->gamestate->nextState('playerKingMove');
@@ -1162,11 +1162,21 @@ class ChessSequel extends Table
         $active_color = $this->getPlayerColorById($active_player_id);
         $act_pieces = self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE color = '$active_color' AND captured = 0", true);
 
-        $all_legal_moves = $this->moves->getAllMovesForPieces($act_pieces, $active_player_id, array("pieces" => $pieces, "squares" => $squares));
+        $moves = $this->moves->getAllMovesForPieces($act_pieces, $active_player_id, array("pieces" => $pieces, "squares" => $squares));
+        $all_legal_moves = $moves['moves'];
 
         if (!$this->replaceLegalMoves($all_legal_moves)) {
+            // Determine whether it is checkmate or stalemate
+            $condition = "stalemate";
+            foreach ($moves['friendly_kings'] as $king_data) {
+                if (count($king_data['checked_by']) != 0) {
+                    $condition = "checkmate";
+                    break;
+                }
+            }
+
             $this->activeNextPlayer();
-            $this->activePlayerWins("checkmate/stalemate");
+            $this->activePlayerWins($condition);
             return;
         }
 
