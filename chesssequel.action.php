@@ -55,7 +55,7 @@ class action_chesssequel extends APP_GameAction
     self::setAjaxMode();
     $target_file = self::getArg("target_file", AT_posint, true);
     $target_rank = self::getArg("target_rank", AT_posint, true);
-    $moving_piece_id = self::getArg("moving_piece_id", AT_alphanum, true);
+    $moving_piece_id = self::getArg("moving_piece_id", AT_posint, true);
     $result = $this->game->movePiece($target_file, $target_rank, $moving_piece_id);
     self::ajaxResponse();
   }
