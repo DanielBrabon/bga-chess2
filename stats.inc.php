@@ -52,11 +52,17 @@ $stats_type = array(
     // Statistics global to table
     "table" => array(
 
-        "turns_number" => array(
+        "end_condition" => array(
             "id" => 10,
-            "name" => totranslate("Number of turns"),
+            "name" => totranslate("Game end condition"),
             "type" => "int"
         ),
+
+        "moves_number" => array(
+            "id" => 11,
+            "name" => totranslate("Number of moves"),
+            "type" => "int"
+        )
 
         /*
         Examples:
@@ -75,11 +81,47 @@ $stats_type = array(
     // Statistics existing for each player
     "player" => array(
 
-        "turns_number" => array(
-            "id" => 10,
-            "name" => totranslate("Number of turns"),
+        "army" => array(
+            "id" => 12,
+            "name" => totranslate("Army"),
             "type" => "int"
         ),
+
+        "enemies_captured" => array(
+            "id" => 13,
+            "name" => totranslate("Enemy pieces captured"),
+            "type" => "int"
+        ),
+
+        "friendlies_captured" => array(
+            "id" => 14,
+            "name" => totranslate("Friendly pieces captured"),
+            "type" => "int"
+        ),
+
+        "duels_initiated" => array(
+            "id" => 15,
+            "name" => totranslate("Duels initiated"),
+            "type" => "int"
+        ),
+
+        "stones_bid" => array(
+            "id" => 16,
+            "name" => totranslate("Total stones bid"),
+            "type" => "int"
+        ),
+
+        "duel_captures" => array(
+            "id" => 17,
+            "name" => totranslate("Captures by duel"),
+            "type" => "int"
+        ),
+
+        "bluffs_called" => array(
+            "id" => 18,
+            "name" => totranslate("Bluffs called"),
+            "type" => "int"
+        )
 
         /*
         Examples:    
@@ -94,6 +136,29 @@ $stats_type = array(
                                 "type" => "float" )
 
 */
+    ),
+
+    "value_labels" => array(
+
+        10 => array(
+            0 => totranslate("Checkmate"),
+            1 => totranslate("Stalemate"),
+            2 => totranslate("Midline invasion"),
+            3 => totranslate("Threefold repetition"),
+            4 => totranslate("50 move rule"),
+            5 => totranslate("Agreed to draw"),
+            6 => totranslate("Concession")
+        ),
+
+        12 => array(
+            0 => totranslate("Classic"),
+            1 => totranslate("Nemesis"),
+            2 => totranslate("Empowered"),
+            3 => totranslate("Reaper"),
+            4 => totranslate("Two Kings"),
+            5 => totranslate("Animal")
+        )
+
     )
 
 );

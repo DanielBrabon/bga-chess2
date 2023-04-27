@@ -143,6 +143,16 @@ $this->type_code = array(
   "junglequeen" => "j"
 );
 
+$this->end_conditions = array(
+  0 => clienttranslate("checkmate"),
+  1 => clienttranslate("stalemate"),
+  2 => clienttranslate("midline invasion"),
+  3 => clienttranslate("threefold repetition"),
+  4 => clienttranslate("50 move rule"),
+  5 => clienttranslate("agreed to draw"),
+  6 => clienttranslate("concession")
+);
+
 /*
 
 Example:

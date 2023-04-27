@@ -20,6 +20,7 @@
 
 require_once(APP_GAMEMODULE_PATH . 'module/table/table.game.php');
 require_once('modules/CHSMoves.php');
+require_once('modules/constants.inc.php');
 
 class ChessSequel extends Table
 {
@@ -84,6 +85,20 @@ class ChessSequel extends Table
         self::setGameStateInitialValue('fifty_counter', 51);
 
         // Init game statistics
+        self::initStat("table", "end_condition", 0);
+        self::initStat("table", "moves_number", 0);
+
+        self::initStat("player", "army", 0);
+        self::initStat("player", "enemies_captured", 0);
+        self::initStat("player", "friendlies_captured", 0);
+
+        if ($this->getGameStateValue('ruleset_version') == 2) {
+            self::initStat("player", "duels_initiated", 0);
+            self::initStat("player", "stones_bid", 0);
+            self::initStat("player", "duel_captures", 0);
+            self::initStat("player", "bluffs_called", 0);
+        }
+
         // (note: statistics used in this file must be defined in your stats.inc.php file)
         //self::initStat( 'table', 'table_teststat1', 0 );    // Init a table statistics
         //self::initStat( 'player', 'player_teststat1', 0 );  // Init a player statistics (for all players)
@@ -312,12 +327,15 @@ class ChessSequel extends Table
             $game_data['cap_q'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
         }
 
+        $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
+
         $min_cq_id = min(array_keys($game_data['cap_q']));
 
         $cap_id = $this->getGameStateValue('cap_id');
         $def_id = $game_data['squares'][$game_data['cap_q'][$min_cq_id]['x']][$game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
 
         $same_color = ($game_data['pieces'][$def_id]['color'] == $game_data['pieces'][$cap_id]['color']);
+        $stat = ($same_color) ? "friendlies_captured" : "enemies_captured";
 
         $pieces_to_cap = array($def_id);
 
@@ -325,6 +343,7 @@ class ChessSequel extends Table
             $pieces_to_cap[] = $cap_id;
             $this->setGameStateValue('cap_id', 0);
             self::DbQuery("DELETE FROM capture_queue");
+            self::incStat(1, "duel_captures", $player_ids[$game_data['pieces'][$def_id]['color']]);
         } else {
             self::DbQuery("DELETE FROM capture_queue WHERE cq_id = '$min_cq_id'");
 
@@ -348,6 +367,8 @@ class ChessSequel extends Table
             self::DbQuery("UPDATE pieces SET captured = 1, capturing = 0 WHERE piece_id = '$id'");
 
             $capping_id = ($id == $cap_id) ? $def_id : $cap_id;
+
+            self::incStat(1, $stat, $player_ids[$game_data['pieces'][$capping_id]['color']]);
 
             self::notifyAllPlayers(
                 "updateAllPieceData",
@@ -422,12 +443,14 @@ class ChessSequel extends Table
         $active_player_id = $this->getActivePlayerId();
         self::DbQuery("UPDATE player SET player_score = 1 WHERE player_id = '$active_player_id'");
 
+        self::setStat($condition, "end_condition");
+
         self::notifyAllPlayers(
             "message",
             clienttranslate('${player_name} wins by ${condition}'),
             array(
                 "player_name" => self::getActivePlayerName(),
-                "condition" => $condition
+                "condition" => $this->end_conditions[$condition]
             )
         );
 
@@ -537,6 +560,7 @@ class ChessSequel extends Table
 
             // Updates the current player's army in the database
             self::DbQuery("UPDATE player SET player_army = '$army_name' WHERE player_id = '$player_id'");
+            self::setStat(array_search($army_name, $this->all_army_names), "army", $player_id);
 
             $opponent_active = self::getUniqueValueFromDB("SELECT player_is_multiactive FROM player WHERE player_id != '$player_id'");
 
@@ -731,6 +755,8 @@ class ChessSequel extends Table
         $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
         $duel_data = $this->getDuelData($pieces);
 
+        self::incStat(1, "duels_initiated", $this->getActivePlayerId());
+
         $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap}');
 
         if ($duel_data['costToDuel'] == 1) {
@@ -776,6 +802,8 @@ class ChessSequel extends Table
         if (in_array($bid_amount, [0, 1, 2]) && $bid_amount <= $player_stones) {
             // Update the current player's bid in the database
             self::DbQuery("UPDATE player SET player_bid = '$bid_amount' WHERE player_id = '$player_id'");
+
+            self::incStat($bid_amount, "stones_bid", $player_id);
 
             // Deactivate player. If none left, transition to 'resolveDuel' state
             $this->gamestate->setPlayerNonMultiactive($player_id, 'resolveDuel');
@@ -888,6 +916,8 @@ class ChessSequel extends Table
     function acceptDraw()
     {
         $this->checkAction('acceptDraw');
+
+        self::setStat(AGREED_TO_DRAW, "end_condition");
 
         self::notifyAllPlayers(
             "message",
@@ -1091,7 +1121,7 @@ class ChessSequel extends Table
 
         // Check for midline invasion win condition
         if ($this->hasActivePlayerInvaded($pieces)) {
-            $this->activePlayerWins("midline invasion");
+            $this->activePlayerWins(MIDLINE_INVASION);
             return;
         }
 
@@ -1134,6 +1164,7 @@ class ChessSequel extends Table
         if ($this->getPlayerColorById($resolved_player_id) == "000000") {
             $fifty_counter = $this->getGameStateValue('fifty_counter') - 1;
             if ($fifty_counter == 0) {
+                self::setStat(FIFTY_MOVE_RULE, "end_condition");
                 self::notifyAllPlayers("message", clienttranslate('The game is a draw by the 50 move rule'), array());
                 $this->gamestate->nextState('gameEnd');
                 return;
@@ -1166,10 +1197,10 @@ class ChessSequel extends Table
 
         if (!$this->replaceLegalMoves($all_legal_moves)) {
             // Determine whether it is checkmate or stalemate
-            $condition = "stalemate";
+            $condition = STALEMATE;
             foreach ($moves['friendly_kings'] as $king_data) {
                 if (count($king_data['checked_by']) != 0) {
-                    $condition = "checkmate";
+                    $condition = CHECKMATE;
                     break;
                 }
             }
@@ -1197,10 +1228,13 @@ class ChessSequel extends Table
         self::DbQuery("INSERT INTO pos_history (pos_string) VALUES ('$pos_string')");
         $pos_reps = self::getUniqueValueFromDB("SELECT COUNT(*) FROM pos_history WHERE pos_string = '$pos_string'");
         if ($pos_reps == 3) {
+            self::setStat(THREEFOLD_REPETITION, "end_condition");
             self::notifyAllPlayers("message", clienttranslate('The game is a draw by threefold repetition'), array());
             $this->gamestate->nextState('gameEnd');
             return;
         }
+
+        self::incStat(1, "moves_number");
 
         $this->gamestate->nextState('playerMove');
     }
@@ -1239,6 +1273,8 @@ class ChessSequel extends Table
 
         // If both bid 0 stones, the attacker can choose to gain 1 stone or destroy 1 of the defender's stones
         if ($player_bids[$cap_color] == 0 && $player_bids[$def_color] == 0) {
+            self::incStat(1, "bluffs_called", self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$cap_color'"));
+
             $this->gamestate->nextState('calledBluff');
             return;
         }
@@ -1268,7 +1304,7 @@ class ChessSequel extends Table
     function stConcedeGame()
     {
         $this->activeNextPlayer();
-        $this->activePlayerWins("concession");
+        $this->activePlayerWins(CONCESSION);
     }
 
     /*
