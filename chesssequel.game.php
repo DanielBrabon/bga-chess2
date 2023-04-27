@@ -694,7 +694,7 @@ class ChessSequel extends Table
                 "values_updated" => $pieces_values_to_set_notif,
                 "player_name" => self::getActivePlayerName(),
                 "logpiece" => $pieces[$moving_piece_id]['color'] . "_" . $pieces[$moving_piece_id]['type'],
-                "square" => $this->files[$target_x - 1] . $target_y
+                "square" => $this->files[$target_x] . $target_y
             )
         );
 
@@ -722,7 +722,7 @@ class ChessSequel extends Table
                             "values_updated" => array("location" => array($rook_dest_x, $target_y)),
                             "player_name" => self::getActivePlayerName(),
                             "logpiece" => $pieces[$castling_rook_id]['color'] . "_" . $pieces[$castling_rook_id]['type'],
-                            "square" => $this->files[$rook_dest_x - 1] . $pieces[$castling_rook_id]['y']
+                            "square" => $this->files[$rook_dest_x] . $pieces[$castling_rook_id]['y']
                         )
                     );
 
