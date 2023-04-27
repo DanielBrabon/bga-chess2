@@ -177,19 +177,14 @@ class ChessSequel extends Table
     function getAllPlayerData()
     {
         $sql = "SELECT player_id id, player_color color, player_score score, player_stones stones, 
-        player_king_move_available king_move_available, player_army army, player_king_id king_id, player_king_id_2 king_id_2 FROM player";
+        player_king_move_available king_move_available, player_army army FROM player";
         return self::getCollectionFromDb($sql);
     }
 
     function getPlayerKingIds($player_id)
     {
-        $king_ids = self::getObjectFromDB("SELECT player_king_id, player_king_id_2 FROM player WHERE player_id = '$player_id'");
-
-        if ($king_ids['player_king_id_2'] === null) {
-            unset($king_ids['player_king_id_2']);
-        }
-
-        return $king_ids;
+        $player_color = $this->getPlayerColorById($player_id);
+        return self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE color = '$player_color' AND type IN ('king', 'warriorking')", true);
     }
 
     function getPlayerArmy($player_color)
@@ -394,7 +389,7 @@ class ChessSequel extends Table
     {
         $king_ids = $this->getPlayerKingIds($this->getActivePlayerId());
 
-        $invasion_direction = ($pieces[$king_ids['player_king_id']]['color'] == "000000") ? -1 : 1;
+        $invasion_direction = ($pieces[$king_ids[0]]['color'] == "000000") ? -1 : 1;
 
         foreach ($king_ids as $king_id) {
             if (($pieces[$king_id]['y'] - 4.5) * $invasion_direction < 0) {
@@ -1032,22 +1027,17 @@ class ChessSequel extends Table
     // Enter the starting board state into the database  
     function stBoardSetup()
     {
-        // Get data on players and board layouts
-        $all_datas = $this->getAllDatas();
-
         $pieces_table_update_information = array();
+        $armies = array();
 
         // Adding a row to the pieces database table for each piece in each player's starting layout
         $sql = "INSERT INTO pieces (piece_id,color,type,x,y) VALUES ";
         $sql_values = array();
 
-        $all_king_ids = array();
-        $armies = array();
-
         $x_offsets = ($this->getGameStateValue('ruleset_version') == 3) ? $this->rollXOffsets() : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
         // For each player
-        foreach ($all_datas['players'] as $player_id => $player_data) {
+        foreach ($this->getAllPlayerData() as $player_id => $player_data) {
             $player_color = $player_data['color'];
             $armies[$player_color] = array("player_id" => $player_id, "army" => $player_data['army']);
 
@@ -1060,7 +1050,7 @@ class ChessSequel extends Table
             }
 
             // For each piece in their army's layout
-            foreach ($all_datas['all_armies_layouts'][$player_data['army']] as $piece_index => $piece_type) {
+            foreach ($this->all_armies_layouts[$player_data['army']] as $piece_index => $piece_type) {
                 $x = ($piece_index % 8) + 1 + $x_offsets[$piece_index];
                 $y = $y_values[floor($piece_index / 8)];
                 $piece_id = $piece_id_offset + $piece_index;
@@ -1068,10 +1058,6 @@ class ChessSequel extends Table
                 // Add the piece's data to be sent to the database and in a notification
                 $sql_values[] = "('$piece_id','$player_color','$piece_type','$x','$y')";
                 $pieces_table_update_information[] = array($piece_id, $player_color, $piece_type, $x, $y);
-
-                if (in_array($piece_type, ["king", "warriorking"])) {
-                    $all_king_ids[$player_data['id']][] = $piece_id;
-                }
             }
         }
 
@@ -1079,24 +1065,7 @@ class ChessSequel extends Table
         $sql .= implode(',', $sql_values);
         self::DbQuery($sql);
 
-        foreach ($all_king_ids as $player_id => $king_ids) {
-            if (count($king_ids) == 2) {
-                self::DbQuery(
-                    "UPDATE player
-                    SET player_remaining_reflexion_time = 1800,
-                    player_king_id = '$king_ids[0]',
-                    player_king_id_2 = '$king_ids[1]'
-                    WHERE player_id = '$player_id'"
-                );
-            } else {
-                self::DbQuery(
-                    "UPDATE player
-                    SET player_remaining_reflexion_time = 1800,
-                    player_king_id = '$king_ids[0]'
-                    WHERE player_id = '$player_id'"
-                );
-            }
-        }
+        self::DbQuery("UPDATE player SET player_remaining_reflexion_time = 1800");
 
         // Notifying players of the changes to gamedatas
         self::notifyAllPlayers(
@@ -1148,7 +1117,7 @@ class ChessSequel extends Table
         if (self::getUniqueValueFromDB("SELECT player_king_move_available FROM player WHERE player_id = '$resolved_player_id'")) {
             self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = '$resolved_player_id'");
 
-            $kings = array_values($this->getPlayerKingIds($resolved_player_id));
+            $kings = $this->getPlayerKingIds($resolved_player_id);
             $king_moves = $this->moves->getAllMovesForPieces($kings, $resolved_player_id, array("pieces" => $pieces, "squares" => $squares))['moves'];
 
             if ($this->replaceLegalMoves($king_moves)) {
