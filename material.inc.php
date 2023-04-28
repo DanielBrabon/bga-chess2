@@ -101,6 +101,117 @@ $this->button_labels = array(
   "bid_2" => clienttranslate("Bid 2 Stones")
 );
 
+$this->army_tooltips = array(
+  "classic" => clienttranslate("Ordinary chess pieces. The only army that can castle"),
+  "nemesis" => clienttranslate("A focused attack on the enemy king"),
+  "empowered" => clienttranslate("Stronger knights, bishops, and rooks"),
+  "reaper" => clienttranslate("A powerful queen"),
+  "twokings" => clienttranslate("Two powerful kings"),
+  "animal" => clienttranslate("The wild card")
+);
+
+$this->piece_tooltips = array(
+  "pawn" => array(
+    "help_string" => clienttranslate("Pawn"),
+    "action_string" => clienttranslate("An ordinary chess pawn")
+  ),
+
+  "knight" => array(
+    "help_string" => $this->button_labels["knight"],
+    "action_string" => clienttranslate("An ordinary chess knight")
+  ),
+
+  "bishop" => array(
+    "help_string" => $this->button_labels["bishop"],
+    "action_string" => clienttranslate("An ordinary chess bishop")
+  ),
+
+  "rook" => array(
+    "help_string" => $this->button_labels["rook"],
+    "action_string" => clienttranslate("An ordinary chess rook")
+  ),
+
+  "queen" => array(
+    "help_string" => $this->button_labels["queen"],
+    "action_string" => clienttranslate("An ordinary chess queen")
+  ),
+
+  "king" => array(
+    "help_string" => clienttranslate("King"),
+    "action_string" => clienttranslate("An ordinary chess king")
+  ),
+
+  "nemesispawn" => array(
+    "help_string" => clienttranslate("Nemesis Pawn"),
+    "action_string" => clienttranslate("A pawn which cannot travel 2 squares at once but can make non-capturing moves towards an enemy king")
+  ),
+
+  "nemesis" => array(
+    "help_string" => $this->button_labels["nemesis"],
+    "action_string" => clienttranslate("A queen which cannot capture or be captured, except by an enemy king")
+  ),
+
+  "empoweredknight" => array(
+    "help_string" => $this->button_labels["empoweredknight"],
+    "action_string" => clienttranslate("A knight which gains the movement abilities of orthogonally adjacent empowered bishops and rooks")
+  ),
+
+  "empoweredbishop" => array(
+    "help_string" => $this->button_labels["empoweredbishop"],
+    "action_string" => clienttranslate("A bishop which gains the movement abilities of orthogonally adjacent empowered knights and rooks")
+  ),
+
+  "empoweredrook" => array(
+    "help_string" => $this->button_labels["empoweredrook"],
+    "action_string" => clienttranslate("A rook which gains the movement abilities of orthogonally adjacent empowered knights and bishops")
+  ),
+
+  "elegantqueen" => array(
+    "help_string" => $this->button_labels["elegantqueen"],
+    "action_string" => clienttranslate("Moves as a king")
+  ),
+
+  "ghost" => array(
+    "help_string" => $this->button_labels["ghost"],
+    "action_string" => clienttranslate("Can teleport to any open square. Cannot capture or be captured")
+  ),
+
+  "reaper" => array(
+    "help_string" => $this->button_labels["reaper"],
+    "action_string" => clienttranslate("Can teleport anywhere but the enemy's backline. Cannot capture kings")
+  ),
+
+  "warriorking" => array(
+    "help_string" => clienttranslate("Warrior King"),
+    "action_string" => clienttranslate("A king which can move to its own square to whirlwind and capture all adjacent pieces. May take an action after the normal turn")
+  ),
+
+  "wildhorse" => array(
+    "help_string" => $this->button_labels["wildhorse"],
+    "action_string" => clienttranslate("A knight which can capture friendly pieces")
+  ),
+
+  "tiger" => array(
+    "help_string" => $this->button_labels["tiger"],
+    "action_string" => clienttranslate("A bishop with a range of 2. When it captures, it moves back to where it attacked from")
+  ),
+
+  "elephant" => array(
+    "help_string" => $this->button_labels["elephant"],
+    "action_string" => clienttranslate("A rook with a range of 3. Can capture friendly pieces. If it captures, it must move its full range and capture everything along the way. Cannot be captured from more than 2 squares away")
+  ),
+
+  "junglequeen" => array(
+    "help_string" => $this->button_labels["junglequeen"],
+    "action_string" => clienttranslate("Can move as a rook and a knight")
+  ),
+
+  "empty" => array(
+    "help_string" => clienttranslate("Your opponent is selecting an army"),
+    "action_string" => clienttranslate("")
+  )
+);
+
 $this->piece_ranks = array(
   "pawn" => 0,
   "knight" => 1,

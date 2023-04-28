@@ -54,6 +54,8 @@ define([
 
                         var player_board_div = $('player_board_' + player_id);
                         dojo.place(this.format_block('jstpl_player_stones', player), player_board_div);
+
+                        this.addTooltip('player_stones_' + player_id, _("The resource used in duels"), "");
                     }
                 }
 
@@ -182,9 +184,12 @@ define([
                         case 'armySelect':
                             const army_names = this.gamedatas.all_army_names;
 
-                            for (var army_index in army_names) {
-                                var army_name = army_names[army_index];
-                                this.addActionButton('btn_' + army_name, this.gamedatas.button_labels[army_name], 'pickArmy');
+                            for (let army_name of army_names) {
+                                let button_id = 'btn_' + army_name;
+
+                                this.addActionButton(button_id, this.gamedatas.button_labels[army_name], 'pickArmy');
+
+                                this.addTooltip(button_id, "", this.gamedatas.army_tooltips[army_name]);
                             }
 
                             this.addActionButton('btn_confirm_army', _('Confirm Army'), 'confirmArmy', null, false, 'red');
@@ -292,6 +297,12 @@ define([
                                 type: piece_info['type'],
                                 piece_id: piece_info['piece_id']
                             }), 'square_' + piece_info['x'] + '_' + piece_info['y']);
+
+                            this.addTooltip(
+                                piece_info['piece_id'],
+                                this.gamedatas.piece_tooltips[piece_info['type']].help_string,
+                                this.gamedatas.piece_tooltips[piece_info['type']].action_string
+                            );
                         }
                     }
 
@@ -319,6 +330,7 @@ define([
 
                 // For each piece in the layout
                 for (let piece_index in types) {
+                    let piece_id = piece_id_offset + piece_index;
                     let x = (piece_index % 8) + 1;
                     let y = y_values[Math.floor(piece_index / 8)];
 
@@ -326,8 +338,14 @@ define([
                     dojo.place(this.format_block('jstpl_piece', {
                         color: player_color,
                         type: types[piece_index],
-                        piece_id: piece_id_offset + piece_index
+                        piece_id: piece_id
                     }), 'square_' + x + '_' + y);
+
+                    this.addTooltip(
+                        piece_id,
+                        this.gamedatas.piece_tooltips[types[piece_index]].help_string,
+                        this.gamedatas.piece_tooltips[types[piece_index]].action_string
+                    );
                 }
 
                 // Flip the pieces for the black player
@@ -683,7 +701,7 @@ define([
 
                 for (var piece in pieces_info) {
                     pieces_object[pieces_info[piece][0]] = {};
-                    pieces_object[pieces_info[piece][0]].piece_id = pieces_info[piece][0];
+                    pieces_object[pieces_info[piece][0]].piece_id = String(pieces_info[piece][0]);
                     pieces_object[pieces_info[piece][0]].color = pieces_info[piece][1];
                     pieces_object[pieces_info[piece][0]].type = pieces_info[piece][2];
                     pieces_object[pieces_info[piece][0]].x = pieces_info[piece][3];

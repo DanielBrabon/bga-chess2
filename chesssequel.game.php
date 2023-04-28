@@ -140,6 +140,8 @@ class ChessSequel extends Table
         $result['all_army_names'] = $this->all_army_names;
         $result['all_armies_layouts'] = $this->all_armies_layouts;
         $result['button_labels'] = $this->button_labels;
+        $result['piece_tooltips'] = $this->piece_tooltips;
+        $result['army_tooltips'] = $this->army_tooltips;
 
         $result['ruleset_version'] = $this->getGameStateValue('ruleset_version');
 
