@@ -38,6 +38,8 @@ class ChessSequel extends Table
             "cap_id" => 10,
             "pro_id" => 12,
             "fifty_counter" => 13,
+            "last_player_move_piece_id" => 14,
+            "last_king_move_piece_id" => 15,
             "ruleset_version" => 100
         ));
 
@@ -83,6 +85,8 @@ class ChessSequel extends Table
         self::setGameStateInitialValue('cap_id', 0);
         self::setGameStateInitialValue('pro_id', 0);
         self::setGameStateInitialValue('fifty_counter', 51);
+        self::setGameStateInitialValue('last_player_move_piece_id', 0);
+        self::setGameStateInitialValue('last_king_move_piece_id', 0);
 
         // Init game statistics
         self::initStat("table", "end_condition", 0);
@@ -142,6 +146,11 @@ class ChessSequel extends Table
         $result['button_labels'] = $this->button_labels;
         $result['piece_tooltips'] = $this->piece_tooltips;
         $result['army_tooltips'] = $this->army_tooltips;
+
+        $result['last_move_piece_ids'] = array(
+            "player_move" => $this->getGameStateValue('last_player_move_piece_id'),
+            "king_move" => $this->getGameStateValue('last_king_move_piece_id')
+        );
 
         $result['ruleset_version'] = $this->getGameStateValue('ruleset_version');
 
@@ -664,6 +673,20 @@ class ChessSequel extends Table
         $sql = "SELECT moves_made FROM pieces WHERE piece_id = '$moving_piece_id'";
         $pieces_values_to_set['moves_made'] = self::getUniqueValueFromDB($sql) + 1;
 
+        $state_name = $this->gamestate->state()['name'];
+
+        if ($state_name == "playerMove") {
+            $this->setGameStateValue("last_player_move_piece_id", $moving_piece_id);
+            $this->setGameStateValue("last_king_move_piece_id", 0);
+        } else {
+            $this->setGameStateValue("last_king_move_piece_id", $moving_piece_id);
+        }
+
+        if ($this->getGameStateValue("last_player_move_piece_id") != $this->getGameStateValue("last_king_move_piece_id")) {
+            $pieces_values_to_set['last_x'] = $pieces[$moving_piece_id]['x'];
+            $pieces_values_to_set['last_y'] = $pieces[$moving_piece_id]['y'];
+        }
+
         $pieces_values_to_set_notif = $pieces_values_to_set;
         $pieces_values_to_set_notif['location'] = array($target_x, $target_y);
 
@@ -694,6 +717,7 @@ class ChessSequel extends Table
             array(
                 "piece_id" => $moving_piece_id,
                 "values_updated" => $pieces_values_to_set_notif,
+                "state_name" => $state_name,
                 "player_name" => self::getActivePlayerName(),
                 "logpiece" => $pieces[$moving_piece_id]['color'] . "_" . $pieces[$moving_piece_id]['type'],
                 "square" => $this->files[$target_x] . $target_y
@@ -716,12 +740,18 @@ class ChessSequel extends Table
 
                     self::DbQuery("UPDATE pieces SET x = '$rook_dest_x' WHERE piece_id = '$castling_rook_id'");
 
+                    $rook_values_updated = array(
+                        "location" => array($rook_dest_x, $target_y),
+                        "last_x" => $x,
+                        "last_y" => $target_y
+                    );
+
                     self::notifyAllPlayers(
                         "updateAllPieceData",
                         clienttranslate('${player_name} castles: ${logpiece}${square}'),
                         array(
                             "piece_id" => $castling_rook_id,
-                            "values_updated" => array("location" => array($rook_dest_x, $target_y)),
+                            "values_updated" => $rook_values_updated,
                             "player_name" => self::getActivePlayerName(),
                             "logpiece" => $pieces[$castling_rook_id]['color'] . "_" . $pieces[$castling_rook_id]['type'],
                             "square" => $this->files[$rook_dest_x] . $pieces[$castling_rook_id]['y']

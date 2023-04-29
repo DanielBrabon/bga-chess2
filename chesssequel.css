@@ -210,3 +210,7 @@
     /* For IE8 and earlier */
     cursor: pointer;
 }
+
+.last_move {
+    background-color: rgb(86, 135, 86, 0.8);
+}

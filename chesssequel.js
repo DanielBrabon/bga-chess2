@@ -62,6 +62,13 @@ define([
                 // Placing pieces on the board
                 this.populateBoard();
 
+                for (let key in this.gamedatas.last_move_piece_ids) {
+                    let piece_id = this.gamedatas.last_move_piece_ids[key];
+                    if (piece_id != 0) {
+                        this.highlightLastMove(piece_id);
+                    }
+                }
+
                 // Flip the board for the black player
                 if (gamedatas.players[this.player_id].color == "000000") {
                     dojo.addClass('board', 'flipped');
@@ -352,6 +359,12 @@ define([
                 if (this.gamedatas.players[this.player_id].color == "000000") {
                     dojo.query('.piece').addClass('flipped');
                 }
+            },
+
+            highlightLastMove: function (piece_id) {
+                let piece = this.gamedatas.pieces[piece_id];
+                dojo.addClass(`square_${piece['last_x']}_${piece['last_y']}`, 'last_move');
+                dojo.addClass(`square_${piece['x']}_${piece['y']}`, 'last_move');
             },
 
             updateArmySelectTitleText: function (army) {
@@ -761,6 +774,23 @@ define([
                     if (field != "location") {
                         this.gamedatas.pieces[notif.args.piece_id][field] = notif.args.values_updated[field];
                     }
+                }
+
+                if (typeof notif.args.state_name !== 'undefined') {
+                    if (notif.args.state_name == "playerMove") {
+                        this.gamedatas.last_move_piece_ids['player_move'] = notif.args.piece_id;
+                        this.gamedatas.last_move_piece_ids['king_move'] = 0;
+
+                        dojo.query('.last_move').removeClass('last_move');
+                    } else {
+                        this.gamedatas.last_move_piece_ids['king_move'] = notif.args.piece_id;
+
+                        if (this.gamedatas.last_move_piece_ids['player_move'] == notif.args.piece_id) {
+                            dojo.query('.last_move').removeClass('last_move');
+                        }
+                    }
+
+                    this.highlightLastMove(notif.args.piece_id);
                 }
 
                 //console.log(this.gamedatas.pieces);
