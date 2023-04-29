@@ -297,7 +297,7 @@ define([
                     for (var piece_id in this.gamedatas.pieces) {
                         var piece_info = this.gamedatas.pieces[piece_id];
 
-                        if (piece_info['captured'] == 0) {
+                        if (piece_info['state'] != this.gamedatas.constants['CAPTURED']) {
                             // Insert the HTML element for the piece as a child of the square it's on
                             dojo.place(this.format_block('jstpl_piece', {
                                 color: piece_info['color'],
@@ -719,9 +719,7 @@ define([
                     pieces_object[pieces_info[piece][0]].type = pieces_info[piece][2];
                     pieces_object[pieces_info[piece][0]].x = pieces_info[piece][3];
                     pieces_object[pieces_info[piece][0]].y = pieces_info[piece][4];
-                    pieces_object[pieces_info[piece][0]].capturing = 0;
-                    pieces_object[pieces_info[piece][0]].captured = 0;
-                    pieces_object[pieces_info[piece][0]].moves_made = 0;
+                    pieces_object[pieces_info[piece][0]].state = 0;
                 }
                 this.gamedatas.pieces = pieces_object;
 
@@ -759,8 +757,10 @@ define([
                             dojo.place(String(notif.args.piece_id), 'square_' + notif.args.values_updated[field][0] + '_' + notif.args.values_updated[field][1]);
                             break;
 
-                        case "captured":
-                            dojo.destroy(String(notif.args.piece_id));
+                        case "state":
+                            if (notif.args.values_updated[field] == this.gamedatas.constants['CAPTURED']) {
+                                dojo.destroy(String(notif.args.piece_id));
+                            }
                             break;
 
                         case "type":

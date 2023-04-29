@@ -80,7 +80,7 @@ class CHSMoves
         }
 
         foreach ($game_data['pieces'] as $piece_id => $piece_data) {
-            if ($piece_data['color'] != $enemy_color || $piece_data['captured'] == 1 || in_array($piece_data['type'], ["reaper", "ghost"])) {
+            if ($piece_data['color'] != $enemy_color || $piece_data['state'] == CAPTURED || in_array($piece_data['type'], ["reaper", "ghost"])) {
                 continue;
             }
 
@@ -507,7 +507,7 @@ class CHSMoves
 
             if (
                 $adj_id !== null
-                && $game_data['pieces'][$adj_id]['en_passant_vulnerable'] != 0
+                && $game_data['pieces'][$adj_id]['state'] == EN_PASSANT_VULNERABLE
             ) {
                 $forward = ($game_data['pieces'][$pawn_id]['color'] == "000000") ? -1 : 1;
 
@@ -763,7 +763,7 @@ class CHSMoves
 
             if ($piece_on_cap_square !== null) {
                 $game_data['squares'][$cs[0]][$cs[1]]['def_piece'] = null;
-                $game_data['pieces'][$piece_on_cap_square]['captured'] = 1;
+                $game_data['pieces'][$piece_on_cap_square]['state'] = CAPTURED;
 
                 if ($game_data['pieces'][$piece_id]['type'] == "tiger") {
                     $p_move['x'] = $x_i;
@@ -784,7 +784,7 @@ class CHSMoves
     private function arePiecesAttackingKings($piece_ids, $friendly_kings, $game_data)
     {
         foreach ($piece_ids as $piece_id) {
-            if ($game_data['pieces'][$piece_id]['captured'] != 0) {
+            if ($game_data['pieces'][$piece_id]['state'] == CAPTURED) {
                 continue;
             }
 
