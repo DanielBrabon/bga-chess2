@@ -27,11 +27,31 @@
 
 <div id="main">
 
-    <div id="board">
+    <div id="board_wrap">
 
-        <!-- BEGIN square -->
-        <div id="square_{X}_{Y}" class="square" style="left: {LEFT}px; top: {TOP}px;"></div>
-        <!-- END square -->
+        <div id="board">
+
+            <!-- BEGIN square -->
+            <div id="square_{X}_{Y}" class="square" style="left: {LEFT}%; top: {TOP}%;"></div>
+            <!-- END square -->
+
+        </div>
+
+        <div id="ranks" class="coords">
+
+            <!-- BEGIN ranks -->
+            <div class="coord coordtype_{TYPE}">{RANK}</div>
+            <!-- END ranks -->
+
+        </div>
+
+        <div id="files" class="coords">
+
+            <!-- BEGIN files -->
+            <div class="coord coordtype_{TYPE}">{FILE}</div>
+            <!-- END files -->
+
+        </div>
 
     </div>
 

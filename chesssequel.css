@@ -67,13 +67,25 @@
     }
 */
 
+#board_wrap {
+    max-width: min(70vh, 480px);
+    margin: 0 auto;
+    position: relative;
+}
+
+#board_wrap::after {
+    content: '';
+    display: block;
+    padding-top: 100%;
+}
+
 /* With "position: relative" on board, we ensure square elements are positioned relatively to board. */
 #board {
-    width: 520px;
-    height: 520px;
+    width: 100%;
+    height: 100%;
     background-image: url('img/board.jpg');
-    position: relative;
-    margin: 0 auto;
+    background-size: contain;
+    position: absolute;
 }
 
 #buttons {
@@ -84,18 +96,20 @@
 }
 
 .square {
-    width: 60px;
-    height: 60px;
+    width: 12.5%;
+    height: 12.5%;
     position: absolute;
 }
 
 .piece {
-    width: 60px;
-    height: 60px;
+    width: 100%;
+    height: 100%;
     position: absolute;
     top: 50%;
     left: 50%;
     translate: -50% -50%;
+    background-size: 2000%;
+    z-index: 1;
 }
 
 .logpiece {
@@ -114,25 +128,25 @@
     background-image: url('img/whitepieces.png');
 }
 
-.piecetype_queen { background-position: 0px 0px; }
-.piecetype_king { background-position: -60px 0px; }
-.piecetype_rook { background-position: -120px 0px; }
-.piecetype_knight { background-position: -180px 0px; }
-.piecetype_bishop { background-position: -240px 0px; }
-.piecetype_pawn { background-position: -300px 0px; }
-.piecetype_nemesis { background-position: -360px 0px; }
-.piecetype_nemesispawn { background-position: -420px 0px; }
-.piecetype_empoweredknight { background-position: -480px 0px; }
-.piecetype_empoweredbishop { background-position: -540px 0px; }
-.piecetype_empoweredrook { background-position: -600px 0px; }
-.piecetype_elegantqueen { background-position: -660px 0px; }
-.piecetype_reaper { background-position: -720px 0px; }
-.piecetype_ghost { background-position: -780px 0px; }
-.piecetype_warriorking { background-position: -840px 0px; }
-.piecetype_wildhorse { background-position: -900px 0px; }
-.piecetype_tiger { background-position: -960px 0px; }
-.piecetype_elephant { background-position: -1020px 0px; }
-.piecetype_junglequeen { background-position: -1080px 0px; }
+.piecetype_queen { background-position: -0%; }
+.piecetype_king { background-position: -100%; }
+.piecetype_rook { background-position: -200%; }
+.piecetype_knight { background-position: -300%; }
+.piecetype_bishop { background-position: -400%; }
+.piecetype_pawn { background-position: -500%; }
+.piecetype_nemesis { background-position: -600%; }
+.piecetype_nemesispawn { background-position: -700%; }
+.piecetype_empoweredknight { background-position: -800%; }
+.piecetype_empoweredbishop { background-position: -900%; }
+.piecetype_empoweredrook { background-position: -1000%; }
+.piecetype_elegantqueen { background-position: -1100%; }
+.piecetype_reaper { background-position: -1200%; }
+.piecetype_ghost { background-position: -1300%; }
+.piecetype_warriorking { background-position: -1400%; }
+.piecetype_wildhorse { background-position: -1500%; }
+.piecetype_tiger { background-position: -1600%; }
+.piecetype_elephant { background-position: -1700%; }
+.piecetype_junglequeen { background-position: -1800%; }
 
 .logpiecetype_queen { background-position: 0px 0px; }
 .logpiecetype_king { background-position: -30px 0px; }
@@ -155,7 +169,7 @@
 .logpiecetype_junglequeen { background-position: -540px 0px; }
 
 .piecetype_empty {
-    background-position: -1140px 0px;
+    background-position: -1900%;
     animation: Pulsate 2s linear infinite;
 }
 
@@ -163,6 +177,44 @@
     from { opacity: 0.75; }
     50% { opacity: 0.25; }
     to { opacity: 0.75; }
+}
+
+.coords {
+    position: absolute;
+    display: flex;
+    pointer-events: none;
+    user-select: none;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+#ranks {
+    top: 1px;
+    right: 0;
+    height: 100%;
+    width: 0.8em;
+    flex-direction: column-reverse;
+}
+
+#files {
+    bottom: 6px;
+    left: 3px;
+    height: 0.8em;
+    width: 100%;
+    flex-direction: row;
+}
+
+.coord {
+    flex-grow: 1;
+}
+
+.coordtype_0 {
+    color: rgb(111, 191, 188);
+}
+
+.coordtype_1 {
+    color: rgb(45, 99, 99);
 }
 
 .flipped {

@@ -44,7 +44,7 @@ class view_chesssequel_chesssequel extends game_view
     $this->page->begin_block("chesssequel_chesssequel", "square");
 
     // Files = columns, ranks = rows
-    $square_size = 60;
+    $square_size = 12.5;
 
     // For each column/file/x
     for ($file = 1; $file <= 8; $file++) {
@@ -54,10 +54,25 @@ class view_chesssequel_chesssequel extends game_view
         $this->page->insert_block("square", array(
           'X' => $file,
           'Y' => $rank,
-          'LEFT' => ($file - 1) * $square_size + 20,
-          'TOP' => (8 - $rank) * $square_size + 20
+          'LEFT' => ($file - 1) * $square_size,
+          'TOP' => (8 - $rank) * $square_size
         ));
       }
+    }
+
+    $this->page->begin_block("chesssequel_chesssequel", "ranks");
+    $this->page->begin_block("chesssequel_chesssequel", "files");
+
+    for ($i = 1; $i <= 8; $i++) {
+      $this->page->insert_block("ranks", array(
+        'TYPE' => $i % 2,
+        'RANK' => $i
+      ));
+
+      $this->page->insert_block("files", array(
+        'TYPE' => ($i + 1) % 2,
+        'FILE' => $this->game->files[$i]
+      ));
     }
 
     /*

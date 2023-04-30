@@ -72,6 +72,12 @@ define([
                 // Flip the board for the black player
                 if (gamedatas.players[this.player_id].color == "000000") {
                     dojo.addClass('board', 'flipped');
+
+                    dojo.style('files', 'flex-direction', 'row-reverse');
+                    dojo.style('ranks', 'flex-direction', 'column');
+
+                    dojo.query('.coordtype_0').style('color', 'rgb(45, 99, 99)');
+                    dojo.query('.coordtype_1').style('color', 'rgb(111, 191, 188)');
                 }
 
                 // Setup game notifications to handle (see "setupNotifications" method below)
