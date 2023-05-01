@@ -76,8 +76,8 @@ define([
                     dojo.style('files', 'flex-direction', 'row-reverse');
                     dojo.style('ranks', 'flex-direction', 'column');
 
-                    dojo.query('.coordtype_0').style('color', 'rgb(45, 99, 99)');
-                    dojo.query('.coordtype_1').style('color', 'rgb(111, 191, 188)');
+                    dojo.query('.coordtype_0').style('color', 'var(--dark-square-color)');
+                    dojo.query('.coordtype_1').style('color', 'var(--light-square-color)');
                 }
 
                 // Setup game notifications to handle (see "setupNotifications" method below)
@@ -288,6 +288,7 @@ define([
                 if (selected_pieces.length != 0) {
                     selected_pieces.removeClass('selected_piece');
                     dojo.query('.possible_move').removeClass('possible_move');
+                    dojo.query('.possible_move_oc').removeClass('possible_move_oc');
                     this.gamedatas.players[this.player_id].piece_selected = null;
                 }
             },
@@ -484,7 +485,7 @@ define([
                 }
 
                 // If the player clicked a highlighted possible move square, call the server to make the move
-                if (dojo.hasClass(evt.currentTarget, 'possible_move')) {
+                if (dojo.hasClass(evt.currentTarget, 'possible_move') || dojo.hasClass(evt.currentTarget, 'possible_move_oc')) {
                     this.ajaxcallWrapper("movePiece", {
                         target_file: evt.currentTarget.id.split('_')[1],
                         target_rank: evt.currentTarget.id.split('_')[2],
@@ -499,13 +500,17 @@ define([
                     const children = evt.currentTarget.children;
                     if (children.length != 0 && this.gamedatas.pieces[children[0].id].color == this.gamedatas.players[this.player_id].color) {
                         this.gamedatas.players[this.player_id].piece_selected = children[0].id;
-                        dojo.addClass(children[0].id, 'selected_piece');
+                        dojo.addClass(evt.currentTarget, 'selected_piece');
 
                         for (var move_index in this.gamedatas.legal_moves) {
                             var move_object = this.gamedatas.legal_moves[move_index];
 
                             if (move_object['moving_piece_id'] == children[0].id) {
-                                dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move');
+                                if ($('square_' + move_object['x'] + '_' + move_object['y']).children.length != 0) {
+                                    dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move_oc');
+                                } else {
+                                    dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move');
+                                }
                             }
                         }
                     }
