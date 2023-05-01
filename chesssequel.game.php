@@ -353,14 +353,14 @@ class ChessSequel extends Table
             self::DbQuery("DELETE FROM capture_queue WHERE cq_id = '$min_cq_id'");
 
             if (count($game_data['cap_q']) == 1) {
-                self::DbQuery("UPDATE pieces SET state = " . NORMAL . " WHERE piece_id = '$cap_id'");
+                self::DbQuery("UPDATE pieces SET state = " . NEUTRAL . " WHERE piece_id = '$cap_id'");
 
                 self::notifyAllPlayers(
                     "updateAllPieceData",
                     "",
                     array(
                         "piece_id" => $cap_id,
-                        "values_updated" => array("state" => NORMAL)
+                        "values_updated" => array("state" => NEUTRAL)
                     )
                 );
             }
@@ -906,7 +906,7 @@ class ChessSequel extends Table
 
         $promoting_pawn_data = self::getObjectFromDB("SELECT piece_id, state FROM pieces WHERE state IN (" . PROMOTING . ", " . CAPTURING_AND_PROMOTING . ")");
         $promoting_pawn_id = $promoting_pawn_data['piece_id'];
-        $new_state = ($promoting_pawn_data['state'] == CAPTURING_AND_PROMOTING) ? CAPTURING : NORMAL;
+        $new_state = ($promoting_pawn_data['state'] == CAPTURING_AND_PROMOTING) ? CAPTURING : NEUTRAL;
         
         self::DbQuery("UPDATE pieces SET type = '$chosen_promotion', state = '$new_state' WHERE piece_id = '$promoting_pawn_id'");
         
@@ -1181,12 +1181,12 @@ class ChessSequel extends Table
                 $piece_data['state'] == EN_PASSANT_VULNERABLE
                 && $this->getGameStateValue('last_player_move_piece_id') != $piece_id
             ) {
-                $piece_data['state'] = NORMAL;
-                self::DbQuery("UPDATE pieces SET state = " . NORMAL . " WHERE piece_id = '$piece_id'");
+                $piece_data['state'] = NEUTRAL;
+                self::DbQuery("UPDATE pieces SET state = " . NEUTRAL . " WHERE piece_id = '$piece_id'");
 
                 self::notifyAllPlayers("updateAllPieceData", "", array(
                     "piece_id" => $piece_id,
-                    "values_updated" => array("state" => NORMAL)
+                    "values_updated" => array("state" => NEUTRAL)
                 ));
             }
         }
