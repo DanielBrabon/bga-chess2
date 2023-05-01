@@ -84,8 +84,8 @@
     /* Colors applied */
     --light-square-color: #6fbfbc;
     --dark-square-color: #2d6363;
-    --last-move-color: #d4d98a57;
-    --poss-move-color: #233a93;
+    --last-move-color: #568756cc;
+    --poss-move-color: #ffffff;
 }
 
 #board_wrap {
@@ -234,7 +234,11 @@
     /* background: repeating-conic-gradient(transparent 0 15deg, var(--poss-move-color) 15deg 30deg);  */
 
     /* Fade */
-    background: radial-gradient(var(--poss-move-color) 20%, transparent 100%);
+    /* background: radial-gradient(var(--poss-move-color) 20%, transparent 100%); */
+
+    /* Border */
+    border: var(--poss-move-color) solid;
+
     cursor: pointer;
 }
 
@@ -249,7 +253,16 @@
     /* border-radius: 7px; */
 
     /* Border */
-    border: var(--poss-move-color) solid;
+    /* border: var(--poss-move-color) solid; */
+
+    /* Fade */
+    /* background: radial-gradient(var(--poss-move-color) 20%, transparent 100%); */
+
+    /* Solid background */
+    background: rgba(255, 255, 255, 0.8);
+
+    /* Transparent border shrinks the piece slightly */
+    border: transparent solid;
 }
 
 .cap_piece {
