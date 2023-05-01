@@ -27,11 +27,31 @@
 
 <div id="main">
 
-    <div id="board">
+    <div id="board_wrap">
 
-        <!-- BEGIN square -->
-        <div id="square_{X}_{Y}" class="square" style="left: {LEFT}px; top: {TOP}px;"></div>
-        <!-- END square -->
+        <div id="board">
+
+            <!-- BEGIN square -->
+            <div id="square_{X}_{Y}" class="square" style="left: {LEFT}%; top: {TOP}%;"></div>
+            <!-- END square -->
+
+        </div>
+
+        <div id="ranks" class="coords">
+
+            <!-- BEGIN ranks -->
+            <div class="coord coordtype_{TYPE}">{RANK}</div>
+            <!-- END ranks -->
+
+        </div>
+
+        <div id="files" class="coords">
+
+            <!-- BEGIN files -->
+            <div class="coord coordtype_{TYPE}">{FILE}</div>
+            <!-- END files -->
+
+        </div>
 
     </div>
 
@@ -69,7 +89,7 @@ var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_I
 
     var jstpl_player_stones = '\<div class="player_stones">\<span id="player_stones_${id}">Stones: ${stones}</span>\</div>';
 
-    var jstpl_logpiece = '<div class="logpiece piececolor_${color} logpiecetype_${type}"></div>';
+    var jstpl_logpiece = '<div class="logpiece piececolor_${color} piecetype_${type}"></div>';
 
     var jstpl_player_text = '<span class="playername" style="color:#${color};background-color:#${bg_color};">${text}</span>';
 </script>
