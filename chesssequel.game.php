@@ -337,15 +337,12 @@ class ChessSequel extends Table
         if (count($game_data) == 0) {
             $game_data['pieces'] = self::getCollectionFromDB("SELECT * FROM pieces");
             $game_data['squares'] = $this->getSquaresData($game_data['pieces']);
-            $game_data['cap_q'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
         }
 
         $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
 
-        $min_cq_id = min(array_keys($game_data['cap_q']));
-
         $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING, true);
-        $def_id = $game_data['squares'][$game_data['cap_q'][$min_cq_id]['x']][$game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
+        $def_id = self::getUniqueValueFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id LIMIT 1");
 
         $same_color = ($game_data['pieces'][$def_id]['color'] == $game_data['pieces'][$cap_id]['color']);
         $stat = ($same_color) ? "friendlies_captured" : "enemies_captured";
@@ -357,9 +354,10 @@ class ChessSequel extends Table
             self::DbQuery("DELETE FROM capture_queue");
             self::incStat(1, "duel_captures", $player_ids[$game_data['pieces'][$def_id]['color']]);
         } else {
-            self::DbQuery("DELETE FROM capture_queue WHERE cq_id = '$min_cq_id'");
+            self::DbQuery("DELETE FROM capture_queue WHERE piece_id = '$def_id'");
+            $queue_length = self::getUniqueValueFromDB("SELECT COUNT(*) FROM capture_queue");
 
-            if (count($game_data['cap_q']) == 1) {
+            if ($queue_length == 0) {
                 self::DbQuery("UPDATE pieces SET state = " . NEUTRAL . " WHERE piece_id = '$cap_id'");
 
                 self::notifyAllPlayers(
@@ -420,13 +418,8 @@ class ChessSequel extends Table
         $this->setGameStateValue('fifty_counter', 51);
 
         $squares = $this->getSquaresData($pieces);
-        $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
 
-        // The first square in the capture queue
-        $min_cq_id = min(array_keys($cap_q));
-        $cap_square = array($cap_q[$min_cq_id]['x'], $cap_q[$min_cq_id]['y']);
-
-        $def_id = $squares[$cap_square[0]][$cap_square[1]]['def_piece'];
+        $def_id = self::getUniqueValueFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id LIMIT 1");
 
         $this->activeNextPlayer();
 
@@ -441,7 +434,7 @@ class ChessSequel extends Table
             || $defender_stones <= $this->getCostToDuel($cap_id, $def_id, $pieces)
         ) {
             $this->activeNextPlayer();
-            $this->resolveNextCapture(false, array("pieces" => $pieces, "squares" => $squares, "cap_q" => $cap_q));
+            $this->resolveNextCapture(false, array("pieces" => $pieces, "squares" => $squares));
             $this->gamestate->nextState('whereNext');
         } else {
             $this->gamestate->nextState('duelOffer');
@@ -472,13 +465,9 @@ class ChessSequel extends Table
         if ($pieces == null) {
             $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
         }
-        $squares = $this->getSquaresData($pieces);
-        $cap_q = self::getCollectionFromDB("SELECT * FROM capture_queue");
-
-        $min_cq_id = min(array_keys($cap_q));
 
         $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING, true);
-        $def_id = $squares[$cap_q[$min_cq_id]['x']][$cap_q[$min_cq_id]['y']]['def_piece'];
+        $def_id = self::getUniqueValueFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id LIMIT 1");
 
         return array(
             "capID" => $cap_id,
@@ -652,23 +641,21 @@ class ChessSequel extends Table
         $capture_queue = array();
 
         // Add all occupied capture squares to the capture queue
-        $counter = 0;
         foreach ($cap_squares as $square) {
-            if ($squares[$square['x']][$square['y']]['def_piece'] !== null) {
+            $piece_on_square = $squares[$square['x']][$square['y']]['def_piece'];
+
+            if ($piece_on_square !== null) {
+                $capture_queue[] = "('$piece_on_square')";
+
                 if ($pieces[$moving_piece_id]['type'] == "tiger") {
                     $target_x = $pieces[$moving_piece_id]['x'];
                     $target_y = $pieces[$moving_piece_id]['y'];
                 }
-
-                $counter++;
-                $capture_queue[] = "('$counter','{$square['x']}','{$square['y']}')";
             }
         }
 
         if (count($capture_queue) != 0) {
-            $sql = "INSERT INTO capture_queue (cq_id,x,y) VALUES ";
-            $sql .= implode(',', $capture_queue);
-            self::DbQuery($sql);
+            self::DbQuery("INSERT INTO capture_queue (piece_id) VALUES " . implode(',', $capture_queue));
 
             // Only true if the piece is promoting
             if (isset($pieces_values_to_set['state'])) {
