@@ -87,14 +87,14 @@ class CHSMoves
             $attacks = $this->getAttackingMovesForPiece($piece_id, $game_data);
 
             foreach ($attacks['attacking_moves'] as $move) {
-                foreach ($move['cap_squares'] as $cs) {
-                    $game_data['squares'][$cs[0]][$cs[1]]['checks'][] = $piece_id;
+                foreach ($move['cap_squares'] as $square) {
+                    $game_data['squares'][$square['x']][$square['y']]['checks'][] = $piece_id;
                 }
             }
 
             foreach ($attacks['semi_attacking_moves'] as $move) {
-                foreach ($move['cap_squares'] as $cs) {
-                    $game_data['squares'][$cs[0]][$cs[1]]['threats'][] = $piece_id;
+                foreach ($move['cap_squares'] as $square) {
+                    $game_data['squares'][$square['x']][$square['y']]['threats'][] = $piece_id;
                 }
             }
         }
@@ -190,11 +190,19 @@ class CHSMoves
 
     private function makeMove($x, $y, $cap_squares)
     {
-        return array(
-            "x" => $x,
-            "y" => $y,
-            "cap_squares" => $cap_squares
-        );
+        $result = $this->makeSquare($x, $y);
+        $result['cap_squares'] = array();
+
+        foreach ($cap_squares as $square) {
+            $result['cap_squares'][] = $this->makeSquare($square[0], $square[1]);
+        }
+
+        return $result;
+    }
+
+    private function makeSquare($x, $y)
+    {
+        return array("x" => $x, "y" => $y);
     }
 
     private function getElephantAttackingMoves($elephant_id, $game_data)
@@ -399,8 +407,8 @@ class CHSMoves
 
     private function isCapturingMoveLegal($cap_id, $cap_squares, $game_data)
     {
-        foreach ($cap_squares as $cs) {
-            $piece_on_square = $game_data['squares'][$cs[0]][$cs[1]]['def_piece'];
+        foreach ($cap_squares as $square) {
+            $piece_on_square = $game_data['squares'][$square['x']][$square['y']]['def_piece'];
 
             if ($piece_on_square !== null) {
                 if ($game_data['pieces'][$piece_on_square]['type'] == "ghost") {
@@ -423,8 +431,8 @@ class CHSMoves
 
                 if ($game_data['pieces'][$piece_on_square]['type'] == "elephant") {
                     if (
-                        abs($game_data['pieces'][$cap_id]['x'] - $cs[0]) > 2
-                        || abs($game_data['pieces'][$cap_id]['y'] - $cs[1]) > 2
+                        abs($game_data['pieces'][$cap_id]['x'] - $square['x']) > 2
+                        || abs($game_data['pieces'][$cap_id]['y'] - $square['y']) > 2
                     ) {
                         return false;
                     }
@@ -715,10 +723,10 @@ class CHSMoves
                 $ids_move = $ids_piece;
 
                 if ($disjointed) {
-                    foreach ($move['cap_squares'] as $cs) {
-                        if ($game_data['squares'][$cs[0]][$cs[1]]['def_piece'] !== null) {
+                    foreach ($move['cap_squares'] as $square) {
+                        if ($game_data['squares'][$square['x']][$square['y']]['def_piece'] !== null) {
                             // Recheck pieces which are checking a capture square and threatening a king
-                            $enemies_attacking_square = $game_data['squares'][$cs[0]][$cs[1]]['checks'];
+                            $enemies_attacking_square = $game_data['squares'][$square['x']][$square['y']]['checks'];
 
                             foreach ($friendly_kings as $king_data) {
                                 $ids_move = array_merge(
@@ -758,11 +766,11 @@ class CHSMoves
         $game_data['squares'][$x_i][$y_i]['def_piece'] = null;
 
         // Set as captured any pieces which would be captured in this move
-        foreach ($p_move['cap_squares'] as $cs) {
-            $piece_on_cap_square = $game_data['squares'][$cs[0]][$cs[1]]['def_piece'];
+        foreach ($p_move['cap_squares'] as $square) {
+            $piece_on_cap_square = $game_data['squares'][$square['x']][$square['y']]['def_piece'];
 
             if ($piece_on_cap_square !== null) {
-                $game_data['squares'][$cs[0]][$cs[1]]['def_piece'] = null;
+                $game_data['squares'][$square['x']][$square['y']]['def_piece'] = null;
                 $game_data['pieces'][$piece_on_cap_square]['state'] = CAPTURED;
 
                 if ($game_data['pieces'][$piece_id]['type'] == "tiger") {
@@ -792,11 +800,11 @@ class CHSMoves
             $attacking_moves = $this->removeIllegalCaptureMoves($piece_id, $attacking_moves, $game_data);
 
             foreach ($attacking_moves as $move) {
-                foreach ($move['cap_squares'] as $cs) {
+                foreach ($move['cap_squares'] as $square) {
                     foreach (array_keys($friendly_kings) as $king) {
                         if (
-                            $cs[0] == $game_data['pieces'][$king]['x']
-                            && $cs[1] == $game_data['pieces'][$king]['y']
+                            $square['x'] == $game_data['pieces'][$king]['x']
+                            && $square['y'] == $game_data['pieces'][$king]['y']
                         ) {
                             return true;
                         }

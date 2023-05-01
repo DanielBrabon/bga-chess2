@@ -505,7 +505,7 @@ define([
                         for (var move_index in this.gamedatas.legal_moves) {
                             var move_object = this.gamedatas.legal_moves[move_index];
 
-                            if (move_object['moving_piece_id'] == children[0].id) {
+                            if (move_object['piece_id'] == children[0].id) {
                                 if ($('square_' + move_object['x'] + '_' + move_object['y']).children.length != 0) {
                                     dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move_oc');
                                 } else {
@@ -751,7 +751,7 @@ define([
                     for (move_index in moves_for_piece) {
                         move = moves_for_piece[move_index];
 
-                        this.gamedatas.legal_moves.push({ 'moving_piece_id': piece_id, 'x': move['x'], 'y': move['y'] });
+                        this.gamedatas.legal_moves.push({ 'piece_id': piece_id, 'x': move['x'], 'y': move['y'] });
                     }
                 }
 

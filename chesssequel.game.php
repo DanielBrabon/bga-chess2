@@ -134,7 +134,7 @@ class ChessSequel extends Table
         $result['capture_queue'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
 
         // Get information about legal moves this turn
-        $result['legal_moves'] = self::getObjectListFromDB("SELECT moving_piece_id, x, y FROM legal_moves");
+        $result['legal_moves'] = self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
 
         // Gathering variables from material.inc.php
         $result['all_army_names'] = $this->all_army_names;
@@ -228,29 +228,36 @@ class ChessSequel extends Table
         return $squares;
     }
 
-    // Replaces content of legal_moves db table with data provided. Returns number of legal moves
+    // Replaces content of legal_moves and capture_squares db tables with data provided. Returns number of legal moves
     function replaceLegalMoves($all_legal_moves)
     {
         self::DbQuery("DELETE FROM legal_moves");
+        self::DbQuery("DELETE FROM capture_squares");
 
-        $moves = array();
+        $legal_moves = array();
+        $capture_squares = array();
 
-        $counter = 0;
+        $move_counter = 0;
         foreach ($all_legal_moves as $piece_id => $moves_for_piece) {
             foreach ($moves_for_piece as $move) {
-                $cap_squares = json_encode($move['cap_squares']);
-                $moves[] = "('$counter','$piece_id','{$move['x']}','{$move['y']}','$cap_squares')";
-                $counter++;
+                $legal_moves[] = "('$move_counter', '$piece_id', '{$move['x']}', '{$move['y']}')";
+
+                foreach ($move['cap_squares'] as $cap_square) {
+                    $capture_squares[] = "('$move_counter','{$cap_square['x']}','{$cap_square['y']}')";
+                }
+
+                $move_counter++;
             }
         }
 
-        if ($counter > 0) {
-            self::DbQuery("INSERT INTO legal_moves (move_id, moving_piece_id, x, y, cap_squares) VALUES " . implode(',', $moves));
+        if ($move_counter > 0) {
+            self::DbQuery("INSERT INTO legal_moves (move_id, piece_id, x, y) VALUES " . implode(',', $legal_moves));
+            self::DbQuery("INSERT INTO capture_squares (move_id, x, y) VALUES " . implode(',', $capture_squares));
         }
 
         self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
 
-        return $counter;
+        return $move_counter;
     }
 
     function getPositionString($active_color, $armies, $all_legal_moves, $game_data)
@@ -606,16 +613,16 @@ class ChessSequel extends Table
             return;
         }
 
-        // Get the capture squares for the attempted move
-        $cap_squares = self::getUniqueValueFromDB(
-            "SELECT cap_squares FROM legal_moves 
-            WHERE moving_piece_id = '$moving_piece_id'
+        // Get the move_id for the attempted move
+        $move_id = self::getUniqueValueFromDB(
+            "SELECT move_id FROM legal_moves 
+            WHERE piece_id = '$moving_piece_id'
             AND x = '$target_x'
             AND y = '$target_y'"
         );
 
         // If the attempted move is not found in legal_moves table, throw an error
-        if ($cap_squares == null) {
+        if ($move_id == null) {
             throw new BgaSystemException("Illegal move");
             return;
         }
@@ -641,20 +648,20 @@ class ChessSequel extends Table
         }
 
         $squares = $this->getSquaresData($pieces);
-        $cap_squares = json_decode($cap_squares);
+        $cap_squares = self::getObjectListFromDB("SELECT x, y FROM capture_squares WHERE move_id = '$move_id'");
         $capture_queue = array();
 
         // Add all occupied capture squares to the capture queue
         $counter = 0;
         foreach ($cap_squares as $square) {
-            if ($squares[$square[0]][$square[1]]['def_piece'] !== null) {
+            if ($squares[$square['x']][$square['y']]['def_piece'] !== null) {
                 if ($pieces[$moving_piece_id]['type'] == "tiger") {
                     $target_x = $pieces[$moving_piece_id]['x'];
                     $target_y = $pieces[$moving_piece_id]['y'];
                 }
 
                 $counter++;
-                $capture_queue[] = "('$counter','$square[0]','$square[1]')";
+                $capture_queue[] = "('$counter','{$square['x']}','{$square['y']}')";
             }
         }
 
@@ -907,9 +914,9 @@ class ChessSequel extends Table
         $promoting_pawn_data = self::getObjectFromDB("SELECT piece_id, state FROM pieces WHERE state IN (" . PROMOTING . ", " . CAPTURING_AND_PROMOTING . ")");
         $promoting_pawn_id = $promoting_pawn_data['piece_id'];
         $new_state = ($promoting_pawn_data['state'] == CAPTURING_AND_PROMOTING) ? CAPTURING : NEUTRAL;
-        
+
         self::DbQuery("UPDATE pieces SET type = '$chosen_promotion', state = '$new_state' WHERE piece_id = '$promoting_pawn_id'");
-        
+
         $promoting_pawn_type = ($player_army == "nemesis") ? "nemesispawn" : "pawn";
 
         self::notifyAllPlayers(
@@ -1347,8 +1354,8 @@ class ChessSequel extends Table
     {
         switch ($state['name']) {
             case 'playerMove':
-                $move = self::getObjectFromDB("SELECT moving_piece_id, x, y FROM legal_moves LIMIT 1");
-                $this->movePiece($move['x'], $move['y'], $move['moving_piece_id']);
+                $move = self::getObjectFromDB("SELECT piece_id, x, y FROM legal_moves LIMIT 1");
+                $this->movePiece($move['x'], $move['y'], $move['piece_id']);
                 return;
 
             case 'playerKingMove':
