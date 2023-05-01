@@ -35,8 +35,6 @@ class ChessSequel extends Table
         parent::__construct();
 
         self::initGameStateLabels(array(
-            "cap_id" => 10,
-            "pro_id" => 12,
             "fifty_counter" => 13,
             "last_player_move_piece_id" => 14,
             "last_king_move_piece_id" => 15,
@@ -82,8 +80,6 @@ class ChessSequel extends Table
         /************ Start the game initialization *****/
 
         // Init global values with their initial values
-        self::setGameStateInitialValue('cap_id', 0);
-        self::setGameStateInitialValue('pro_id', 0);
         self::setGameStateInitialValue('fifty_counter', 51);
         self::setGameStateInitialValue('last_player_move_piece_id', 0);
         self::setGameStateInitialValue('last_king_move_piece_id', 0);
@@ -341,7 +337,7 @@ class ChessSequel extends Table
 
         $min_cq_id = min(array_keys($game_data['cap_q']));
 
-        $cap_id = $this->getGameStateValue('cap_id');
+        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING, true);
         $def_id = $game_data['squares'][$game_data['cap_q'][$min_cq_id]['x']][$game_data['cap_q'][$min_cq_id]['y']]['def_piece'];
 
         $same_color = ($game_data['pieces'][$def_id]['color'] == $game_data['pieces'][$cap_id]['color']);
@@ -351,7 +347,6 @@ class ChessSequel extends Table
 
         if ($both_cap) {
             $pieces_to_cap[] = $cap_id;
-            $this->setGameStateValue('cap_id', 0);
             self::DbQuery("DELETE FROM capture_queue");
             self::incStat(1, "duel_captures", $player_ids[$game_data['pieces'][$def_id]['color']]);
         } else {
@@ -359,8 +354,6 @@ class ChessSequel extends Table
 
             if (count($game_data['cap_q']) == 1) {
                 self::DbQuery("UPDATE pieces SET state = " . NORMAL . " WHERE piece_id = '$cap_id'");
-
-                $this->setGameStateValue('cap_id', 0);
 
                 self::notifyAllPlayers(
                     "updateAllPieceData",
@@ -477,7 +470,7 @@ class ChessSequel extends Table
 
         $min_cq_id = min(array_keys($cap_q));
 
-        $cap_id = $this->getGameStateValue('cap_id');
+        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING, true);
         $def_id = $squares[$cap_q[$min_cq_id]['x']][$cap_q[$min_cq_id]['y']]['def_piece'];
 
         return array(
@@ -635,14 +628,14 @@ class ChessSequel extends Table
             // 50 move rule
             $this->setGameStateValue('fifty_counter', 51);
 
-            // If the moving piece is a pawn reaching the enemy backline, set pro_id
+            // If the moving piece is a pawn reaching the enemy backline, set its state to promoting
             $backline = ($pieces[$moving_piece_id]['color'] == "000000") ? 1 : 8;
             if ($target_y == $backline) {
-                $this->setGameStateValue('pro_id', $moving_piece_id);
+                $pieces_values_to_set['state'] = PROMOTING;
             }
 
             // If the moving piece is a pawn making its initial double move, set it as en passant vulnerable
-            if (abs($pieces[$moving_piece_id]['y'] - $target_y) == 2) {
+            else if (abs($pieces[$moving_piece_id]['y'] - $target_y) == 2) {
                 $pieces_values_to_set['state'] = EN_PASSANT_VULNERABLE;
             }
         }
@@ -670,8 +663,12 @@ class ChessSequel extends Table
             $sql .= implode(',', $capture_queue);
             self::DbQuery($sql);
 
-            $pieces_values_to_set['state'] = CAPTURING;
-            $this->setGameStateValue('cap_id', $moving_piece_id);
+            // Only true if the piece is promoting
+            if (isset($pieces_values_to_set['state'])) {
+                $pieces_values_to_set['state'] = CAPTURING_AND_PROMOTING;
+            } else {
+                $pieces_values_to_set['state'] = CAPTURING;
+            }
         }
 
         $sql = "SELECT moves_made FROM pieces WHERE piece_id = '$moving_piece_id'";
@@ -907,12 +904,13 @@ class ChessSequel extends Table
             return;
         }
 
-        $promoting_pawn_id = $this->getGameStateValue('pro_id');
+        $promoting_pawn_data = self::getObjectFromDB("SELECT piece_id, state FROM pieces WHERE state IN (" . PROMOTING . ", " . CAPTURING_AND_PROMOTING . ")");
+        $promoting_pawn_id = $promoting_pawn_data['piece_id'];
+        $new_state = ($promoting_pawn_data['state'] == CAPTURING_AND_PROMOTING) ? CAPTURING : NORMAL;
+        
+        self::DbQuery("UPDATE pieces SET type = '$chosen_promotion', state = '$new_state' WHERE piece_id = '$promoting_pawn_id'");
+        
         $promoting_pawn_type = ($player_army == "nemesis") ? "nemesispawn" : "pawn";
-
-        self::DbQuery("UPDATE pieces SET type = '$chosen_promotion' WHERE piece_id = '$promoting_pawn_id'");
-
-        $this->setGameStateValue('pro_id', 0);
 
         self::notifyAllPlayers(
             "updateAllPieceData",
@@ -1131,14 +1129,15 @@ class ChessSequel extends Table
         }
 
         // Check for a pawn promoting
-        if ($this->getGameStateValue('pro_id') != 0) {
+        $pro_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state IN (" . PROMOTING . ", " . CAPTURING_AND_PROMOTING . ")");
+        if ($pro_id !== null) {
             $this->gamestate->nextState('pawnPromotion');
             return;
         }
 
         // Check for a piece capturing
-        $cap_id = $this->getGameStateValue('cap_id');
-        if ($cap_id != 0) {
+        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING);
+        if ($cap_id !== null) {
             $this->processCapture($cap_id, $pieces);
             return;
         }
