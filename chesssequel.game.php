@@ -93,6 +93,8 @@ class ChessSequel extends Table
         self::initStat("player", "friendlies_captured", 0);
 
         if ($this->getGameStateValue('ruleset_version') == 2) {
+            self::DbQuery("UPDATE player SET player_stones = 3");
+
             self::initStat("player", "duels_initiated", 0);
             self::initStat("player", "stones_bid", 0);
             self::initStat("player", "duel_captures", 0);
