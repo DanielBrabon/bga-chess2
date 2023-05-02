@@ -231,8 +231,8 @@ class ChessSequel extends Table
     // Replaces content of legal_moves and capture_squares db tables with data provided. Returns number of legal moves
     function replaceLegalMoves($all_legal_moves)
     {
-        self::DbQuery("DELETE FROM legal_moves");
         self::DbQuery("DELETE FROM capture_squares");
+        self::DbQuery("DELETE FROM legal_moves");
 
         $legal_moves = array();
         $capture_squares = array();
