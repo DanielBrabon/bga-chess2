@@ -719,7 +719,8 @@ class ChessSequel extends Table
         return array(
             "capID" => $cap_id,
             "defID" => $def_id,
-            "costToDuel" => $this->getCostToDuel($cap_id, $def_id, $pieces)
+            "costToDuel" => $this->getCostToDuel($cap_id, $def_id, $pieces),
+            "capStones" => self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '{$pieces[$cap_id]['color']}'")
         );
     }
 
@@ -1067,6 +1068,7 @@ class ChessSequel extends Table
     {
         $this->checkAction('acceptDuel');
 
+        $player_id = $this->getActivePlayerId();
         $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
         $duel_data = $this->getDuelData($pieces);
 
@@ -1089,6 +1091,18 @@ class ChessSequel extends Table
                 "logpiece_cap" => $pieces[$duel_data['capID']]['color'] . "_" . $pieces[$duel_data['capID']]['type']
             )
         );
+
+        $enemy_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_id != $player_id");
+
+        if ($enemy_stones == 0) {
+            self::DbQuery("UPDATE player SET player_bid = 1 WHERE player_id = $player_id");
+            self::DbQuery("UPDATE player SET player_bid = 0 WHERE player_id != $player_id");
+
+            self::incStat(1, "stones_bid", $player_id);
+
+            $this->gamestate->nextState('processDuelOutcome');
+            return;
+        }
 
         $this->gamestate->nextState('duelBidding');
     }

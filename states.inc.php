@@ -151,7 +151,8 @@ $machinestates = array(
         "args" => "argDuelOffer",
         "transitions" => array(
             "processDuelRejected" => ST_PROCESS_DUEL_REJECTED,
-            "duelBidding" => ST_DUEL_BIDDING
+            "duelBidding" => ST_DUEL_BIDDING,
+            "processDuelOutcome" => ST_PROCESS_DUEL_OUTCOME
         )
     ),
 
