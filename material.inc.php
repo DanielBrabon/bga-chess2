@@ -25,7 +25,14 @@
 $this->files = [1 => "a", 2 => "b", 3 => "c", 4 => "d", 5 => "e", 6 => "f", 7 => "g", 8 => "h"];
 
 // All valid army names
-$this->all_army_names = array("classic", "nemesis", "empowered", "reaper", "twokings", "animal");
+$this->all_army_names = array(
+  CLASSIC => "classic",
+  NEMESIS => "nemesis",
+  EMPOWERED => "empowered",
+  REAPER => "reaper",
+  TWOKINGS => "twokings",
+  ANIMAL => "animal"
+);
 
 // The board layouts for all armies
 $this->all_armies_layouts = array(
@@ -255,13 +262,13 @@ $this->type_code = array(
 );
 
 $this->end_conditions = array(
-  0 => clienttranslate("checkmate"),
-  1 => clienttranslate("stalemate"),
-  2 => clienttranslate("midline invasion"),
-  3 => clienttranslate("threefold repetition"),
-  4 => clienttranslate("the 50 move rule"),
-  5 => clienttranslate("agreement"),
-  6 => clienttranslate("concession")
+  CHECKMATE => clienttranslate("checkmate"),
+  STALEMATE => clienttranslate("stalemate"),
+  MIDLINE_INVASION => clienttranslate("midline invasion"),
+  THREEFOLD_REPETITION => clienttranslate("threefold repetition"),
+  FIFTY_MOVE_RULE => clienttranslate("the 50 move rule"),
+  AGREED_TO_DRAW => clienttranslate("agreement"),
+  CONCESSION => clienttranslate("concession")
 );
 
 /*

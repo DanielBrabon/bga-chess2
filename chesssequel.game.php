@@ -38,7 +38,7 @@ class ChessSequel extends Table
             "fifty_counter" => 13,
             "last_player_move_piece_id" => 14,
             "last_king_move_piece_id" => 15,
-            "ruleset_version" => 100
+            "ruleset_version" => OPTION_RULESET
         ));
     }
 
@@ -83,10 +83,10 @@ class ChessSequel extends Table
         self::setGameStateInitialValue('last_king_move_piece_id', 0);
 
         // Init game statistics
-        self::initStat("table", "end_condition", 0);
+        self::initStat("table", "end_condition", CONCESSION);
         self::initStat("table", "moves_number", 0);
 
-        self::initStat("player", "army", 0);
+        self::initStat("player", "army", CLASSIC);
         self::initStat("player", "enemies_captured", 0);
         self::initStat("player", "friendlies_captured", 0);
 

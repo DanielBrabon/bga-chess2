@@ -47,19 +47,21 @@
     
 */
 
+require_once('modules/constants.inc.php');
+
 $stats_type = array(
 
     // Statistics global to table
     "table" => array(
 
         "end_condition" => array(
-            "id" => 10,
+            "id" => STAT_END_CONDITION,
             "name" => totranslate("Game end condition"),
             "type" => "int"
         ),
 
         "moves_number" => array(
-            "id" => 11,
+            "id" => STAT_MOVES_NUMBER,
             "name" => totranslate("Number of moves"),
             "type" => "int"
         )
@@ -82,43 +84,43 @@ $stats_type = array(
     "player" => array(
 
         "army" => array(
-            "id" => 12,
+            "id" => STAT_ARMY,
             "name" => totranslate("Army"),
             "type" => "int"
         ),
 
         "enemies_captured" => array(
-            "id" => 13,
+            "id" => STAT_ENEMIES_CAPTURED,
             "name" => totranslate("Enemy pieces captured"),
             "type" => "int"
         ),
 
         "friendlies_captured" => array(
-            "id" => 14,
+            "id" => STAT_FRIENDLIES_CAPTURED,
             "name" => totranslate("Friendly pieces captured"),
             "type" => "int"
         ),
 
         "duels_initiated" => array(
-            "id" => 15,
+            "id" => STAT_DUELS_INITIATED,
             "name" => totranslate("Duels initiated"),
             "type" => "int"
         ),
 
         "stones_bid" => array(
-            "id" => 16,
+            "id" => STAT_STONES_BID,
             "name" => totranslate("Total stones bid"),
             "type" => "int"
         ),
 
         "duel_captures" => array(
-            "id" => 17,
+            "id" => STAT_DUEL_CAPTURES,
             "name" => totranslate("Captures by duel"),
             "type" => "int"
         ),
 
         "bluffs_called" => array(
-            "id" => 18,
+            "id" => STAT_BLUFFS_CALLED,
             "name" => totranslate("Bluffs called"),
             "type" => "int"
         )
@@ -140,23 +142,23 @@ $stats_type = array(
 
     "value_labels" => array(
 
-        10 => array(
-            0 => totranslate("Checkmate"),
-            1 => totranslate("Stalemate"),
-            2 => totranslate("Midline invasion"),
-            3 => totranslate("Threefold repetition"),
-            4 => totranslate("50 move rule"),
-            5 => totranslate("Agreed to draw"),
-            6 => totranslate("Concession")
+        STAT_END_CONDITION => array(
+            CHECKMATE => totranslate("Checkmate"),
+            STALEMATE => totranslate("Stalemate"),
+            MIDLINE_INVASION => totranslate("Midline invasion"),
+            THREEFOLD_REPETITION => totranslate("Threefold repetition"),
+            FIFTY_MOVE_RULE => totranslate("50 move rule"),
+            AGREED_TO_DRAW => totranslate("Agreed to draw"),
+            CONCESSION => totranslate("Concession")
         ),
 
-        12 => array(
-            0 => totranslate("Classic"),
-            1 => totranslate("Nemesis"),
-            2 => totranslate("Empowered"),
-            3 => totranslate("Reaper"),
-            4 => totranslate("Two Kings"),
-            5 => totranslate("Animal")
+        STAT_ARMY => array(
+            CLASSIC => totranslate("Classic"),
+            NEMESIS => totranslate("Nemesis"),
+            EMPOWERED => totranslate("Empowered"),
+            REAPER => totranslate("Reaper"),
+            TWOKINGS => totranslate("Two Kings"),
+            ANIMAL => totranslate("Animal")
         )
 
     )

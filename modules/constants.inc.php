@@ -1,5 +1,20 @@
 <?php
 
+// Rulesets
+define('RULESET_TWO_POINT_FOUR', 2);
+define('RULESET_THREE_POINT_ZERO', 3);
+
+// Options
+define('OPTION_RULESET', 100);
+
+// Armies
+define('CLASSIC', 0);
+define('NEMESIS', 1);
+define('EMPOWERED', 2);
+define('REAPER', 3);
+define('TWOKINGS', 4);
+define('ANIMAL', 5);
+
 // Game end conditions
 define('CHECKMATE', 0);
 define('STALEMATE', 1);
@@ -37,3 +52,14 @@ define('ST_OFFER_DRAW', 16);
 define('ST_DRAW_OFFER', 17);
 define('ST_PROCESS_DRAW_REJECTED', 18);
 define('ST_GAME_END', 99);
+
+// Statistics
+define('STAT_END_CONDITION', 10);
+define('STAT_MOVES_NUMBER', 11);
+define('STAT_ARMY', 12);
+define('STAT_ENEMIES_CAPTURED', 13);
+define('STAT_FRIENDLIES_CAPTURED', 14);
+define('STAT_DUELS_INITIATED', 15);
+define('STAT_STONES_BID', 16);
+define('STAT_DUEL_CAPTURES', 17);
+define('STAT_BLUFFS_CALLED', 18);

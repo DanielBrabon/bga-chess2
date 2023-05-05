@@ -24,22 +24,24 @@
  *
  */
 
+require_once('modules/constants.inc.php');
+
 $game_options = array(
-    100 => array(
+    OPTION_RULESET => array(
         "name" => totranslate("Ruleset"),
         "values" => array(
-            2 => array(
+            RULESET_TWO_POINT_FOUR => array(
                 "name" => totranslate("Version 2.4"),
                 "description" => totranslate("Dueling"),
                 "tmdisplay" => totranslate("Ruleset version 2.4")
             ),
-            3 => array(
+            RULESET_THREE_POINT_ZERO => array(
                 "name" => totranslate("Version 3.0"),
                 "description" => totranslate("Randomized starting positions"),
                 "tmdisplay" => totranslate("Ruleset version 3.0")
             )
         ),
-        "default" => 3
+        "default" => RULESET_THREE_POINT_ZERO
     )
 
     /*
