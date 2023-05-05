@@ -150,24 +150,6 @@ class CHSMoves
             }
         }
 
-        if ($piece_data['type'] == "warriorking") {
-            $cap_squares = array();
-
-            $directions = self::$attack_steps['king'];
-            foreach ($directions as $direction) {
-                $x = $game_data['pieces'][$piece_id]['x'] + $direction[0];
-                $y = $game_data['pieces'][$piece_id]['y'] + $direction[1];
-
-                if ($x < 1 || $x > 8 || $y < 1 || $y > 8) {
-                    continue;
-                }
-
-                $cap_squares[] = [$x, $y];
-            }
-
-            $result['attacking_moves'][] = $this->makeMove($piece_data['x'], $piece_data['y'], $cap_squares);
-        }
-
         return $result;
     }
 
@@ -344,7 +326,6 @@ class CHSMoves
             if (
                 $piece_on_square !== null
                 && $game_data['pieces'][$piece_on_square]['color'] == $game_data['pieces'][$piece_id]['color']
-                && $game_data['pieces'][$piece_on_square]['piece_id'] != $piece_id
             ) {
                 unset($moves_array[$index]);
             }
@@ -466,6 +447,10 @@ class CHSMoves
 
             case "elephant":
                 $this->getAvailableElephantNonAttackingMoves($piece_id, $game_data);
+                break;
+
+            case "warriorking":
+                $this->getWarriorKingWhirlwind($piece_id, $game_data);
                 break;
             default:
                 break;
@@ -671,6 +656,33 @@ class CHSMoves
 
                 $this->moves[$ele_id][] = $this->makeMove($sq[0], $sq[1], []);
             }
+        }
+    }
+
+    private function getWarriorKingWhirlwind($wking_id, $game_data)
+    {
+        $x_i = $game_data['pieces'][$wking_id]['x'];
+        $y_i = $game_data['pieces'][$wking_id]['y'];
+
+        $cap_squares = array();
+
+        $directions = self::$attack_steps['king'];
+
+        foreach ($directions as $dir) {
+            $x = $x_i + $dir[0];
+            $y = $y_i + $dir[1];
+
+            if ($x < 1 || $x > 8 || $y < 1 || $y > 8) {
+                continue;
+            }
+
+            $cap_squares[] = [$x, $y];
+        }
+
+        $move = $this->makeMove($x_i, $y_i, $cap_squares);
+
+        if ($this->isCapturingMoveLegal($wking_id, $move['cap_squares'], $game_data)) {
+            $this->moves[$wking_id][] = $move;
         }
     }
 
