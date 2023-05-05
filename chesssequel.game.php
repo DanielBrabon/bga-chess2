@@ -696,7 +696,10 @@ class ChessSequel extends Table
 
         if ($move_counter > 0) {
             self::DbQuery("INSERT INTO legal_moves (move_id, piece_id, x, y) VALUES " . implode(',', $legal_moves));
-            self::DbQuery("INSERT INTO capture_squares (move_id, x, y) VALUES " . implode(',', $capture_squares));
+
+            if (count($capture_squares) > 0) {
+                self::DbQuery("INSERT INTO capture_squares (move_id, x, y) VALUES " . implode(',', $capture_squares));
+            }
         }
 
         self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
