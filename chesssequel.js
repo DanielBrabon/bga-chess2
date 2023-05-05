@@ -693,7 +693,7 @@ define([
 
                 dojo.subscribe('confirmArmy', this, "notif_confirmArmy");
 
-                dojo.subscribe('stBoardSetup', this, "notif_stBoardSetup");
+                dojo.subscribe('stProcessArmySelection', this, "notif_stProcessArmySelection");
 
                 dojo.subscribe('updateLegalMovesTable', this, "notif_updateLegalMovesTable");
 
@@ -716,26 +716,11 @@ define([
                 }
             },
 
-            notif_stBoardSetup: function (notif) {
-                // Updates gamedatas for all players with the new information added to the database during boardSetup
-
-                // Update the pieces information in gamedatas to reflect the changes made during boardSetup          
-                var pieces_info = notif.args.pieces_table_update_information;
-                var pieces_object = {};
-
-                for (var piece in pieces_info) {
-                    pieces_object[pieces_info[piece][0]] = {};
-                    pieces_object[pieces_info[piece][0]].piece_id = String(pieces_info[piece][0]);
-                    pieces_object[pieces_info[piece][0]].color = pieces_info[piece][1];
-                    pieces_object[pieces_info[piece][0]].type = pieces_info[piece][2];
-                    pieces_object[pieces_info[piece][0]].x = pieces_info[piece][3];
-                    pieces_object[pieces_info[piece][0]].y = pieces_info[piece][4];
-                    pieces_object[pieces_info[piece][0]].state = 0;
-                }
-                this.gamedatas.pieces = pieces_object;
+            notif_stProcessArmySelection: function (notif) {
+                this.gamedatas.pieces = notif.args.pieces;
 
                 for (var player_color in notif.args.player_armies) {
-                    this.gamedatas.players[notif.args.player_armies[player_color]['player_id']].army = notif.args.player_armies[player_color]['army'];
+                    this.gamedatas.players[notif.args.player_armies[player_color]['player_id']].army = notif.args.player_armies[player_color]['player_army'];
                 }
 
                 dojo.query('.piece').forEach(dojo.destroy);

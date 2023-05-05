@@ -54,86 +54,121 @@
 $machinestates = array(
 
     // The initial state. Please do not modify.
-    1 => array(
+    ST_GAME_SETUP => array(
         "name" => "gameSetup",
         "description" => "",
         "type" => "manager",
         "action" => "stGameSetup",
-        "transitions" => array("" => 2)
+        "transitions" => array(
+            "" => ST_ARMY_SELECT
+        )
     ),
 
     // Both players simultaneously pick their armies from the 6 options
-    2 => array(
+    ST_ARMY_SELECT => array(
         "name" => "armySelect",
         "description" => clienttranslate('${actplayer} must select an army'),
         "descriptionmyturn" => clienttranslate('${you} must select an army'),
         "type" => "multipleactiveplayer",
         "action" => "stMakeEveryoneActive",
         "possibleactions" => array("confirmArmy"),
-        "transitions" => array("boardSetup" => 3)
+        "transitions" => array(
+            "processArmySelection" => ST_PROCESS_ARMY_SELECTION
+        )
     ),
 
     // The board is initialised with pieces
-    3 => array(
-        "name" => "boardSetup",
+    ST_PROCESS_ARMY_SELECTION => array(
+        "name" => "processArmySelection",
         "type" => "game",
-        "action" => "stBoardSetup",
-        "transitions" => array("whereNext" => 5)
+        "action" => "stProcessArmySelection",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE
+        )
     ),
 
     // A regular turn for a player
-    4 => array(
+    ST_PLAYER_MOVE => array(
         "name" => "playerMove",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose a move'),
         "descriptionmyturn" => clienttranslate('${you} must choose a move'),
         "possibleactions" => array("movePiece", "offerDraw", "concedeGame"),
-        "transitions" => array("whereNext" => 5, "offerDraw" => 13, "concedeGame" => 16),
+        "transitions" => array(
+            "processMove" => ST_PROCESS_MOVE,
+            "offerDraw" => ST_OFFER_DRAW,
+            "gameEnd" => ST_GAME_END
+        ),
         "updateGameProgression" => true
     ),
 
     // The game decides which state to transition to next and calcualtes legal moves for the next turn
-    5 => array(
-        "name" => "whereNext",
+    ST_PROCESS_MOVE => array(
+        "name" => "processMove",
         "type" => "game",
-        "action" => "stWhereNext",
-        "transitions" => array("playerMove" => 4, "whereNext" => 5, "playerKingMove" => 6, "pawnPromotion" => 7, "duelOffer" => 8, "gameEnd" => 99)
-    ),
-
-    // A two kings player can move with a warrior king or pass
-    6 => array(
-        "name" => "playerKingMove",
-        "type" => "activeplayer",
-        "description" => clienttranslate('${actplayer} must choose a king move or pass'),
-        "descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
-        "possibleactions" => array("movePiece", "passKingMove"),
-        "transitions" => array("whereNext" => 5)
+        "action" => "stProcessMove",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE,
+            "pawnPromotion" => ST_PAWN_PROMOTION,
+            "duelOffer" => ST_DUEL_OFFER,
+            "playerKingMove" => ST_PLAYER_KING_MOVE,
+            "gameEnd" => ST_GAME_END
+        )
     ),
 
     // A player choses the promotion for their pawn
-    7 => array(
+    ST_PAWN_PROMOTION => array(
         "name" => "pawnPromotion",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose the pawn promotion'),
         "descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
         "possibleactions" => array("promotePawn"),
         "args" => "argPawnPromotion",
-        "transitions" => array("whereNext" => 5)
+        "transitions" => array(
+            "processPromotion" => ST_PROCESS_PROMOTION
+        )
+    ),
+
+    ST_PROCESS_PROMOTION => array(
+        "name" => "processPromotion",
+        "type" => "game",
+        "action" => "stProcessPromotion",
+        "transitions" => array(
+            "duelOffer" => ST_DUEL_OFFER,
+            "playerKingMove" => ST_PLAYER_KING_MOVE,
+            "gameEnd" => ST_GAME_END,
+            "playerMove" => ST_PLAYER_MOVE
+        )
     ),
 
     // A player choses whether to initialise a duel
-    8 => array(
+    ST_DUEL_OFFER => array(
         "name" => "duelOffer",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose whether to duel'),
         "descriptionmyturn" => clienttranslate('${you} must choose whether to duel'),
-        "possibleactions" => array("acceptDuel", "rejectDuel"),
+        "possibleactions" => array("rejectDuel", "acceptDuel"),
         "args" => "argDuelOffer",
-        "transitions" => array("duelBidding" => 9, "nextPlayer" => 12)
+        "transitions" => array(
+            "processDuelRejected" => ST_PROCESS_DUEL_REJECTED,
+            "duelBidding" => ST_DUEL_BIDDING
+        )
+    ),
+
+    ST_PROCESS_DUEL_REJECTED => array(
+        "name" => "processDuelRejected",
+        "type" => "game",
+        "action" => "stProcessDuelRejected",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE,
+            "duelOffer" => ST_DUEL_OFFER,
+            "playerKingMove" => ST_PLAYER_KING_MOVE,
+            "gameEnd" => ST_GAME_END
+        )
     ),
 
     // Both players simultaneously choose how many stones to bid
-    9 => array(
+    ST_DUEL_BIDDING => array(
         "name" => "duelBidding",
         "type" => "multipleactiveplayer",
         "description" => clienttranslate('${actplayer} must choose how many stones to bid'),
@@ -141,65 +176,104 @@ $machinestates = array(
         "action" => "stMakeEveryoneActive",
         "possibleactions" => array("pickBid"),
         "args" => "argDuelBidding",
-        "transitions" => array("resolveDuel" => 10)
+        "transitions" => array(
+            "processDuelOutcome" => ST_PROCESS_DUEL_OUTCOME
+        )
     ),
 
-    10 => array(
-        "name" => "resolveDuel",
+    ST_PROCESS_DUEL_OUTCOME => array(
+        "name" => "processDuelOutcome",
         "type" => "game",
-        "action" => "stResolveDuel",
-        "transitions" => array("whereNext" => 5, "calledBluff" => 11)
+        "action" => "stProcessDuelOutcome",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE,
+            "playerKingMove" => ST_PLAYER_KING_MOVE,
+            "calledBluff" => ST_CALLED_BLUFF,
+            "duelOffer" => ST_DUEL_OFFER,
+            "gameEnd" => ST_GAME_END
+        )
     ),
 
-    11 => array(
+    ST_CALLED_BLUFF => array(
         "name" => "calledBluff",
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose between gaining a stone and destroying an enemy stone'),
         "descriptionmyturn" => clienttranslate('${you} must choose between gaining a stone and destroying an enemy stone'),
         "possibleactions" => array("gainStone", "destroyStone"),
-        "transitions" => array("whereNext" => 5)
+        "transitions" => array(
+            "processBluffChoice" => ST_PROCESS_BLUFF_CHOICE
+        )
     ),
 
-    12 => array(
-        "name" => "nextPlayer",
+    ST_PROCESS_BLUFF_CHOICE => array(
+        "name" => "processBluffChoice",
         "type" => "game",
-        "action" => "stNextPlayer",
-        "transitions" => array("whereNext" => 5)
+        "action" => "stProcessBluffChoice",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE,
+            "playerKingMove" => ST_PLAYER_KING_MOVE,
+            "calledBluff" => ST_CALLED_BLUFF,
+            "duelOffer" => ST_DUEL_OFFER,
+            "gameEnd" => ST_GAME_END
+        )
     ),
 
-    13 => array(
+    // A two kings player can move with a warrior king or pass
+    ST_PLAYER_KING_MOVE => array(
+        "name" => "playerKingMove",
+        "type" => "activeplayer",
+        "description" => clienttranslate('${actplayer} must choose a king move or pass'),
+        "descriptionmyturn" => clienttranslate('${you} must choose a king move or pass'),
+        "possibleactions" => array("movePiece", "passKingMove"),
+        "transitions" => array(
+            "processMove" => ST_PROCESS_MOVE,
+            "processPass" => ST_PROCESS_PASS
+        )
+    ),
+
+    ST_PROCESS_PASS => array(
+        "name" => "processPass",
+        "type" => "game",
+        "action" => "stProcessPass",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE,
+            "gameEnd" => ST_GAME_END
+        )
+    ),
+
+    ST_OFFER_DRAW => array(
         "name" => "offerDraw",
         "type" => "game",
         "action" => "stOfferDraw",
-        "transitions" => array("drawOffer" => 14)
+        "transitions" => array(
+            "drawOffer" => ST_DRAW_OFFER
+        )
     ),
 
-    14 => array(
-       "name" => "drawOffer",
-       "type" => "activeplayer",
-       "description" => clienttranslate('${actplayer} must choose whether to accept draw'),
-       "descriptionmyturn" => clienttranslate('Your opponent has offered a draw'),
-       "possibleactions" => array("acceptDraw", "rejectDraw"),
-       "transitions" => array("gameEnd" => 99, "drawRejected" => 15)
+    ST_DRAW_OFFER => array(
+        "name" => "drawOffer",
+        "type" => "activeplayer",
+        "description" => clienttranslate('${actplayer} must choose whether to accept draw'),
+        "descriptionmyturn" => clienttranslate('Your opponent has offered a draw'),
+        "possibleactions" => array("acceptDraw", "rejectDraw"),
+        "transitions" => array(
+            "gameEnd" => ST_GAME_END,
+            "processDrawRejected" => ST_PROCESS_DRAW_REJECTED
+        )
     ),
 
-    15 => array(
-        "name" => "drawRejected",
+    ST_PROCESS_DRAW_REJECTED => array(
+        "name" => "processDrawRejected",
         "type" => "game",
-        "action" => "stDrawRejected",
-        "transitions" => array("playerMove" => 4)
-    ),
-
-    16 => array(
-        "name" => "concedeGame",
-        "type" => "game",
-        "action" => "stConcedeGame",
-        "transitions" => array("gameEnd" => 99)
+        "action" => "stProcessDrawRejected",
+        "transitions" => array(
+            "playerMove" => ST_PLAYER_MOVE
+        )
     ),
 
     // Final state.
     // Please do not modify (and do not overload action/args methods).
-    99 => array(
+    ST_GAME_END => array(
         "name" => "gameEnd",
         "description" => clienttranslate("End of game"),
         "type" => "manager",
