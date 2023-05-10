@@ -90,7 +90,7 @@ class ChessSequel extends Table
         self::initStat("player", "enemies_captured", 0);
         self::initStat("player", "friendlies_captured", 0);
 
-        if ($this->getGameStateValue('ruleset_version') == 2) {
+        if ($this->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR) {
             self::DbQuery("UPDATE player SET player_stones = 3");
 
             self::initStat("player", "duels_initiated", 0);
@@ -391,7 +391,7 @@ class ChessSequel extends Table
     {
         // If we are not using the v2 ruleset or a (warrior)king is capturing, there is no duelling at all
         if (
-            $this->getGameStateValue('ruleset_version') != 2
+            $this->getGameStateValue('ruleset_version') != RULESET_TWO_POINT_FOUR
             || in_array($pieces[$cap_id]['type'], ["king", "warriorking"])
         ) {
             foreach ($capture_queue as $index => $def_id) {
@@ -449,7 +449,11 @@ class ChessSequel extends Table
 
         self::incStat(1, $stat, $player_ids[$pieces[$cap_id]['color']]);
 
-        if (in_array($pieces[$def_id]['type'], ["pawn", "nemesispawn"]) && !$same_color) {
+        if (
+            $this->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR
+            && in_array($pieces[$def_id]['type'], ["pawn", "nemesispawn"])
+            && !$same_color
+        ) {
             // Player with the other color gets a stone
             $this->gainOneStone($pieces[$cap_id]['color'], $def_id);
         }
@@ -765,11 +769,13 @@ class ChessSequel extends Table
         self::incStat(1, "enemies_captured", $player_ids["000000"]);
         self::incStat(1, "enemies_captured", $player_ids["ffffff"]);
 
-        foreach ([$cap_id, $def_id] as $piece_id) {
-            if (in_array($pieces[$piece_id]['type'], ["pawn", "nemesispawn"])) {
-                // Player with the other color gets a stone
-                $other_color = ($pieces[$piece_id]['color'] == "000000") ? "ffffff" : "000000";
-                $this->gainOneStone($other_color, $piece_id);
+        if ($this->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR) {
+            foreach ([$cap_id, $def_id] as $piece_id) {
+                if (in_array($pieces[$piece_id]['type'], ["pawn", "nemesispawn"])) {
+                    // Player with the other color gets a stone
+                    $other_color = ($pieces[$piece_id]['color'] == "000000") ? "ffffff" : "000000";
+                    $this->gainOneStone($other_color, $piece_id);
+                }
             }
         }
 
@@ -1366,7 +1372,7 @@ class ChessSequel extends Table
         $sql = "INSERT INTO pieces (color, type, x, y) VALUES ";
         $sql_values = array();
 
-        $x_offsets = ($this->getGameStateValue('ruleset_version') == 3) ? $this->rollXOffsets() : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        $x_offsets = ($this->getGameStateValue('ruleset_version') == RULESET_THREE_POINT_ZERO) ? $this->rollXOffsets() : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
         // For each player
         foreach ($this->getAllPlayerData() as $player_id => $player_data) {

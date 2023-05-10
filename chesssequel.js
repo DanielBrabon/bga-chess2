@@ -48,7 +48,7 @@ define([
             setup: function (gamedatas) {
                 console.log("Starting game setup");
 
-                if (this.gamedatas.ruleset_version == 2) {
+                if (this.gamedatas.ruleset_version == this.gamedatas.constants['RULESET_TWO_POINT_FOUR']) {
                     // Setting up player boards
                     for (var player_id in gamedatas.players) {
                         var player = gamedatas.players[player_id];
@@ -64,6 +64,13 @@ define([
                         let player_name = this.getColorPlayerText(player['color'], player['name']);
                         dojo.place(player_name, `duel_board_name_${player_id}`);
                     }
+
+                    dojo.style('player_board_duel', 'display', 'none');
+                } else {
+                    for (let player_id in gamedatas.players) {
+                        dojo.destroy(`player_stones_wrap_${player_id}`);
+                    }
+                    dojo.destroy(`player_board_duel`);
                 }
 
                 // Placing pieces on the board
@@ -99,7 +106,6 @@ define([
 
                 // Hide state-specific player boards
                 dojo.style('player_board_buttons', 'display', 'none');
-                dojo.style('player_board_duel', 'display', 'none');
 
                 console.log("Ending game setup");
             },
@@ -456,7 +462,11 @@ define([
 
             updatePlayerOrdering() {
                 this.inherited(arguments);
-                dojo.place('player_board_duel', 'player_boards', 'last');
+
+                if (this.gamedatas.ruleset_version == this.gamedatas.constants['RULESET_TWO_POINT_FOUR']) {
+                    dojo.place('player_board_duel', 'player_boards', 'last');
+                }
+
                 dojo.place('player_board_buttons', 'player_boards', 'last');
             },
 
