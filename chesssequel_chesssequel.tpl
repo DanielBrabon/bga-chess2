@@ -57,10 +57,46 @@
 
 </div>
 
-<div class='player-board' id="player_board_buttons">
+<div id="player_board_buttons" class="player-board">
 
     <button id="btn_draw" class="bgabutton bgabutton_blue">Offer Draw</button>
     <button id="btn_conc" class="bgabutton bgabutton_blue">Concede Game</button>
+
+</div>
+
+<!-- BEGIN player_stones -->
+<div id="player_stones_wrap_{ID}" class="stones_wrap">
+
+    <div id="{ID}_stone_slot_0" class="stone_slot"></div>
+    <div id="{ID}_stone_slot_1" class="stone_slot"></div>
+    <div id="{ID}_stone_slot_2" class="stone_slot"></div>
+    <div id="{ID}_stone_slot_3" class="stone_slot"></div>
+    <div id="{ID}_stone_slot_4" class="stone_slot"></div>
+    <div id="{ID}_stone_slot_5" class="stone_slot"></div>
+
+</div>
+<!-- END player_stones -->
+
+<div id="player_board_duel" class="player-board">
+
+    <div class="duel_board_title">Bids:</div>
+
+    <!-- BEGIN player_bids -->
+    <div id="duel_board_{ID}" class="duel_board_player_section">
+
+        <div id="duel_board_name_{ID}"></div>
+
+        <div id="duel_board_piece_{ID}" class="logpiece"></div>
+
+        <div id="duel_board_bids_{ID}" class="stones_wrap">
+            <div id="{ID}_bid_slot_0" class="stone_slot bid_slot"></div>
+            <div id="{ID}_bid_slot_1" class="stone_slot bid_slot"></div>
+        </div>
+
+        <div id="duel_board_status_{ID}" class="duel_board_status"></div>
+
+    </div>
+    <!-- END player_bids -->
 
 </div>
 
@@ -85,13 +121,13 @@ var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_I
 
     */
 
-    var jstpl_piece = '<div class="piece piececolor_${color} piecetype_${type}" id="${piece_id}"></div>';
-
-    var jstpl_player_stones = '\<div class="player_stones">\<span id="player_stones_${id}">Stones: ${stones}</span>\</div>';
+    var jstpl_piece = '<div id="${piece_id}" class="piece piececolor_${color} piecetype_${type}"></div>';
 
     var jstpl_logpiece = '<div class="logpiece piececolor_${color} piecetype_${type}"></div>';
 
     var jstpl_player_text = '<span class="playername" style="color:#${color};background-color:#${bg_color};">${text}</span>';
+
+    var jstpl_stone = '<div class="stone stonecolor_${color}"></div>';
 </script>
 
 {OVERALL_GAME_FOOTER}

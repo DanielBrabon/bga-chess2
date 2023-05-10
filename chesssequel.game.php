@@ -121,11 +121,13 @@ class ChessSequel extends Table
     {
         $result = array();
 
-        // $current_player_id = self::getCurrentPlayerId();    // !! We must only return informations visible by this player !!
+        $current_player_id = self::getCurrentPlayerId();    // !! We must only return informations visible by this player !!
 
         // Get information about players
         // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
         $result['players'] = $this->getAllPlayerData();
+
+        $result['bid'] = self::getUniqueValueFromDB("SELECT player_bid FROM player WHERE player_id = $current_player_id");
 
         // Get information about all pieces
         $result['pieces'] = self::getCollectionFromDB("SELECT * FROM pieces");
@@ -447,6 +449,11 @@ class ChessSequel extends Table
 
         self::incStat(1, $stat, $player_ids[$pieces[$cap_id]['color']]);
 
+        if (in_array($pieces[$def_id]['type'], ["pawn", "nemesispawn"]) && !$same_color) {
+            // Player with the other color gets a stone
+            $this->gainOneStone($pieces[$cap_id]['color'], $def_id);
+        }
+
         self::notifyAllPlayers(
             "updateAllPieceData",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
@@ -457,33 +464,57 @@ class ChessSequel extends Table
                 "logpiece_def" => $pieces[$def_id]['color'] . "_" . $pieces[$def_id]['type']
             )
         );
-
-        if (in_array($pieces[$def_id]['type'], ["pawn", "nemesispawn"]) && !$same_color) {
-            // Player with the other color gets a stone
-            $other_color = ($pieces[$def_id]['color'] == "000000") ? "ffffff" : "000000";
-            $this->updateStones($other_color, 1);
-        }
     }
 
-    // Change player_stones by $amount for the player with color $player_color (max 6)
-    function updateStones($player_color, $amount)
+    function gainOneStone($player_color, $source)
     {
-        $new_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$player_color'") + $amount;
+        $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$player_color'");
 
-        if ($new_stones == 7) {
+        if ($current_stones == 6) {
             return;
         }
 
-        self::DbQuery("UPDATE player SET player_stones = $new_stones WHERE player_color = '$player_color'");
+        self::DbQuery("UPDATE player SET player_stones = player_stones + 1 WHERE player_color = '$player_color'");
 
         $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
 
         self::notifyAllPlayers(
-            "updatePlayerData",
+            "gainOneStone",
             "",
             array(
                 "player_id" => $player_id,
-                "values_updated" => array("stones" => $new_stones)
+                "source" => $source
+            )
+        );
+    }
+
+    function loseOneStone($player_color)
+    {
+        self::DbQuery("UPDATE player SET player_stones = player_stones - 1 WHERE player_color = '$player_color'");
+
+        $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
+
+        self::notifyAllPlayers(
+            "loseOneStone",
+            "",
+            array(
+                "player_id" => $player_id
+            )
+        );
+    }
+
+    function bidStones($player_color, $bid_amount)
+    {
+        self::DbQuery("UPDATE player SET player_stones = player_stones - $bid_amount WHERE player_color = '$player_color'");
+
+        $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
+
+        self::notifyAllPlayers(
+            "bidStones",
+            "",
+            array(
+                "player_id" => $player_id,
+                "bid_amount" => $bid_amount
             )
         );
     }
@@ -734,6 +765,14 @@ class ChessSequel extends Table
         self::incStat(1, "enemies_captured", $player_ids["000000"]);
         self::incStat(1, "enemies_captured", $player_ids["ffffff"]);
 
+        foreach ([$cap_id, $def_id] as $piece_id) {
+            if (in_array($pieces[$piece_id]['type'], ["pawn", "nemesispawn"])) {
+                // Player with the other color gets a stone
+                $other_color = ($pieces[$piece_id]['color'] == "000000") ? "ffffff" : "000000";
+                $this->gainOneStone($other_color, $piece_id);
+            }
+        }
+
         self::DbQuery("UPDATE pieces SET state = " . CAPTURED . " WHERE piece_id in ($cap_id, $def_id)");
 
         $pieces[$def_id]['state'] = CAPTURED;
@@ -761,14 +800,6 @@ class ChessSequel extends Table
                 "logpiece_cap" => $pieces[$cap_id]['color'] . "_" . $pieces[$cap_id]['type']
             )
         );
-
-        foreach ([$cap_id, $def_id] as $piece_id) {
-            if (in_array($pieces[$piece_id]['type'], ["pawn", "nemesispawn"])) {
-                // Player with the other color gets a stone
-                $other_color = ($pieces[$piece_id]['color'] == "000000") ? "ffffff" : "000000";
-                $this->updateStones($other_color, 1);
-            }
-        }
     }
 
     function endGame($condition, $winner_id = null)
@@ -1078,7 +1109,7 @@ class ChessSequel extends Table
 
         if ($duel_data['costToDuel'] == 1) {
             // Pay the cost to duel
-            $this->updateStones($this->getCurrentPlayerColor(), -1);
+            $this->loseOneStone($this->getCurrentPlayerColor());
             $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap} (Pays 1 stone)');
         }
 
@@ -1132,6 +1163,16 @@ class ChessSequel extends Table
 
             self::incStat($bid_amount, "stones_bid", $player_id);
 
+            self::notifyPlayer(
+                $player_id,
+                "bidStones",
+                "",
+                array(
+                    "player_id" => $player_id,
+                    "bid_amount" => $bid_amount
+                )
+            );
+
             // Deactivate player. If none left, transition to 'processDuelOutcome' state
             $this->gamestate->setPlayerNonMultiactive($player_id, 'processDuelOutcome');
         } else {
@@ -1149,7 +1190,7 @@ class ChessSequel extends Table
         if ($current_stones == 6) {
             throw new BgaSystemException("Maximum stones reached");
         } else {
-            $this->updateStones($choosing_color, 1);
+            $this->gainOneStone($choosing_color, "board");
 
             self::notifyAllPlayers(
                 "message",
@@ -1170,23 +1211,18 @@ class ChessSequel extends Table
         $player_id = $this->getActivePlayerId();
         $choosing_color = $this->getPlayerColorById($player_id);
         $other_color = ($choosing_color == "000000") ? "ffffff" : "000000";
-        $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$other_color'");
 
-        if ($current_stones == 0) {
-            throw new BgaSystemException("Minimum stones reached");
-        } else {
-            $this->updateStones($other_color, -1);
+        $this->loseOneStone($other_color);
 
-            self::notifyAllPlayers(
-                "message",
-                clienttranslate('${player_name} destroys an enemy stone'),
-                array(
-                    "player_name" => self::getActivePlayerName()
-                )
-            );
+        self::notifyAllPlayers(
+            "message",
+            clienttranslate('${player_name} destroys an enemy stone'),
+            array(
+                "player_name" => self::getActivePlayerName()
+            )
+        );
 
-            $this->gamestate->nextState('processBluffChoice');
-        }
+        $this->gamestate->nextState('processBluffChoice');
     }
 
     function passKingMove()
@@ -1423,10 +1459,18 @@ class ChessSequel extends Table
 
         self::DbQuery("UPDATE player SET player_bid = null");
 
-        // Update player stones in database and notify
-        foreach ($player_bids as $player_color => $bid) {
-            $this->updateStones($player_color, $bid * -1);
+        $this->bidStones($def_color, $player_bids[$def_color]);
+
+        $this->bidStones($cap_color, $player_bids[$cap_color]);
+
+        $msg = clienttranslate('Duel outcome: normal capture');
+        if ($player_bids[$cap_color] < $player_bids[$def_color]) {
+            $msg = clienttranslate('Duel outcome: both pieces capture');
+        } else if ($player_bids[$cap_color] == 0 && $player_bids[$def_color] == 0) {
+            $msg = clienttranslate('Duel outcome: called bluff');
         }
+
+        self::notifyAllPlayers('showDuelOutcome', "", array('outcome_message' => $msg));
 
         self::notifyAllPlayers(
             "message",

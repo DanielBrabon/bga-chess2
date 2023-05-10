@@ -75,6 +75,14 @@ class view_chesssequel_chesssequel extends game_view
       ));
     }
 
+    $this->page->begin_block("chesssequel_chesssequel", "player_stones");
+    $this->page->begin_block("chesssequel_chesssequel", "player_bids");
+
+    foreach (array_keys($players) as $player_id) {
+      $this->page->insert_block("player_stones", array('ID' => $player_id));
+      $this->page->insert_block("player_bids", array('ID' => $player_id));
+    }
+
     /*
         
         // Examples: set the value of some element defined in your tpl file like this: {MY_VARIABLE_ELEMENT}
