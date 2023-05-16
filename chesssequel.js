@@ -159,8 +159,8 @@ define([
                             $(`duel_board_status_${player_id}`).innerHTML = status;
                         }
 
-                        if (this.gamedatas.bid != null) {
-                            this.placeBidStones(this.player_id, this.gamedatas.bid);
+                        if (this.gamedatas.players[this.player_id].bid != null) {
+                            this.placeBidStones(this.player_id, this.gamedatas.players[this.player_id].bid);
                         }
 
                         dojo.style('player_board_duel', 'display', 'block');
@@ -203,7 +203,7 @@ define([
 
                         dojo.query('.inactive_slot').removeClass('inactive_slot');
 
-                        this.gamedatas.bid = null;
+                        this.gamedatas.players[this.player_id].bid = null;
 
                         this.ownBidShown = false;
 
@@ -279,7 +279,7 @@ define([
                             break;
 
                         case 'pawnPromotion':
-                            var player_army = this.gamedatas.players[this.getActivePlayerId()]['army'];
+                            var player_army = this.gamedatas.players[this.player_id].army;
 
                             for (var piece_type_index in args.promoteOptions[player_army]) {
                                 var piece_type = args.promoteOptions[player_army][piece_type_index];
@@ -340,7 +340,7 @@ define([
             populateBoard: function () {
                 if (this.gamedatas.pieces.length == 0) { // We're in armySelect and pieces haven't been added to the database yet
                     for (var player_id in this.gamedatas.players) {
-                        let army = (player_id == this.player_id) ? "classic" : "empty";
+                        let army = (player_id == this.player_id) ? this.gamedatas.players[this.player_id].army : "empty";
                         this.placeStartingPiecesOnBoard(army, this.gamedatas.players[player_id].color);
                     }
                 }
@@ -353,11 +353,11 @@ define([
                             dojo.place(this.format_block('jstpl_piece', {
                                 color: piece_info['color'],
                                 type: piece_info['type'],
-                                piece_id: piece_info['piece_id']
+                                piece_id: piece_info['id']
                             }), 'square_' + piece_info['x'] + '_' + piece_info['y']);
 
                             this.addTooltip(
-                                piece_info['piece_id'],
+                                piece_info['id'],
                                 this.gamedatas.piece_tooltips[piece_info['type']].help_string,
                                 this.gamedatas.piece_tooltips[piece_info['type']].action_string
                             );
@@ -820,10 +820,6 @@ define([
 
             notif_stProcessArmySelection: function (notif) {
                 this.gamedatas.pieces = notif.args.pieces;
-
-                for (var player_color in notif.args.player_armies) {
-                    this.gamedatas.players[notif.args.player_armies[player_color]['player_id']].army = notif.args.player_armies[player_color]['player_army'];
-                }
 
                 dojo.query('.piece').forEach(dojo.destroy);
                 this.populateBoard();

@@ -19,11 +19,19 @@
 
 
 require_once(APP_GAMEMODULE_PATH . 'module/table/table.game.php');
+require_once('modules/CHSPlayerManager.class.php');
+require_once('modules/CHSPieceManager.class.php');
+require_once('modules/CHSCaptureManager.class.php');
 require_once('modules/CHSMoves.php');
 require_once('modules/constants.inc.php');
 
 class ChessSequel extends Table
 {
+    public $playerManager;
+    public $pieceManager;
+    private $captureManager;
+    private $moves;
+
     function __construct()
     {
         // Your global variables labels:
@@ -40,6 +48,11 @@ class ChessSequel extends Table
             "last_king_move_piece_id" => 15,
             "ruleset_version" => OPTION_RULESET
         ));
+
+        $this->playerManager = new CHSPlayerManager($this);
+        $this->pieceManager = new CHSPieceManager($this);
+        $this->captureManager = new CHSCaptureManager($this);
+        $this->moves = new CHSMoves($this);
     }
 
     protected function getGameName()
@@ -119,43 +132,33 @@ class ChessSequel extends Table
     */
     protected function getAllDatas()
     {
-        $result = array();
-
         $current_player_id = self::getCurrentPlayerId();    // !! We must only return informations visible by this player !!
 
-        // Get information about players
-        // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
-        $result['players'] = $this->getAllPlayerData();
+        $result = array(
+            // From database
+            "players" => $this->playerManager->getUIData($current_player_id),
+            "pieces" => $this->pieceManager->getPieces(),
+            "legal_moves" => $this->pieceManager->getLegalMoves(),
+            "capture_squares" => $this->pieceManager->getCaptureSquares(),
+            "capture_queue" => $this->captureManager->getCaptureQueue(),
 
-        $result['bid'] = self::getUniqueValueFromDB("SELECT player_bid FROM player WHERE player_id = $current_player_id");
+            // From material.inc.php
+            "all_army_names" => $this->all_army_names,
+            "all_armies_layouts" => $this->all_armies_layouts,
+            "button_labels" => $this->button_labels,
+            "piece_tooltips" => $this->piece_tooltips,
+            "army_tooltips" => $this->army_tooltips,
 
-        // Get information about all pieces
-        $result['pieces'] = self::getCollectionFromDB("SELECT * FROM pieces");
+            // Globals
+            "last_move_piece_ids" => array(
+                "player_move" => $this->getGameStateValue('last_player_move_piece_id'),
+                "king_move" => $this->getGameStateValue('last_king_move_piece_id')
+            ),
+            "ruleset_version" => $this->getGameStateValue('ruleset_version'),
 
-        // Get information about the capture queue
-        $result['capture_queue'] = self::getCollectionFromDB("SELECT * FROM capture_queue");
-
-        // Get information about legal moves this turn
-        $result['legal_moves'] = self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
-
-        // Gathering variables from material.inc.php
-        $result['all_army_names'] = $this->all_army_names;
-        $result['all_armies_layouts'] = $this->all_armies_layouts;
-        $result['button_labels'] = $this->button_labels;
-        $result['piece_tooltips'] = $this->piece_tooltips;
-        $result['army_tooltips'] = $this->army_tooltips;
-
-        $result['last_move_piece_ids'] = array(
-            "player_move" => $this->getGameStateValue('last_player_move_piece_id'),
-            "king_move" => $this->getGameStateValue('last_king_move_piece_id')
+            // From modules/constants.inc.php
+            "constants" => get_defined_constants(true)['user']
         );
-
-        $result['ruleset_version'] = $this->getGameStateValue('ruleset_version');
-
-        $result['constants'] = get_defined_constants(true)['user'];
-
-        // TODO: Gather all information about current game situation (visible by player $current_player_id).
-        // Will need to involve full current board state and piece state
 
         return $result;
     }
@@ -174,8 +177,6 @@ class ChessSequel extends Table
     {
         $moves_number = self::getStat("moves_number");
         return $moves_number * 3;
-        // $data = self::getObjectFromDB("SELECT SUM(moves_made) AS moves, SUM(captured) AS caps FROM pieces");
-        // return $data['moves'] + $data['caps'];
     }
 
 
@@ -187,396 +188,102 @@ class ChessSequel extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
-    function getAllPlayerData()
+    function processAction($invaded_or_promoting = null, $duelling = null, $giving_king_move = null)
     {
-        $sql = "SELECT player_id id, player_color color, player_score score, player_stones stones, 
-        player_king_move_available king_move_available, player_army army FROM player";
-        return self::getCollectionFromDb($sql);
-    }
+        $active_player = $this->playerManager->getActivePlayer();
 
-    function getPlayerKingIds($player_id)
-    {
-        $player_color = $this->getPlayerColorById($player_id);
-        return self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE color = '$player_color' AND type IN ('king', 'warriorking')", true);
-    }
+        if ($invaded_or_promoting === null) {
+            $invaded = $this->pieceManager->hasPlayerInvaded($active_player);
 
-    function getPlayerArmy($player_color)
-    {
-        return self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_color = '$player_color'");
-    }
+            // If the action invaded the midline, the player wins
+            if ($invaded) {
+                $this->endGame(MIDLINE_INVASION, $active_player);
+                return;
+            }
 
-    function getSquaresData($pieces)
-    {
-        $squares = [];
+            $promoting = $this->pieceManager->isPromotionAvailable();
 
-        for ($i = 1; $i <= 8; $i++) {
-            for ($j = 1; $j <= 8; $j++) {
-                $squares[$i][$j]['def_piece'] = null;
+            // If the action enabled a pawn promotion, go to pawnPromotion state
+            if ($promoting) {
+                $this->gamestate->nextState('pawnPromotion');
+                return;
             }
         }
 
-        foreach ($pieces as $piece_id => $piece_data) {
-            if (!in_array($piece_data['state'], [CAPTURED, CAPTURING])) {
-                $squares[$piece_data['x']][$piece_data['y']]['def_piece'] = $piece_id;
+        if ($duelling === null) {
+            $duelling = $this->captureManager->processFrontOfCaptureQueue();
+
+            // If the action enabled a duel, go to duelOffer state
+            if ($duelling) {
+                $this->activeNextPlayer();
+                $this->gamestate->nextState('duelOffer');
+                return;
             }
         }
 
-        return $squares;
-    }
+        if ($giving_king_move === null) {
+            $giving_king_move = $this->processPendingKingMove($active_player);
 
-    // TODO: Optimise
-    function rollXOffsets()
-    {
-        $x_offsets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-        $squares = [1, 2, 3, 4, 5, 6, 7, 8];
-
-        // The 5 needed rolls
-        $rolls = array();
-        foreach ([4, 4, 6, 5, 4] as $max_roll) {
-            $rolls[] = bga_rand(1, $max_roll);
-        }
-
-        // Move the black square bishop
-        $bb_square_index = ($rolls[0] - 1) * 2;
-        $x_offsets[2] = $squares[$bb_square_index] - 3;
-
-        // Move the white square bishop
-        $wb_square_index = ($rolls[1] * 2) - 1;
-        $x_offsets[5] = $squares[$wb_square_index] - 6;
-
-        unset($squares[$bb_square_index]);
-        unset($squares[$wb_square_index]);
-        $squares = array_values($squares);
-
-        // Move the queen
-        $square_index = $rolls[2] - 1;
-        $x_offsets[3] = $squares[$square_index] - 4;
-        unset($squares[$square_index]);
-        $squares = array_values($squares);
-
-        // Move the first knight
-        $square_index = $rolls[3] - 1;
-        $x_offsets[1] = $squares[$square_index] - 2;
-        unset($squares[$square_index]);
-        $squares = array_values($squares);
-
-        // Move the second knight
-        $square_index = $rolls[4] - 1;
-        $x_offsets[6] = $squares[$square_index] - 7;
-        unset($squares[$square_index]);
-        $squares = array_values($squares);
-
-        // Move the remaining pieces
-        $x_offsets[0] = $squares[0] - 1;
-        $x_offsets[4] = $squares[1] - 5;
-        $x_offsets[7] = $squares[2] - 8;
-
-        return $x_offsets;
-    }
-
-    function processAction($invading_or_promoting = null, $duelling = null, $giving_king_move = null)
-    {
-        $active_player_id = $this->getActivePlayerId();
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-
-        // Process midline invasion and pawn promotion
-        $invading_or_promoting = $invading_or_promoting ?? $this->processPiecePositions($active_player_id, $pieces);
-
-        if ($invading_or_promoting) {
-            return;
-        }
-
-        // Process pending captures
-        $duelling = $duelling ?? $this->processPendingCaptures($active_player_id, $pieces);
-
-        if ($duelling) {
-            return;
-        }
-
-        $squares = $this->getSquaresData($pieces);
-        $this->moves = new CHSMoves($this);
-
-        // Process pending king move
-        $giving_king_move = $giving_king_move ?? $this->processPendingKingMove($active_player_id, $pieces, $squares);
-
-        if ($giving_king_move) {
-            return;
+            // If a king move is now available, go to playerKingMove state
+            if ($giving_king_move) {
+                $this->gamestate->nextState('playerKingMove');
+                return;
+            }
         }
 
         // Process fifty move rule and en passant vulnerability
-        $triggered_fifty_move_rule = $this->processEndOfTurn($active_player_id, $pieces);
+        $triggered_fifty_move_rule = $this->processEndOfTurn($active_player);
 
+        // If the action triggered the fifty move rule, the game is a draw
         if ($triggered_fifty_move_rule) {
+            $this->endGame(FIFTY_MOVE_RULE);
             return;
         }
 
         // Activate the next player and calculate available moves
-        $this->processNextPlayerMoves($pieces, $squares);
+        $this->processNextPlayerMoves();
     }
 
-    function processPiecePositions($active_player_id, $pieces)
+    function processPendingKingMove($player)
     {
-        // If the move invaded the midline, the player wins
-        if ($this->checkMidlineInvasion($active_player_id, $pieces)) {
-            $this->endGame(MIDLINE_INVASION, $active_player_id);
-            return true;
-        }
-
-        // If the move enabled a pawn promotion, go to pawnPromotion state
-        if ($this->checkAvailablePromotion()) {
-            $this->gamestate->nextState('pawnPromotion');
-            return true;
-        }
-
-        return false;
-    }
-
-    // Returns true if active player has met the midline invasion win condition, else returns false
-    function checkMidlineInvasion($player_id, $pieces)
-    {
-        $king_ids = $this->getPlayerKingIds($player_id);
-
-        $invasion_direction = ($pieces[$king_ids[0]]['color'] == "000000") ? -1 : 1;
-
-        foreach ($king_ids as $king_id) {
-            if (($pieces[$king_id]['y'] - 4.5) * $invasion_direction < 0) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    function checkAvailablePromotion()
-    {
-        $pro_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state IN (" . PROMOTING . ", " . CAPTURING_AND_PROMOTING . ")");
-
-        if ($pro_id == null) {
+        if (!$player->king_move_available) {
             return false;
         }
 
-        return true;
-    }
+        $player->setKingMoveUnavailable();
 
-    function processPendingCaptures($active_player_id, &$pieces)
-    {
-        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING);
+        $king_moves = $this->moves->getAllKingMovesForPlayer($player)['moves'];
 
-        if ($cap_id == null) {
-            return false;
-        }
-
-        // Because a capture is occurring, we can reset the counter on the fifty move rule
-        $this->setGameStateValue('fifty_counter', 51);
-
-        $capture_queue = self::getObjectListFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id", true);
-        $defender_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_id != $active_player_id");
-
-        // Process all captures at the front of the capture queue which don't require a duel offer
-        $remaining_queue_length = $this->processFrontOfCaptureQueue($cap_id, $pieces, $capture_queue, $defender_stones);
-
-        // If the move enabled a duel, go to duelOffer state
-        if ($remaining_queue_length > 0) {
-            $this->activeNextPlayer();
-            $this->gamestate->nextState('duelOffer');
-            return true;
-        }
-
-        return false;
-    }
-
-    // Process all captures from the front of the capture queue which can be processed without a duel. Return the remaining length of the queue
-    function processFrontOfCaptureQueue($cap_id, &$pieces, &$capture_queue, $defender_stones)
-    {
-        // If we are not using the v2 ruleset or a (warrior)king is capturing, there is no duelling at all
-        if (
-            $this->getGameStateValue('ruleset_version') != RULESET_TWO_POINT_FOUR
-            || in_array($pieces[$cap_id]['type'], ["king", "warriorking"])
-        ) {
-            foreach ($capture_queue as $index => $def_id) {
-                $this->singleCapture($cap_id, $def_id, $pieces);
-                unset($capture_queue[$index]);
-            }
-        }
-
-        // Else we will need to check each capture individually 
-        else {
-            foreach ($capture_queue as $index => $def_id) {
-                if (
-                    $pieces[$def_id]['color'] == $pieces[$cap_id]['color']
-                    || $defender_stones <= $this->getCostToDuel($cap_id, $def_id, $pieces)
-                ) {
-                    $this->singleCapture($cap_id, $def_id, $pieces);
-                    unset($capture_queue[$index]);
-                } else {
-                    break;
-                }
-            }
-        }
-
-        $remaining_queue_length = count($capture_queue);
-
-        if ($remaining_queue_length == 0) {
-            $pieces[$cap_id]['state'] = NEUTRAL;
-
-            self::DbQuery("UPDATE pieces SET state = " . NEUTRAL . " WHERE piece_id = $cap_id");
-
-            self::notifyAllPlayers(
-                "updateAllPieceData",
-                "",
-                array(
-                    "piece_id" => $cap_id,
-                    "values_updated" => array("state" => NEUTRAL)
-                )
-            );
-        }
-
-        return $remaining_queue_length;
-    }
-
-    function singleCapture($cap_id, $def_id, &$pieces)
-    {
-        $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
-
-        self::DbQuery("DELETE FROM capture_queue WHERE piece_id = $def_id");
-
-        $pieces[$def_id]['state'] = CAPTURED;
-        self::DbQuery("UPDATE pieces SET state = " . CAPTURED . " WHERE piece_id = $def_id");
-
-        $same_color = ($pieces[$def_id]['color'] == $pieces[$cap_id]['color']);
-        $stat = ($same_color) ? "friendlies_captured" : "enemies_captured";
-
-        self::incStat(1, $stat, $player_ids[$pieces[$cap_id]['color']]);
-
-        if (
-            $this->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR
-            && in_array($pieces[$def_id]['type'], ["pawn", "nemesispawn"])
-            && !$same_color
-        ) {
-            // Player with the other color gets a stone
-            $this->gainOneStone($pieces[$cap_id]['color'], $def_id);
-        }
-
-        self::notifyAllPlayers(
-            "updateAllPieceData",
-            clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
-            array(
-                "piece_id" => $def_id,
-                "values_updated" => array("state" => CAPTURED),
-                "logpiece_cap" => $pieces[$cap_id]['color'] . "_" . $pieces[$cap_id]['type'],
-                "logpiece_def" => $pieces[$def_id]['color'] . "_" . $pieces[$def_id]['type']
-            )
-        );
-    }
-
-    function gainOneStone($player_color, $source)
-    {
-        $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$player_color'");
-
-        if ($current_stones == 6) {
-            return;
-        }
-
-        self::DbQuery("UPDATE player SET player_stones = player_stones + 1 WHERE player_color = '$player_color'");
-
-        $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
-
-        self::notifyAllPlayers(
-            "gainOneStone",
-            "",
-            array(
-                "player_id" => $player_id,
-                "source" => $source
-            )
-        );
-    }
-
-    function loseOneStone($player_color)
-    {
-        self::DbQuery("UPDATE player SET player_stones = player_stones - 1 WHERE player_color = '$player_color'");
-
-        $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
-
-        self::notifyAllPlayers(
-            "loseOneStone",
-            "",
-            array(
-                "player_id" => $player_id
-            )
-        );
-    }
-
-    function bidStones($player_color, $bid_amount)
-    {
-        self::DbQuery("UPDATE player SET player_stones = player_stones - $bid_amount WHERE player_color = '$player_color'");
-
-        $player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$player_color'");
-
-        self::notifyAllPlayers(
-            "bidStones",
-            "",
-            array(
-                "player_id" => $player_id,
-                "bid_amount" => $bid_amount
-            )
-        );
-    }
-
-    function getCostToDuel($cap_id, $def_id, $pieces)
-    {
-        $cap_piece_rank = $this->piece_ranks[$pieces[$cap_id]['type']];
-        $def_piece_rank = $this->piece_ranks[$pieces[$def_id]['type']];
-        return ($cap_piece_rank > $def_piece_rank) ? 1 : 0;
-    }
-
-    function processPendingKingMove($active_player_id, $pieces, $squares)
-    {
-        $king_move_available = self::getUniqueValueFromDB("SELECT player_king_move_available FROM player WHERE player_id = $active_player_id");
-
-        if (!$king_move_available) {
-            return false;
-        }
-
-        self::DbQuery("UPDATE player SET player_king_move_available = 0 WHERE player_id = $active_player_id");
-
-        $kings = $this->getPlayerKingIds($active_player_id);
-
-        $king_moves = $this->moves->getAllMovesForPieces($kings, $active_player_id, array("pieces" => $pieces, "squares" => $squares))['moves'];
-
-        $amount_of_legal_moves = $this->insertLegalMoves($king_moves);
+        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($king_moves);
 
         if ($amount_of_legal_moves == 0) {
             return false;
         }
 
-        // If a king move is now available, go to playerKingMove state
-        $this->gamestate->nextState('playerKingMove');
+        // Giving king move
         return true;
     }
 
-    function processEndOfTurn($active_player_id, &$pieces)
+    function processEndOfTurn($player)
     {
         // Reduce fifty_counter by 1 at the end of each black player's turn. Reset to 51 when moving a pawn or capturing. If it reaches 0, draw
         if (
-            $this->getPlayerColorById($active_player_id) == "000000"
+            $player->color == "000000"
             && $this->incGameStateValue('fifty_counter', -1) == 0
         ) {
-            $this->endGame(FIFTY_MOVE_RULE);
             return true;
         }
 
         // Remove en passant vulnerability from piece where applicable
-        $enpassant_ids = self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE state = " . EN_PASSANT_VULNERABLE, true);
+        $enpassant_pieces = $this->pieceManager->getPiecesInStates([EN_PASSANT_VULNERABLE]);
         $last_move_piece = $this->getGameStateValue('last_player_move_piece_id');
 
-        foreach ($enpassant_ids as $enp_id) {
-            if ($enp_id != $last_move_piece) {
-                $pieces[$enp_id]['state'] = NEUTRAL;
-                self::DbQuery("UPDATE pieces SET state = " . NEUTRAL . " WHERE piece_id = $enp_id");
+        foreach ($enpassant_pieces as $piece) {
+            if ($piece->id != $last_move_piece) {
+                $piece->setState(NEUTRAL);
 
                 self::notifyAllPlayers("updateAllPieceData", "", array(
-                    "piece_id" => $enp_id,
+                    "piece_id" => $piece->id,
                     "values_updated" => array("state" => NEUTRAL)
                 ));
             }
@@ -585,36 +292,34 @@ class ChessSequel extends Table
         return false;
     }
 
-    function processNextPlayerMoves($pieces, $squares)
+    function processNextPlayerMoves()
     {
         $this->activeNextPlayer();
 
-        $active_player_id = $this->getActivePlayerId();
-        $active_color = $this->getPlayerColorById($active_player_id);
-        $act_pieces = self::getObjectListFromDB("SELECT piece_id FROM pieces WHERE color = '$active_color' AND state != " . CAPTURED, true);
+        $active_player = $this->playerManager->getActivePlayer();
 
-        $moves = $this->moves->getAllMovesForPieces($act_pieces, $active_player_id, array("pieces" => $pieces, "squares" => $squares));
+        $moves = $this->moves->getAllMovesForPlayer($active_player);
 
-        $amount_of_legal_moves = $this->insertLegalMoves($moves['moves']);
+        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($moves['moves']);
 
         // If the next player has no available moves, they lose
         if ($amount_of_legal_moves == 0) {
-            $this->activeNextPlayer();
-
-            $winner_id = $this->getActivePlayerId();
             $condition = ($this->kingIsInCheck($moves['friendly_kings'])) ? CHECKMATE : STALEMATE;
 
-            $this->endGame($condition, $winner_id);
+            $this->endGame($condition, $this->playerManager->getInactivePlayer());
             return;
         }
 
-        $armies = $this->processKingMoveAvailability($active_color);
+        if ($active_player->army == "twokings") {
+            $active_player->setKingMoveAvailable();
+        }
+
+        $position_reps = $this->processPositionRepetition($moves['moves']);
 
         // If this exact position has occurred three times, the game is a draw
-        $threefold_repetition = $this->processPositionRepetition($active_color, $armies, $moves['moves'], $pieces, $squares);
-
-        if ($threefold_repetition) {
-            return;
+        if ($position_reps == 3) {
+            $this->endGame(THREEFOLD_REPETITION);
+            return true;
         }
 
         // If none of the above occurred, go to playerMove state
@@ -633,41 +338,21 @@ class ChessSequel extends Table
         return false;
     }
 
-    function processKingMoveAvailability($active_color)
+    function processPositionRepetition($all_legal_moves)
     {
-        $armies = self::getCollectionFromDB("SELECT player_color, player_army FROM player");
-
-        if ($armies[$active_color]['player_army'] == "twokings") {
-            self::DbQuery("UPDATE player SET player_king_move_available = 1 WHERE player_color = '$active_color'");
-        }
-
-        return $armies;
-    }
-
-    function processPositionRepetition($active_color, $armies, $all_legal_moves, $pieces, $squares)
-    {
-        $pos_string = $this->getPositionString(
-            $active_color,
-            $armies,
-            $all_legal_moves,
-            $pieces,
-            $squares
-        );
+        $pos_string = $this->getPositionString($all_legal_moves);
 
         self::DbQuery("INSERT INTO pos_history (pos_string) VALUES ('$pos_string')");
 
-        $pos_reps = self::getUniqueValueFromDB("SELECT COUNT(*) FROM pos_history WHERE pos_string = '$pos_string'");
-
-        if ($pos_reps == 3) {
-            $this->endGame(THREEFOLD_REPETITION);
-            return true;
-        }
-
-        return false;
+        return self::getUniqueValueFromDB("SELECT COUNT(*) FROM pos_history WHERE pos_string = '$pos_string'");
     }
 
-    function getPositionString($active_color, $armies, $all_legal_moves, $pieces, $squares)
+    function getPositionString($all_legal_moves)
     {
+        $active_color = $this->playerManager->getActivePlayer()->color;
+        $pieces = $this->pieceManager->getDataForMoveGen();
+        $squares = $this->pieceManager->getSquaresData();
+
         $pos_string = $active_color[0];
 
         for ($i = 1; $i <= 8; $i++) {
@@ -679,24 +364,26 @@ class ChessSequel extends Table
                     continue;
                 }
 
-                $pos_string .= $this->type_code[$pieces[$pid]['type']];
-                $pos_string .= $pieces[$pid]['color'][0];
+                $piece = $this->pieceManager->getPiece($pid);
 
-                if (in_array($pieces[$pid]['type'], ["pawn", "nemesispawn"])) {
-                    if ($pieces[$pid]['color'] == $active_color) {
+                $pos_string .= $this->type_code[$piece->type];
+                $pos_string .= $piece->color[0];
+
+                if (in_array($piece->type, ["pawn", "nemesispawn"])) {
+                    if ($piece->color == $active_color) {
                         $pos_string .= count($all_legal_moves[$pid]);
                     } else {
                         $pos_string .= count($this->moves->getAvailableEnPassants($pid, array("pieces" => $pieces, "squares" => $squares)));
                     }
                 } else if (
-                    $pieces[$pid]['type'] == "king"
-                    && $armies[$pieces[$pid]['color']]['player_army'] == "classic"
+                    $piece->type == "king"
+                    && $this->playerManager->getPlayerByColor($piece->color)->army == "classic"
                 ) {
-                    if ($pieces[$pid]['color'] == $active_color) {
+                    if ($piece->color == $active_color) {
                         $pos_string .= count($all_legal_moves[$pid]);
                     } else {
                         foreach ([-2, -1, 0, 1, 2] as $dx) {
-                            $squares[$pieces[$pid]['x'] + $dx][$pieces[$pid]['y']]['checks'] = [];
+                            $squares[$piece->x + $dx][$piece->y]['checks'] = [];
                         }
                         $pos_string .= count($this->moves->getAvailableCastleMoves($pid, array("pieces" => $pieces, "squares" => $squares)));
                     }
@@ -707,118 +394,36 @@ class ChessSequel extends Table
         return $pos_string;
     }
 
-    // Replaces content of legal_moves and capture_squares db tables with data provided. Returns number of legal moves
-    function insertLegalMoves($all_legal_moves)
+    function getDuelData()
     {
-        self::DbQuery("DELETE FROM capture_squares");
-        self::DbQuery("DELETE FROM legal_moves");
-
-        $legal_moves = array();
-        $capture_squares = array();
-
-        $move_counter = 0;
-        foreach ($all_legal_moves as $piece_id => $moves_for_piece) {
-            foreach ($moves_for_piece as $move) {
-                $legal_moves[] = "($move_counter, $piece_id, {$move['x']}, {$move['y']})";
-
-                foreach ($move['cap_squares'] as $cap_square) {
-                    $capture_squares[] = "($move_counter, {$cap_square['x']}, {$cap_square['y']})";
-                }
-
-                $move_counter++;
-            }
-        }
-
-        if ($move_counter > 0) {
-            self::DbQuery("INSERT INTO legal_moves (move_id, piece_id, x, y) VALUES " . implode(',', $legal_moves));
-
-            if (count($capture_squares) > 0) {
-                self::DbQuery("INSERT INTO capture_squares (move_id, x, y) VALUES " . implode(',', $capture_squares));
-            }
-        }
-
-        self::notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
-
-        return $move_counter;
-    }
-
-    function getDuelData($pieces = null)
-    {
-        if ($pieces == null) {
-            $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-        }
-
-        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING, true);
-        $def_id = self::getUniqueValueFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id LIMIT 1");
+        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING])[0];
+        $def_id = $this->captureManager->getCurrentDefenderId();
+        $def_piece = $this->pieceManager->getPiece($def_id);
 
         return array(
-            "capID" => $cap_id,
+            "capID" => $cap_piece->id,
             "defID" => $def_id,
-            "costToDuel" => $this->getCostToDuel($cap_id, $def_id, $pieces),
-            "capStones" => self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '{$pieces[$cap_id]['color']}'")
+            "costToDuel" => $this->getCostToDuel($cap_piece, $def_piece),
+            "capStones" => $this->playerManager->getPlayerByColor($cap_piece->color)->stones
         );
     }
 
-    function doubleCapture($cap_id, $def_id, &$pieces)
+    function getCostToDuel($cap_piece, $def_piece)
     {
-        $player_ids = self::getCollectionFromDB("SELECT player_color, player_id FROM player", true);
-
-        self::DbQuery("DELETE FROM capture_queue");
-
-        self::incStat(1, "duel_captures", $player_ids[$pieces[$def_id]['color']]);
-        self::incStat(1, "enemies_captured", $player_ids["000000"]);
-        self::incStat(1, "enemies_captured", $player_ids["ffffff"]);
-
-        if ($this->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR) {
-            foreach ([$cap_id, $def_id] as $piece_id) {
-                if (in_array($pieces[$piece_id]['type'], ["pawn", "nemesispawn"])) {
-                    // Player with the other color gets a stone
-                    $other_color = ($pieces[$piece_id]['color'] == "000000") ? "ffffff" : "000000";
-                    $this->gainOneStone($other_color, $piece_id);
-                }
-            }
-        }
-
-        self::DbQuery("UPDATE pieces SET state = " . CAPTURED . " WHERE piece_id in ($cap_id, $def_id)");
-
-        $pieces[$def_id]['state'] = CAPTURED;
-
-        self::notifyAllPlayers(
-            "updateAllPieceData",
-            clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
-            array(
-                "piece_id" => $def_id,
-                "values_updated" => array("state" => CAPTURED),
-                "logpiece_cap" => $pieces[$cap_id]['color'] . "_" . $pieces[$cap_id]['type'],
-                "logpiece_def" => $pieces[$def_id]['color'] . "_" . $pieces[$def_id]['type']
-            )
-        );
-
-        $pieces[$cap_id]['state'] = CAPTURED;
-
-        self::notifyAllPlayers(
-            "updateAllPieceData",
-            clienttranslate('${logpiece_def} captures ${logpiece_cap}'),
-            array(
-                "piece_id" => $cap_id,
-                "values_updated" => array("state" => CAPTURED),
-                "logpiece_def" => $pieces[$def_id]['color'] . "_" . $pieces[$def_id]['type'],
-                "logpiece_cap" => $pieces[$cap_id]['color'] . "_" . $pieces[$cap_id]['type']
-            )
-        );
+        $cap_piece_rank = $this->piece_ranks[$cap_piece->type];
+        $def_piece_rank = $this->piece_ranks[$def_piece->type];
+        return ($cap_piece_rank > $def_piece_rank) ? 1 : 0;
     }
 
-    function endGame($condition, $winner_id = null)
+    function endGame($condition, $winner = null)
     {
         self::setStat($condition, "end_condition");
 
-        if ($winner_id !== null) {
-            self::DbQuery("UPDATE player SET player_score = 1 WHERE player_id = $winner_id");
-
-            $player_name = self::getUniqueValueFromDB("SELECT player_name FROM player WHERE player_id = $winner_id");
+        if ($winner !== null) {
+            $winner->setAsWinner();
 
             $msg = clienttranslate('${player_name} wins by ${condition}');
-            $args = array("player_name" => $player_name, "condition" => $this->end_conditions[$condition]);
+            $args = array("player_name" => $winner->name, "condition" => $this->end_conditions[$condition]);
         } else {
             $msg = clienttranslate('The game is a draw by ${condition}');
             $args = array("condition" => $this->end_conditions[$condition]);
@@ -846,42 +451,33 @@ class ChessSequel extends Table
         (note: each method below must match an input method in chesssequel.action.php)
     */
 
-    function confirmArmy($army_name, $player_id = null)
+    function confirmArmy($army_name, $current_player_color = null)
     {
         // Check this action is allowed according to the game state
         $this->checkAction('confirmArmy');
 
         // Check it's a valid army name according to the array in material.inc.php
-        if (in_array($army_name, $this->all_army_names)) {
-            // Get the id of the CURRENT player (there are multiple active players in armySelect)
-            // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
-            if ($player_id === null) {
-                $player_id = $this->getCurrentPlayerId();
-            }
-
-            // Updates the current player's army in the database
-            self::DbQuery("UPDATE player SET player_army = '$army_name' WHERE player_id = $player_id");
-            self::setStat(array_search($army_name, $this->all_army_names), "army", $player_id);
-
-            $opponent_active = self::getUniqueValueFromDB("SELECT player_is_multiactive FROM player WHERE player_id != $player_id");
-
-            // If opponent is active, deactivate this player before the notification (status bar inconsistency otherwise)
-            if ($opponent_active) {
-                $this->gamestate->setPlayerNonMultiactive($player_id, 'processArmySelection');
-            }
-
-            // Send notification
-            self::notifyAllPlayers("confirmArmy", clienttranslate('${player_name} selects an army'), array(
-                'player_id' => $player_id,
-                'player_name' => $this->getPlayerNameById($player_id)
-            ));
-
-            // If opponent not active, deactivate player after notification (also transitions to processArmySelection state)
-            if (!$opponent_active) {
-                $this->gamestate->setPlayerNonMultiactive($player_id, 'processArmySelection');
-            }
-        } else
+        if (!in_array($army_name, $this->all_army_names)) {
             throw new BgaSystemException("Invalid army selection");
+        }
+
+        // Get the color of the CURRENT player (there are multiple active players in armySelect)
+        // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
+        if ($current_player_color === null) {
+            $current_player_color = $this->getCurrentPlayerColor();
+        }
+
+        $current_player = $this->playerManager->getPlayerByColor($current_player_color);
+        $opponent = $this->playerManager->getOtherPlayerByColor($current_player_color);
+
+        // If opponent is active, deactivate this player before setting army (status bar inconsistency otherwise)
+        if ($opponent->is_multiactive) {
+            $this->gamestate->setPlayerNonMultiactive($current_player->id, 'processArmySelection');
+            $current_player->setArmy($army_name);
+        } else {
+            $current_player->setArmy($army_name);
+            $this->gamestate->setPlayerNonMultiactive($current_player->id, 'processArmySelection');
+        }
     }
 
     function movePiece($target_x, $target_y, $moving_piece_id)
@@ -889,57 +485,40 @@ class ChessSequel extends Table
         // Check this action is allowed according to the game state
         $this->checkAction('movePiece');
 
-        // Check for valid moving_piece_id
-        if (!in_array($moving_piece_id, self::getObjectListFromDB("SELECT piece_id FROM pieces", true))) {
-            return;
+        $valid_coords = [1, 2, 3, 4, 5, 6, 7, 8];
+
+        // Check inputs are all valid
+        if (
+            !$this->pieceManager->pieceIdExists($moving_piece_id)
+            || !in_array($target_x, $valid_coords)
+            || !in_array($target_y, $valid_coords)
+        ) {
+            throw new BgaSystemException("Invalid inputs");
         }
 
         // Get some information
         $player_id = $this->getActivePlayerId();
         $player_color = $this->getPlayerColorById($player_id);
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
+
+        $moving_piece = $this->pieceManager->getPiece($moving_piece_id);
 
         // Check that the player is trying to move their own piece
-        if ($pieces[$moving_piece_id]['color'] != $player_color) {
-            return;
+        if ($moving_piece->color != $player_color) {
+            throw new BgaSystemException("Invalid target");
         }
 
         // Get the move_id for the attempted move
-        $move_id = self::getUniqueValueFromDB(
-            "SELECT move_id FROM legal_moves
-            WHERE piece_id = $moving_piece_id
-            AND x = $target_x
-            AND y = $target_y"
-        );
+        $move_id = $this->pieceManager->getLegalMoveId($target_x, $target_y, $moving_piece_id);
 
         // If the attempted move is not found in legal_moves table, throw an error
         if ($move_id == null) {
             throw new BgaSystemException("Illegal move");
-            return;
         }
 
-        // Array of values to set for the moving piece
-        $pieces_values_to_set = array();
+        $squares = $this->pieceManager->getSquaresData();
 
-        // Special conditions for pawns
-        if (in_array($pieces[$moving_piece_id]['type'], ["pawn", "nemesispawn"])) {
-            // 50 move rule
-            $this->setGameStateValue('fifty_counter', 51);
+        $cap_squares = $this->pieceManager->getCaptureSquaresForMove($move_id);
 
-            // If the moving piece is a pawn reaching the enemy backline, set its state to promoting
-            $backline = ($pieces[$moving_piece_id]['color'] == "000000") ? 1 : 8;
-            if ($target_y == $backline) {
-                $pieces_values_to_set['state'] = PROMOTING;
-            }
-
-            // If the moving piece is a pawn making its initial double move, set it as en passant vulnerable
-            else if (abs($pieces[$moving_piece_id]['y'] - $target_y) == 2) {
-                $pieces_values_to_set['state'] = EN_PASSANT_VULNERABLE;
-            }
-        }
-
-        $squares = $this->getSquaresData($pieces);
-        $cap_squares = self::getObjectListFromDB("SELECT x, y FROM capture_squares WHERE move_id = $move_id");
         $capture_queue = array();
 
         // Add all occupied capture squares to the capture queue
@@ -947,28 +526,49 @@ class ChessSequel extends Table
             $piece_on_square = $squares[$square['x']][$square['y']]['def_piece'];
 
             if ($piece_on_square !== null) {
-                $capture_queue[] = "($piece_on_square)";
+                $capture_queue[] = $piece_on_square;
 
-                if ($pieces[$moving_piece_id]['type'] == "tiger") {
-                    $target_x = $pieces[$moving_piece_id]['x'];
-                    $target_y = $pieces[$moving_piece_id]['y'];
+                if ($moving_piece->type == "tiger") {
+                    $target_x = $moving_piece->x;
+                    $target_y = $moving_piece->y;
                 }
             }
         }
 
-        if (count($capture_queue) != 0) {
-            self::DbQuery("INSERT INTO capture_queue (piece_id) VALUES " . implode(',', $capture_queue));
+        // Array of values to set for the moving piece
+        $values_updated = array(
+            "state" => NEUTRAL,
+            "location" => [$target_x, $target_y],
+            "last_x" => $moving_piece->x,
+            "last_y" => $moving_piece->y,
+            "moves" => $moving_piece->moves_made + 1
+        );
 
-            // Only true if the piece is promoting
-            if (isset($pieces_values_to_set['state'])) {
-                $pieces_values_to_set['state'] = CAPTURING_AND_PROMOTING;
-            } else {
-                $pieces_values_to_set['state'] = CAPTURING;
-            }
+        if (count($capture_queue) != 0) {
+            $this->captureManager->insertCaptureQueue($moving_piece, $capture_queue);
+            $values_updated['state'] = CAPTURING;
         }
 
-        $sql = "SELECT moves_made FROM pieces WHERE piece_id = $moving_piece_id";
-        $pieces_values_to_set['moves_made'] = self::getUniqueValueFromDB($sql) + 1;
+        // Special conditions for pawns
+        if (in_array($moving_piece->type, ["pawn", "nemesispawn"])) {
+            // 50 move rule
+            $this->setGameStateValue('fifty_counter', 51);
+
+            // If the moving piece is a pawn reaching the enemy backline, set its state to promoting
+            $backline = ($moving_piece->color == "000000") ? 1 : 8;
+            if ($target_y == $backline) {
+                if ($values_updated['state'] == CAPTURING) {
+                    $values_updated['state'] = CAPTURING_AND_PROMOTING;
+                } else {
+                    $values_updated['state'] = PROMOTING;
+                }
+            }
+
+            // If the moving piece is a pawn making its initial double move, set it as en passant vulnerable
+            else if (abs($moving_piece->y - $target_y) == 2) {
+                $values_updated['state'] = EN_PASSANT_VULNERABLE;
+            }
+        }
 
         $state_name = $this->gamestate->state()['name'];
 
@@ -979,30 +579,18 @@ class ChessSequel extends Table
             $this->setGameStateValue("last_king_move_piece_id", $moving_piece_id);
         }
 
-        if ($this->getGameStateValue("last_player_move_piece_id") != $this->getGameStateValue("last_king_move_piece_id")) {
-            $pieces_values_to_set['last_x'] = $pieces[$moving_piece_id]['x'];
-            $pieces_values_to_set['last_y'] = $pieces[$moving_piece_id]['y'];
+        // This happens when a two kings player moves the same warrior king in playerMove and playerKingMove
+        // and means that the last move highlight will display the warrior king's combined movement over the two actions
+        if ($this->getGameStateValue("last_player_move_piece_id") == $this->getGameStateValue("last_king_move_piece_id")) {
+            $values_updated['last_x'] = $moving_piece->last_x;
+            $values_updated['last_y'] = $moving_piece->last_y;
         }
-
-        $pieces_values_to_set_notif = $pieces_values_to_set;
-        $pieces_values_to_set_notif['location'] = array($target_x, $target_y);
-
-        $pieces_values_to_set['x'] = $target_x;
-        $pieces_values_to_set['y'] = $target_y;
-
-        // Update pieces table for the moving piece
-        $sql = "UPDATE pieces SET";
-        foreach ($pieces_values_to_set as $column => $value) {
-            $sql .= " $column = $value,";
-        }
-        $sql = rtrim($sql, ',');
-        $sql .= " WHERE piece_id = $moving_piece_id";
-        self::DbQuery($sql);
 
         $msg = clienttranslate('${player_name}: ${logpiece}${square}');
         if (
-            $target_x == $pieces[$moving_piece_id]['x']
-            && $target_y == $pieces[$moving_piece_id]['y']
+            $moving_piece->type == "warriorking"
+            && $target_x == $moving_piece->x
+            && $target_y == $moving_piece->y
         ) {
             $msg = clienttranslate('${player_name}: ${logpiece} whirlwinds');
         }
@@ -1012,11 +600,11 @@ class ChessSequel extends Table
             "updateAllPieceData",
             $msg,
             array(
-                "piece_id" => $moving_piece_id,
-                "values_updated" => $pieces_values_to_set_notif,
+                "piece_id" => $moving_piece->id,
+                "values_updated" => $values_updated,
                 "state_name" => $state_name,
                 "player_name" => self::getActivePlayerName(),
-                "logpiece" => $pieces[$moving_piece_id]['color'] . "_" . $pieces[$moving_piece_id]['type'],
+                "logpiece" => $moving_piece->color . "_" . $moving_piece->type,
                 "square" => $this->files[$target_x] . $target_y
             )
         );
@@ -1024,18 +612,18 @@ class ChessSequel extends Table
         self::notifyAllPlayers("clearSelectedPiece", "", array());
 
         // If the moving piece is a castling king, resolve the castle
-        if ($pieces[$moving_piece_id]['type'] == "king" && abs($pieces[$moving_piece_id]['x'] - $target_x) == 2) {
-            $dir = ($target_x - $pieces[$moving_piece_id]['x']) / abs($pieces[$moving_piece_id]['x'] - $target_x);
+        if ($moving_piece->type == "king" && abs($moving_piece->x - $target_x) == 2) {
+            $dir = ($target_x - $moving_piece->x) / 2;
 
             for ($i = 1; $i < 5; $i++) {
                 $x = $target_x + ($dir * $i);
 
                 if ($squares[$x][$target_y]['def_piece'] !== null) {
-                    $castling_rook_id = $squares[$x][$target_y]['def_piece'];
+                    $castling_rook = $this->pieceManager->getPiece($squares[$x][$target_y]['def_piece']);
 
                     $rook_dest_x = $target_x - $dir;
 
-                    self::DbQuery("UPDATE pieces SET x = $rook_dest_x WHERE piece_id = $castling_rook_id");
+                    $castling_rook->setNewLocation($rook_dest_x, $target_y);
 
                     $rook_values_updated = array(
                         "location" => array($rook_dest_x, $target_y),
@@ -1047,11 +635,11 @@ class ChessSequel extends Table
                         "updateAllPieceData",
                         clienttranslate('${player_name} castles: ${logpiece}${square}'),
                         array(
-                            "piece_id" => $castling_rook_id,
+                            "piece_id" => $castling_rook->id,
                             "values_updated" => $rook_values_updated,
                             "player_name" => self::getActivePlayerName(),
-                            "logpiece" => $pieces[$castling_rook_id]['color'] . "_" . $pieces[$castling_rook_id]['type'],
-                            "square" => $this->files[$rook_dest_x] . $pieces[$castling_rook_id]['y']
+                            "logpiece" => $castling_rook->color . "_" . $castling_rook->type,
+                            "square" => $this->files[$rook_dest_x] . $castling_rook->y
                         )
                     );
 
@@ -1059,6 +647,8 @@ class ChessSequel extends Table
                 }
             }
         }
+
+        $moving_piece->movePiece($values_updated);
 
         // Change player state
         $this->gamestate->nextState('processMove');
@@ -1069,32 +659,29 @@ class ChessSequel extends Table
         // Check this action is allowed according to the game state
         $this->checkAction('promotePawn');
 
-        $player_id = $this->getActivePlayerId();
-        $player_color = $this->getPlayerColorById($player_id);
-        $player_army = $this->getPlayerArmy($player_color);
+        $active_player = $this->playerManager->getActivePlayer();
 
         // Check that the chosen promotion is valid for this player
-        if (!in_array($chosen_promotion, $this->all_armies_promote_options[$player_army])) {
-            return;
+        if (!in_array($chosen_promotion, $this->all_armies_promote_options[$active_player->army])) {
+            throw new BgaSystemException("Invalid promotion");
         }
 
-        $promoting_pawn_data = self::getObjectFromDB("SELECT piece_id, state FROM pieces WHERE state IN (" . PROMOTING . ", " . CAPTURING_AND_PROMOTING . ")");
-        $promoting_pawn_id = $promoting_pawn_data['piece_id'];
-        $new_state = ($promoting_pawn_data['state'] == CAPTURING_AND_PROMOTING) ? CAPTURING : NEUTRAL;
+        $promoting_pawn = $this->pieceManager->getPiecesInStates([PROMOTING, CAPTURING_AND_PROMOTING])[0];
+        $new_state = ($promoting_pawn->state == CAPTURING_AND_PROMOTING) ? CAPTURING : NEUTRAL;
 
-        self::DbQuery("UPDATE pieces SET type = '$chosen_promotion', state = $new_state WHERE piece_id = $promoting_pawn_id");
+        $promoting_pawn->promote($chosen_promotion, $new_state);
 
-        $promoting_pawn_type = ($player_army == "nemesis") ? "nemesispawn" : "pawn";
+        $promoting_pawn_type = ($active_player->army == "nemesis") ? "nemesispawn" : "pawn";
 
         self::notifyAllPlayers(
             "updateAllPieceData",
             clienttranslate('${player_name} promotes ${logpiece_before} to ${logpiece_after}'),
             array(
-                "piece_id" => $promoting_pawn_id,
+                "piece_id" => $promoting_pawn->id,
                 "values_updated" => array("type" => $chosen_promotion),
-                "player_name" => self::getActivePlayerName(),
-                "logpiece_before" => $player_color . "_" . $promoting_pawn_type,
-                "logpiece_after" => $player_color . "_" . $chosen_promotion
+                "player_name" => $active_player->name,
+                "logpiece_before" => $active_player->color . "_" . $promoting_pawn_type,
+                "logpiece_after" => $active_player->color . "_" . $chosen_promotion
             )
         );
 
@@ -1105,17 +692,21 @@ class ChessSequel extends Table
     {
         $this->checkAction('acceptDuel');
 
-        $player_id = $this->getActivePlayerId();
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-        $duel_data = $this->getDuelData($pieces);
+        $duel_data = $this->getDuelData();
 
-        self::incStat(1, "duels_initiated", $this->getActivePlayerId());
+        $cap_piece = $this->pieceManager->getPiece($duel_data['capID']);
+        $def_piece = $this->pieceManager->getPiece($duel_data['defID']);
+
+        $active_player = $this->playerManager->getActivePlayer();
+        $inactive_player = $this->playerManager->getInactivePlayer();
+
+        $active_player->incStat(1, "duels_initiated");
 
         $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap}');
 
         if ($duel_data['costToDuel'] == 1) {
             // Pay the cost to duel
-            $this->loseOneStone($this->getCurrentPlayerColor());
+            $active_player->loseOneStone();
             $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap} (Pays 1 stone)');
         }
 
@@ -1123,19 +714,17 @@ class ChessSequel extends Table
             "message",
             $msg,
             array(
-                "player_name" => self::getActivePlayerName(),
-                "logpiece_def" => $pieces[$duel_data['defID']]['color'] . "_" . $pieces[$duel_data['defID']]['type'],
-                "logpiece_cap" => $pieces[$duel_data['capID']]['color'] . "_" . $pieces[$duel_data['capID']]['type']
+                "player_name" => $active_player->name,
+                "logpiece_def" => $def_piece->color . "_" . $def_piece->type,
+                "logpiece_cap" => $cap_piece->color . "_" . $cap_piece->type
             )
         );
 
-        $enemy_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_id != $player_id");
+        $enemy_stones = $inactive_player->stones;
 
         if ($enemy_stones == 0) {
-            self::DbQuery("UPDATE player SET player_bid = 1 WHERE player_id = $player_id");
-            self::DbQuery("UPDATE player SET player_bid = 0 WHERE player_id != $player_id");
-
-            self::incStat(1, "stones_bid", $player_id);
+            $active_player->setBid(1);
+            $inactive_player->setBid(0);
 
             $this->gamestate->nextState('processDuelOutcome');
             return;
@@ -1156,69 +745,60 @@ class ChessSequel extends Table
         // Check this action is allowed according to the game state
         $this->checkAction('pickBid');
 
-        // Get the id of the CURRENT player (there are multiple active players in armySelect)
+        // Get the CURRENT player (there are multiple active players in duelBidding)
         // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
-        $player_id = $this->getCurrentPlayerId();
+        $current_player = $this->playerManager->getPlayerByColor($this->getCurrentPlayerColor());
 
-        $sql = "SELECT player_stones FROM player WHERE player_id = $player_id";
-        $player_stones = self::getUniqueValueFromDB($sql);
-
-        if (in_array($bid_amount, [0, 1, 2]) && $bid_amount <= $player_stones) {
-            // Update the current player's bid in the database
-            self::DbQuery("UPDATE player SET player_bid = $bid_amount WHERE player_id = $player_id");
-
-            self::incStat($bid_amount, "stones_bid", $player_id);
-
-            self::notifyPlayer(
-                $player_id,
-                "bidStones",
-                "",
-                array(
-                    "player_id" => $player_id,
-                    "bid_amount" => $bid_amount
-                )
-            );
-
-            // Deactivate player. If none left, transition to 'processDuelOutcome' state
-            $this->gamestate->setPlayerNonMultiactive($player_id, 'processDuelOutcome');
-        } else {
+        if (!in_array($bid_amount, [0, 1, 2]) || $bid_amount > $current_player->stones) {
             throw new BgaSystemException("Invalid bid amount");
         }
+
+        // Update the current player's bid in the database
+        $current_player->setBid($bid_amount);
+
+        // Display the stones being bid to the current player only
+        self::notifyPlayer(
+            $current_player->id,
+            "bidStones",
+            "",
+            array(
+                "player_id" => $current_player->id,
+                "bid_amount" => $bid_amount
+            )
+        );
+
+        // Deactivate player. If none left, transition to 'processDuelOutcome' state
+        $this->gamestate->setPlayerNonMultiactive($current_player->id, 'processDuelOutcome');
     }
 
     function gainStone()
     {
         $this->checkAction('gainStone');
 
-        $choosing_color = $this->getCurrentPlayerColor();
-        $current_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$choosing_color'");
+        $active_player = $this->playerManager->getActivePlayer();
 
-        if ($current_stones == 6) {
+        if ($active_player->stones == 6) {
             throw new BgaSystemException("Maximum stones reached");
-        } else {
-            $this->gainOneStone($choosing_color, "board");
-
-            self::notifyAllPlayers(
-                "message",
-                clienttranslate('${player_name} gains a stone'),
-                array(
-                    "player_name" => self::getActivePlayerName()
-                )
-            );
-
-            $this->gamestate->nextState('processBluffChoice');
         }
+
+        $active_player->gainOneStone("board");
+
+        self::notifyAllPlayers(
+            "message",
+            clienttranslate('${player_name} gains a stone'),
+            array(
+                "player_name" => $active_player->name
+            )
+        );
+
+        $this->gamestate->nextState('processBluffChoice');
     }
 
     function destroyStone()
     {
         $this->checkAction('destroyStone');
 
-        $player_id = $this->getActivePlayerId();
-        $choosing_color = $this->getPlayerColorById($player_id);
-        $other_color = ($choosing_color == "000000") ? "ffffff" : "000000";
-
-        $this->loseOneStone($other_color);
+        $this->playerManager->getInactivePlayer()->loseOneStone();
 
         self::notifyAllPlayers(
             "message",
@@ -1278,11 +858,7 @@ class ChessSequel extends Table
     {
         $this->checkAction('concedeGame');
 
-        $active_player_id = $this->getActivePlayerId();
-
-        $other_player_id = self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_id != $active_player_id");
-
-        $this->endGame(CONCESSION, $other_player_id);
+        $this->endGame(CONCESSION, $this->playerManager->getInactivePlayer());
     }
 
     /*
@@ -1366,55 +942,22 @@ class ChessSequel extends Table
     // Enter the starting board state into the database  
     function stProcessArmySelection()
     {
-        $armies = array();
+        $this->pieceManager->insertPieces();
 
-        // Adding a row to the pieces database table for each piece in each player's starting layout
-        $sql = "INSERT INTO pieces (color, type, x, y) VALUES ";
-        $sql_values = array();
-
-        $x_offsets = ($this->getGameStateValue('ruleset_version') == RULESET_THREE_POINT_ZERO) ? $this->rollXOffsets() : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-        // For each player
-        foreach ($this->getAllPlayerData() as $player_id => $player_data) {
-            $player_color = $player_data['color'];
-            $armies[$player_color] = array("player_id" => $player_id, "player_army" => $player_data['army']);
-
-            // Correct y positions for the player
-            $y_values = ($player_color == "000000") ? [8, 7] : [1, 2];
-
-            // For each piece in their army's layout
-            foreach ($this->all_armies_layouts[$player_data['army']] as $piece_index => $piece_type) {
-                $x = ($piece_index % 8) + 1 + $x_offsets[$piece_index];
-                $y = $y_values[floor($piece_index / 8)];
-
-                // Add the piece's data to be sent to the database
-                $sql_values[] = "('$player_color', '$piece_type', $x, $y)";
-            }
-        }
-
-        // Send the information to the pieces database table
-        self::DbQuery($sql . implode(',', $sql_values));
-
-        self::DbQuery("UPDATE player SET player_remaining_reflexion_time = 1800");
-
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-        $squares = $this->getSquaresData($pieces);
+        $this->playerManager->setRemainingReflexionTime(1800);
 
         // Notifying players of the changes to gamedatas
         self::notifyAllPlayers(
             "stProcessArmySelection",
             clienttranslate('Game begins: ${army_ffffff} vs ${army_000000}'),
             array(
-                "pieces" => $pieces,
-                "player_armies" => $armies,
-                "army_ffffff" => $this->button_labels[$armies['ffffff']['player_army']],
-                "army_000000" => $this->button_labels[$armies['000000']['player_army']]
+                "pieces" => $this->pieceManager->getPieces(),
+                "army_ffffff" => $this->button_labels[$this->playerManager->getPlayerByColor("ffffff")->army],
+                "army_000000" => $this->button_labels[$this->playerManager->getPlayerByColor("000000")->army]
             )
         );
 
-        $this->moves = new CHSMoves($this);
-
-        $this->processNextPlayerMoves($pieces, $squares);
+        $this->processNextPlayerMoves();
     }
 
     function stProcessMove()
@@ -1429,19 +972,16 @@ class ChessSequel extends Table
 
     function stProcessDuelRejected()
     {
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-        $capture_queue = self::getObjectListFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id", true);
-        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING);
-        $defender_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color != '{$pieces[$cap_id]['color']}'");
+        $def_piece = $this->pieceManager->getPiece($this->captureManager->getCurrentDefenderId());
 
         // Single capture the first piece in the capture queue
-        $this->singleCapture($cap_id, $capture_queue[0], $pieces);
-        unset($capture_queue[0]);
+        $this->captureManager->singleCapture($def_piece);
 
-        $remaining_queue_length = $this->processFrontOfCaptureQueue($cap_id, $pieces, $capture_queue, $defender_stones);
+        // Then process the front of the remaining queue
+        $duelling = $this->captureManager->processFrontOfCaptureQueue();
 
-        // If another duel is available
-        if ($remaining_queue_length > 0) {
+        // If another duel is available, go to duelOffer state
+        if ($duelling) {
             $this->gamestate->nextState('duelOffer');
             return;
         }
@@ -1452,69 +992,61 @@ class ChessSequel extends Table
 
     function stProcessDuelOutcome()
     {
-        $pieces = self::getCollectionFromDB("SELECT * FROM pieces");
-        $capture_queue = self::getObjectListFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id", true);
-        $player_bids = self::getCollectionFromDB("SELECT player_color, player_bid FROM player", true);
+        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING])[0];
+        $def_piece = $this->pieceManager->getPiece($this->captureManager->getCurrentDefenderId());
 
-        $cap_id = self::getUniqueValueFromDB("SELECT piece_id FROM pieces WHERE state = " . CAPTURING, true);
-        $cap_color = $pieces[$cap_id]['color'];
+        $cap_player = $this->playerManager->getPlayerByColor($cap_piece->color);
+        $def_player = $this->playerManager->getPlayerByColor($def_piece->color);
 
-        $def_id = $capture_queue[0];
-        $def_color = $pieces[$def_id]['color'];
-        $defender_stones = self::getUniqueValueFromDB("SELECT player_stones FROM player WHERE player_color = '$def_color'");
+        $cap_player_bid = $cap_player->bid;
+        $def_player_bid = $def_player->bid;
 
-        self::DbQuery("UPDATE player SET player_bid = null");
-
-        $this->bidStones($def_color, $player_bids[$def_color]);
-
-        $this->bidStones($cap_color, $player_bids[$cap_color]);
+        $cap_player->bidStones();
+        $def_player->bidStones();
 
         $msg = clienttranslate('Duel outcome: normal capture');
-        if ($player_bids[$cap_color] < $player_bids[$def_color]) {
+        if ($cap_player_bid < $def_player_bid) {
             $msg = clienttranslate('Duel outcome: both pieces capture');
-        } else if ($player_bids[$cap_color] == 0 && $player_bids[$def_color] == 0) {
+        } else if ($cap_player_bid == 0 && $def_player_bid == 0) {
             $msg = clienttranslate('Duel outcome: called bluff');
         }
 
-        self::notifyAllPlayers('showDuelOutcome', "", array('outcome_message' => $msg));
-
         self::notifyAllPlayers(
-            "message",
+            "showDuelOutcome",
             clienttranslate('Bids: ${logpiece_def} ${bid_def} - ${bid_cap} ${logpiece_cap}'),
             array(
-                "logpiece_def" => $def_color . "_" . $pieces[$def_id]['type'],
-                "bid_def" => $player_bids[$def_color],
-                "bid_cap" => $player_bids[$cap_color],
-                "logpiece_cap" => $cap_color . "_" . $pieces[$cap_id]['type']
+                "outcome_message" => $msg,
+                "logpiece_def" => $def_player->color . "_" . $def_piece->type,
+                "bid_def" => $def_player_bid,
+                "bid_cap" => $cap_player_bid,
+                "logpiece_cap" => $cap_player->color . "_" . $cap_piece->type
             )
         );
 
         // Determine outcome of duel and resolve capture
-        if ($player_bids[$cap_color] < $player_bids[$def_color]) {
-            $this->doubleCapture($cap_id, $def_id, $pieces);
+        if ($cap_player_bid < $def_player_bid) {
+            $this->captureManager->doubleCapture($def_piece);
 
             $this->activeNextPlayer();
-
             $this->processAction(false, false);
             return;
         }
 
-        $this->singleCapture($cap_id, $def_id, $pieces);
-        unset($capture_queue[0]);
+        $this->captureManager->singleCapture($def_piece);
 
         // If both bid 0 stones, the attacker can choose to gain 1 stone or destroy 1 of the defender's stones
-        if ($player_bids[$cap_color] == 0 && $player_bids[$def_color] == 0) {
-            self::incStat(1, "bluffs_called", self::getUniqueValueFromDB("SELECT player_id FROM player WHERE player_color = '$cap_color'"));
+        if ($cap_player_bid == 0 && $def_player_bid == 0) {
+            $cap_player->incStat(1, "bluffs_called");
 
             $this->activeNextPlayer();
             $this->gamestate->nextState('calledBluff');
             return;
         }
 
-        $remaining_queue_length = $this->processFrontOfCaptureQueue($cap_id, $pieces, $capture_queue, $defender_stones);
+        $duelling = $this->captureManager->processFrontOfCaptureQueue();
 
-        // If another duel is available
-        if ($remaining_queue_length > 0) {
+        // If another duel is available, go to duelOffer state
+        if ($duelling) {
             $this->gamestate->nextState('duelOffer');
             return;
         }
@@ -1579,7 +1111,7 @@ class ChessSequel extends Table
     {
         switch ($state['name']) {
             case 'playerMove':
-                $move = self::getObjectFromDB("SELECT piece_id, x, y FROM legal_moves LIMIT 1");
+                $move = $this->pieceManager->getLegalMoves()[0];
                 $this->movePiece($move['x'], $move['y'], $move['piece_id']);
                 return;
 
@@ -1588,7 +1120,7 @@ class ChessSequel extends Table
                 return;
 
             case 'pawnPromotion':
-                $army = self::getUniqueValueFromDB("SELECT player_army FROM player WHERE player_id = $active_player");
+                $army = $this->playerManager->getPlayerByColor($this->getPlayerColorById($active_player))->army;
                 $this->promotePawn($this->all_armies_promote_options[$army][0]);
                 return;
 
@@ -1605,7 +1137,7 @@ class ChessSequel extends Table
                 return;
 
             case 'armySelect':
-                $this->confirmArmy("classic", $active_player);
+                $this->confirmArmy("classic", $this->getPlayerColorById($active_player));
                 return;
 
             case 'duelBidding':

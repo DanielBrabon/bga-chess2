@@ -51,8 +51,27 @@ class CHSMoves
     private $moves = [];
 
     // Note that $piece_ids must be an array of valid piece ids belonging to $player_id
-    public function getAllMovesForPieces($piece_ids, $player_id, $game_data)
+    public function getAllMovesForPlayer($player)
     {
+        $piece_ids = $this->game->pieceManager->getActivePieceIdsByColor($player->color);
+
+        return $this->getAllMovesForPieces($piece_ids, $player->id);
+    }
+
+    public function getAllKingMovesForPlayer($player)
+    {
+        $king_ids = $this->game->pieceManager->getPlayerKingIds($player->id);
+
+        return $this->getAllMovesForPieces($king_ids, $player->id);
+    }
+
+    private function getAllMovesForPieces($piece_ids, $player_id)
+    {
+        $game_data = array(
+            "pieces" => $this->game->pieceManager->getDataForMoveGen(),
+            "squares" => $this->game->pieceManager->getSquaresData()
+        );
+
         $enemy_color = ($this->game->getPlayerColorById($player_id) == "000000") ? "ffffff" : "000000";
         $game_data = $this->getChecksAndThreats($enemy_color, $game_data);
         $friendly_kings = $this->getFriendlyKingData($player_id, $game_data);
@@ -157,7 +176,7 @@ class CHSMoves
     {
         $friendly_kings = array();
 
-        $friendly_king_ids = $this->game->getPlayerKingIds($player_id);
+        $friendly_king_ids = $this->game->pieceManager->getPlayerKingIds($player_id);
 
         foreach ($friendly_king_ids as $king_id) {
             $friendly_kings[$king_id] = array(
@@ -520,7 +539,7 @@ class CHSMoves
 
         // The king cannot castle if it isn't classic, or it already moved, or it is in check
         if (
-            $this->game->getPlayerArmy($game_data['pieces'][$king_id]['color']) != "classic"
+            $this->game->playerManager->getPlayerByColor($game_data['pieces'][$king_id]['color'])->army != "classic"
             || $game_data['pieces'][$king_id]['moves_made'] != 0
             || count($game_data['squares'][$x_i][$y_i]['checks']) != 0
         ) {
