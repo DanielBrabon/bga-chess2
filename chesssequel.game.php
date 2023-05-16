@@ -22,7 +22,7 @@ require_once(APP_GAMEMODULE_PATH . 'module/table/table.game.php');
 require_once('modules/CHSPlayerManager.class.php');
 require_once('modules/CHSPieceManager.class.php');
 require_once('modules/CHSCaptureManager.class.php');
-require_once('modules/CHSMoves.php');
+require_once('modules/CHSMoves.class.php');
 require_once('modules/constants.inc.php');
 
 class ChessSequel extends Table
