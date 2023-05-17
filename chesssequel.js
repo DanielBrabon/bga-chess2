@@ -101,7 +101,6 @@ define([
                 dojo.query('.square').connect('onclick', this, 'squareClicked');
                 dojo.query('#main').connect('onclick', this, 'mainClicked');
 
-                dojo.query('#btn_conc').connect('onclick', this, 'concedeGame');
                 dojo.query('#btn_draw').connect('onclick', this, 'offerDraw');
 
                 // Hide state-specific player boards
@@ -709,14 +708,6 @@ define([
 
                 if (this.checkAction('rejectDraw')) {
                     this.ajaxcallWrapper("rejectDraw");
-                }
-            },
-
-            concedeGame: function (evt) {
-                dojo.stopEvent(evt);
-
-                if (this.checkAction('concedeGame')) {
-                    this.ajaxcallWrapper("concedeGame");
                 }
             },
 

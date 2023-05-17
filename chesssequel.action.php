@@ -117,7 +117,7 @@ class action_chesssequel extends APP_GameAction
     $result = $this->game->promotePawn($chosen_promotion);
     self::ajaxResponse();
   }
-  
+
   public function offerDraw()
   {
     // We call a corresponding "offerDraw" method in game.php
@@ -139,14 +139,6 @@ class action_chesssequel extends APP_GameAction
     // We call a corresponding "rejectDraw" method in game.php
     self::setAjaxMode();
     $result = $this->game->rejectDraw();
-    self::ajaxResponse();
-  }
-
-  public function concedeGame()
-  {
-    // We call a corresponding "concedeGame" method in game.php
-    self::setAjaxMode();
-    $result = $this->game->concedeGame();
     self::ajaxResponse();
   }
 

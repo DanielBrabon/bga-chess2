@@ -93,11 +93,10 @@ $machinestates = array(
         "type" => "activeplayer",
         "description" => clienttranslate('${actplayer} must choose a move'),
         "descriptionmyturn" => clienttranslate('${you} must choose a move'),
-        "possibleactions" => array("movePiece", "offerDraw", "concedeGame"),
+        "possibleactions" => array("movePiece", "offerDraw"),
         "transitions" => array(
             "processMove" => ST_PROCESS_MOVE,
-            "offerDraw" => ST_OFFER_DRAW,
-            "gameEnd" => ST_GAME_END
+            "offerDraw" => ST_OFFER_DRAW
         ),
         "updateGameProgression" => true
     ),

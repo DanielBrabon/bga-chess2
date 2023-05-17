@@ -60,7 +60,6 @@
 <div id="player_board_buttons" class="player-board">
 
     <button id="btn_draw" class="bgabutton bgabutton_blue">Offer Draw</button>
-    <button id="btn_conc" class="bgabutton bgabutton_blue">Concede Game</button>
 
 </div>
 

@@ -854,13 +854,6 @@ class ChessSequel extends Table
         $this->gamestate->nextState('processDrawRejected');
     }
 
-    function concedeGame()
-    {
-        $this->checkAction('concedeGame');
-
-        $this->endGame(CONCESSION, $this->playerManager->getInactivePlayer());
-    }
-
     /*
     
     Example:
