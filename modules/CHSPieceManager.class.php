@@ -160,15 +160,17 @@ class CHSPieceManager extends APP_GameClass
         return $pieces;
     }
 
-    public function isPieceInState($state)
+    public function isPieceInStates($states)
     {
         if ($this->pieces === null) {
             $this->selectPieces();
         }
 
         foreach ($this->pieces as $piece) {
-            if ($piece->state == $state) {
-                return true;
+            foreach ($states as $state) {
+                if ($piece->state == $state) {
+                    return true;
+                }
             }
         }
 
@@ -301,7 +303,7 @@ class CHSPieceManager extends APP_GameClass
         }
 
         foreach ($this->pieces as $piece) {
-            if (in_array($piece->state, [PROMOTING, CAPTURING_AND_PROMOTING])) {
+            if (in_array($piece->state, [PROMOTING])) {
                 return true;
             }
         }

@@ -15,7 +15,7 @@ class CHSCaptureManager extends APP_GameClass
 
     private function selectCaptureQueue()
     {
-        $this->cap_piece = $this->game->pieceManager->getPiecesInStates([CAPTURING])[0] ?? null;
+        $this->cap_piece = $this->game->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0] ?? null;
 
         $this->capture_queue = self::getObjectListFromDB("SELECT piece_id FROM capture_queue ORDER BY cq_id", true);
     }
@@ -57,7 +57,7 @@ class CHSCaptureManager extends APP_GameClass
     // Return true if there are any pieces left in the queue
     public function processFrontOfCaptureQueue()
     {
-        if (!$this->game->pieceManager->isPieceInState(CAPTURING)) {
+        if (!$this->game->pieceManager->isPieceInStates([CAPTURING, CAPTURING_AND_PROMOTING])) {
             return false;
         }
 
@@ -137,14 +137,16 @@ class CHSCaptureManager extends APP_GameClass
         self::DbQuery("DELETE FROM capture_queue WHERE piece_id = $def_piece->id");
 
         if (count($this->capture_queue) == 0) {
-            $this->cap_piece->setState(NEUTRAL);
+            $new_state = ($this->cap_piece->state == CAPTURING_AND_PROMOTING) ? PROMOTING : NEUTRAL;
+
+            $this->cap_piece->setState($new_state);
 
             $this->game->notifyAllPlayers(
                 "updateAllPieceData",
                 "",
                 array(
                     "piece_id" => $this->cap_piece->id,
-                    "values_updated" => array("state" => NEUTRAL)
+                    "values_updated" => array("state" => $new_state)
                 )
             );
 

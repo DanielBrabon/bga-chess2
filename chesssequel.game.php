@@ -188,24 +188,16 @@ class ChessSequel extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
-    function processAction($invaded_or_promoting = null, $duelling = null, $giving_king_move = null)
+    function processAction($invaded = null, $duelling = null, $promoting = null, $giving_king_move = null)
     {
         $active_player = $this->playerManager->getActivePlayer();
 
-        if ($invaded_or_promoting === null) {
+        if ($invaded === null) {
             $invaded = $this->pieceManager->hasPlayerInvaded($active_player);
 
             // If the action invaded the midline, the player wins
             if ($invaded) {
                 $this->endGame(MIDLINE_INVASION, $active_player);
-                return;
-            }
-
-            $promoting = $this->pieceManager->isPromotionAvailable();
-
-            // If the action enabled a pawn promotion, go to pawnPromotion state
-            if ($promoting) {
-                $this->gamestate->nextState('pawnPromotion');
                 return;
             }
         }
@@ -217,6 +209,16 @@ class ChessSequel extends Table
             if ($duelling) {
                 $this->activeNextPlayer();
                 $this->gamestate->nextState('duelOffer');
+                return;
+            }
+        }
+
+        if ($promoting === null) {
+            $promoting = $this->pieceManager->isPromotionAvailable();
+
+            // If the action enabled a pawn promotion, go to pawnPromotion state
+            if ($promoting) {
+                $this->gamestate->nextState('pawnPromotion');
                 return;
             }
         }
@@ -396,7 +398,7 @@ class ChessSequel extends Table
 
     function getDuelData()
     {
-        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING])[0];
+        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0];
         $def_id = $this->captureManager->getCurrentDefenderId();
         $def_piece = $this->pieceManager->getPiece($def_id);
 
@@ -540,8 +542,7 @@ class ChessSequel extends Table
             "state" => NEUTRAL,
             "location" => [$target_x, $target_y],
             "last_x" => $moving_piece->x,
-            "last_y" => $moving_piece->y,
-            "moves" => $moving_piece->moves_made + 1
+            "last_y" => $moving_piece->y
         );
 
         if (count($capture_queue) != 0) {
@@ -666,10 +667,9 @@ class ChessSequel extends Table
             throw new BgaSystemException("Invalid promotion");
         }
 
-        $promoting_pawn = $this->pieceManager->getPiecesInStates([PROMOTING, CAPTURING_AND_PROMOTING])[0];
-        $new_state = ($promoting_pawn->state == CAPTURING_AND_PROMOTING) ? CAPTURING : NEUTRAL;
+        $promoting_pawn = $this->pieceManager->getPiecesInStates([PROMOTING])[0];
 
-        $promoting_pawn->promote($chosen_promotion, $new_state);
+        $promoting_pawn->promote($chosen_promotion);
 
         $promoting_pawn_type = ($active_player->army == "nemesis") ? "nemesispawn" : "pawn";
 
@@ -678,7 +678,7 @@ class ChessSequel extends Table
             clienttranslate('${player_name} promotes ${logpiece_before} to ${logpiece_after}'),
             array(
                 "piece_id" => $promoting_pawn->id,
-                "values_updated" => array("type" => $chosen_promotion),
+                "values_updated" => array("type" => $chosen_promotion, "state" => NEUTRAL),
                 "player_name" => $active_player->name,
                 "logpiece_before" => $active_player->color . "_" . $promoting_pawn_type,
                 "logpiece_after" => $active_player->color . "_" . $chosen_promotion
@@ -967,7 +967,7 @@ class ChessSequel extends Table
 
     function stProcessPromotion()
     {
-        $this->processAction(false);
+        $this->processAction(false, false, false);
     }
 
     function stProcessDuelRejected()
@@ -992,7 +992,7 @@ class ChessSequel extends Table
 
     function stProcessDuelOutcome()
     {
-        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING])[0];
+        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0];
         $def_piece = $this->pieceManager->getPiece($this->captureManager->getCurrentDefenderId());
 
         $cap_player = $this->playerManager->getPlayerByColor($cap_piece->color);
@@ -1062,7 +1062,7 @@ class ChessSequel extends Table
 
     function stProcessPass()
     {
-        $this->processAction(false, false, false);
+        $this->processAction(false, false, false, false);
     }
 
     function stOfferDraw()

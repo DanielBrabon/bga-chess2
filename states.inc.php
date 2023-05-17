@@ -134,7 +134,6 @@ $machinestates = array(
         "type" => "game",
         "action" => "stProcessPromotion",
         "transitions" => array(
-            "duelOffer" => ST_DUEL_OFFER,
             "playerKingMove" => ST_PLAYER_KING_MOVE,
             "gameEnd" => ST_GAME_END,
             "playerMove" => ST_PLAYER_MOVE
@@ -163,6 +162,7 @@ $machinestates = array(
         "transitions" => array(
             "playerMove" => ST_PLAYER_MOVE,
             "duelOffer" => ST_DUEL_OFFER,
+            "pawnPromotion" => ST_PAWN_PROMOTION,
             "playerKingMove" => ST_PLAYER_KING_MOVE,
             "gameEnd" => ST_GAME_END
         )
@@ -191,6 +191,7 @@ $machinestates = array(
             "playerKingMove" => ST_PLAYER_KING_MOVE,
             "calledBluff" => ST_CALLED_BLUFF,
             "duelOffer" => ST_DUEL_OFFER,
+            "pawnPromotion" => ST_PAWN_PROMOTION,
             "gameEnd" => ST_GAME_END
         )
     ),
@@ -215,6 +216,7 @@ $machinestates = array(
             "playerKingMove" => ST_PLAYER_KING_MOVE,
             "calledBluff" => ST_CALLED_BLUFF,
             "duelOffer" => ST_DUEL_OFFER,
+            "pawnPromotion" => ST_PAWN_PROMOTION,
             "gameEnd" => ST_GAME_END
         )
     ),

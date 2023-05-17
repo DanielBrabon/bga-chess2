@@ -62,10 +62,10 @@ class CHSPiece extends APP_GameClass
         $this->last_y = $this->y;
     }
 
-    public function promote($promotion_type, $new_state)
+    public function promote($promotion_type)
     {
         $this->type = $promotion_type;
-        $this->state = $new_state;
-        self::DbQuery("UPDATE pieces SET type = '$promotion_type', state = $new_state WHERE piece_id = $this->id");
+        $this->state = NEUTRAL;
+        self::DbQuery("UPDATE pieces SET type = '$promotion_type', state = " . NEUTRAL . " WHERE piece_id = $this->id");
     }
 }
