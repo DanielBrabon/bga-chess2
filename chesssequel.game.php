@@ -773,10 +773,6 @@ class ChessSequel extends Table
 
         $active_player = $this->playerManager->getActivePlayer();
 
-        if ($active_player->stones == 6) {
-            throw new BgaSystemException("Maximum stones reached");
-        }
-
         $active_player->gainOneStone("board");
 
         self::notifyAllPlayers(
@@ -1031,9 +1027,21 @@ class ChessSequel extends Table
         if ($cap_player_bid == 0 && $def_player_bid == 0) {
             $cap_player->incStat(1, "bluffs_called");
 
-            $this->activeNextPlayer();
-            $this->gamestate->nextState('calledBluff');
-            return;
+            if ($cap_player->stones == 6) {
+                $def_player->loseOneStone();
+
+                self::notifyAllPlayers(
+                    "message",
+                    clienttranslate('${player_name} destroys an enemy stone'),
+                    array(
+                        "player_name" => $cap_player->name
+                    )
+                );
+            } else {
+                $this->activeNextPlayer();
+                $this->gamestate->nextState('calledBluff');
+                return;
+            }
         }
 
         $duelling = $this->captureManager->processFrontOfCaptureQueue();

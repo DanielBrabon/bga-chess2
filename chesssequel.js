@@ -280,9 +280,7 @@ define([
                             break;
 
                         case 'calledBluff':
-                            if (this.gamedatas.players[this.player_id]['stones'] != 6) {
-                                this.addActionButton('btn_gain_stone', _('Gain 1 Stone'), 'gainStone');
-                            }
+                            this.addActionButton('btn_gain_stone', _('Gain 1 Stone'), 'gainStone');
                             this.addActionButton('btn_destroy_stone', _('Destroy 1 Enemy Stone'), 'destroyStone');
                             break;
 
