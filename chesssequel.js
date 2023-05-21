@@ -481,7 +481,10 @@ define([
             duelStyling: function () {
                 // Set this.cap_id and this.def_id
                 for (let piece_id in this.gamedatas.pieces) {
-                    if (this.gamedatas.pieces[piece_id].state == this.gamedatas.constants['CAPTURING']) {
+                    if (
+                        this.gamedatas.pieces[piece_id].state == this.gamedatas.constants['CAPTURING']
+                        || this.gamedatas.pieces[piece_id].state == this.gamedatas.constants['CAPTURING_AND_PROMOTING']
+                    ) {
                         this.cap_id = piece_id;
                         break;
                     }
