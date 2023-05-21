@@ -66,7 +66,7 @@ define([
 
                         this.addTooltip(`player_stones_wrap_${player_id}`, _('Stones'), _('The resource used in duels'));
 
-                        let player_name = this.getColorPlayerText(player['color'], player['name']);
+                        let player_name = this.getPlayerColorText(player['color'], player['name']);
                         dojo.place(player_name, `duel_board_name_${player_id}`);
                     }
 
@@ -429,13 +429,13 @@ define([
             },
 
             updateArmySelectTitleText: function (army) {
-                if (this.gamedatas.players[this.player_id].color == "ffffff") {
-                    var you = '<span style="font-weight:bold;color:#ffffff;background-color:#bbbbbb;">You</span>';
-                }
-                else {
-                    var you = '<span style="font-weight:bold;color:#000000;">You</span>';
-                }
-                $('pagemaintitletext').innerHTML = you + ' must select an army<br>Current selection: ' + army + '<br>';
+                $('pagemaintitletext').innerHTML = this.format_block(
+                    'jstpl_army_select_title_text',
+                    {
+                        you: this.getPlayerColorText(this.gamedatas.players[this.player_id].color, "You"),
+                        army: army
+                    }
+                );
             },
 
             format_string_recursive: function format_string_recursive(log, args) {
@@ -449,7 +449,7 @@ define([
                                     args[key] = this.getLogPiece(args[key]);
                                     break;
                                 case 'army':
-                                    args[key] = this.getColorPlayerText(key_split[1], args[key]);
+                                    args[key] = this.getPlayerColorText(key_split[1], args[key]);
                                     break;
                             }
                         }
@@ -465,9 +465,9 @@ define([
                 return this.format_block('jstpl_logpiece', { color: split[0], type: split[1] });
             },
 
-            getColorPlayerText: function (color, text) {
-                let bg_color = (color == "000000") ? "transparent" : "bbbbbb";
-                return this.format_block('jstpl_player_text', { color: color, bg_color: bg_color, text: text });
+            getPlayerColorText: function (color, text) {
+                let bg_color = (color == "ffffff") ? "#bbbbbb" : "transparent";
+                return this.format_block('jstpl_player_color_text', { color: color, bg_color: bg_color, text: text });
             },
 
             updatePlayerOrdering() {

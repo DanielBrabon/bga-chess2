@@ -124,7 +124,9 @@ var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_I
 
     var jstpl_logpiece = '<div class="logpiece piececolor_${color} piecetype_${type}"></div>';
 
-    var jstpl_player_text = '<span class="playername" style="color:#${color};background-color:#${bg_color};">${text}</span>';
+    var jstpl_player_color_text = '<span style="font-weight: bold; color: #${color}; background-color: ${bg_color};">${text}</span>';
+
+    var jstpl_army_select_title_text = '${you} must select an army<br>Current selection: ${army}<br>';
 
     var jstpl_stone = '<div class="stone stonecolor_${color}"></div>';
 </script>
