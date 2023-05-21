@@ -80,12 +80,24 @@
     --dark-gray: #a5a5a5;
     --nice-blue: #187695cc;
     --rich-blue: #233a93;
+    --strong-red: #8b0000;
 
     /* Colors applied */
     --light-square-color: #6fbfbc;
     --dark-square-color: #2d6363;
     --last-move-color: #568756cc;
     --poss-move-color: #ffffff;
+    --hover-friendly-color: #ffffff4d;
+    --selected-piece-color: #ffffffcc;
+    --capture-color: #ff000080;
+
+    --stone-slot-inner: #bda387;
+    --stone-slot-border: black;
+    --inactive-slot-inner: #bfbfbf;
+    --inactive-slot-border: #878787;
+    --black-stone-inner: black;
+    --white-stone-inner: white;
+    --stone-border: #aaaaaa;
 }
 
 #board_wrap {
@@ -124,9 +136,6 @@
     width: 100%;
     height: 100%;
     position: absolute;
-    top: 50%;
-    left: 50%;
-    translate: -50% -50%;
     background-size: 2000%;
     z-index: 1;
 }
@@ -242,6 +251,23 @@
     cursor: pointer;
 }
 
+.hover_friendly {
+    /* Solid background */
+    background: var(--hover-friendly-color) !important;
+    border: transparent solid;
+    cursor: pointer;
+}
+
+.hover_possible_move {
+    /* Larger dot */
+    background: radial-gradient(var(--poss-move-color) 30%, transparent 31%);
+}
+
+.capture_square {  
+    /* Solid background */
+    background: var(--capture-color) !important;
+}
+
 .selected_piece {
     /* Starburst */
     /* background: repeating-conic-gradient(transparent 0 15deg, var(--poss-move-color) 15deg 30deg); */
@@ -259,20 +285,10 @@
     /* background: radial-gradient(var(--poss-move-color) 20%, transparent 100%); */
 
     /* Solid background */
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--selected-piece-color) !important;
 
     /* Transparent border shrinks the piece slightly */
     border: transparent solid;
-}
-
-.cap_piece {
-    top: 75%;
-    left: 75%;
-}
-
-.def_piece {
-    top: 25%;
-    left: 25%;
 }
 
 .check {
@@ -303,11 +319,11 @@
 .stone_slot {
     width: 38px;
     height: 38px;
-    background: radial-gradient(#bda387 46%, black 50%, transparent 67%);
+    background: radial-gradient(var(--stone-slot-inner) 46%, var(--stone-slot-border) 50%, transparent 67%);
 }
 
 .inactive_slot {
-    background: radial-gradient(#bfbfbf 46%, #878787 50%, transparent 67%);
+    background: radial-gradient(var(--inactive-slot-inner) 46%, var(--inactive-slot-border) 50%, transparent 67%);
 }
 
 .stone {
@@ -318,11 +334,11 @@
 }
 
 .stonecolor_000000 {
-    background: radial-gradient(black 40%, rgb(170, 170, 170) 42% 52%, transparent 54%);
+    background: radial-gradient(var(--black-stone-inner) 40%, var(--stone-border) 42% 52%, transparent 54%);
 }
 
 .stonecolor_ffffff {
-    background: radial-gradient(white 40%, rgb(170, 170, 170) 42% 52%, transparent 54%);
+    background: radial-gradient(var(--white-stone-inner) 40%, var(--stone-border) 42% 52%, transparent 54%);
 }
 
 .duel_board_title {

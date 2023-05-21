@@ -132,14 +132,13 @@ class ChessSequel extends Table
     */
     protected function getAllDatas()
     {
-        $current_player_id = self::getCurrentPlayerId();    // !! We must only return informations visible by this player !!
+        $current_player_color = $this->getCurrentPlayerColor();    // !! We must only return informations visible by this player !!
 
         $result = array(
             // From database
-            "players" => $this->playerManager->getUIData($current_player_id),
+            "players" => $this->playerManager->getUIData($current_player_color),
             "pieces" => $this->pieceManager->getPieces(),
-            "legal_moves" => $this->pieceManager->getLegalMoves(),
-            "capture_squares" => $this->pieceManager->getCaptureSquares(),
+            "legal_moves" => $this->pieceManager->getLegalMoves($current_player_color),
             "capture_queue" => $this->captureManager->getCaptureQueue(),
 
             // From material.inc.php
@@ -256,7 +255,7 @@ class ChessSequel extends Table
 
         $king_moves = $this->moves->getAllKingMovesForPlayer($player)['moves'];
 
-        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($king_moves);
+        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($king_moves, $player);
 
         if ($amount_of_legal_moves == 0) {
             return false;
@@ -284,7 +283,7 @@ class ChessSequel extends Table
             if ($piece->id != $last_move_piece) {
                 $piece->setState(NEUTRAL);
 
-                self::notifyAllPlayers("updateAllPieceData", "", array(
+                self::notifyAllPlayers("updatePieces", "", array(
                     "piece_id" => $piece->id,
                     "values_updated" => array("state" => NEUTRAL)
                 ));
@@ -302,7 +301,7 @@ class ChessSequel extends Table
 
         $moves = $this->moves->getAllMovesForPlayer($active_player);
 
-        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($moves['moves']);
+        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($moves['moves'], $active_player);
 
         // If the next player has no available moves, they lose
         if ($amount_of_legal_moves == 0) {
@@ -509,17 +508,14 @@ class ChessSequel extends Table
             throw new BgaSystemException("Invalid target");
         }
 
-        // Get the move_id for the attempted move
-        $move_id = $this->pieceManager->getLegalMoveId($target_x, $target_y, $moving_piece_id);
+        $cap_squares = $this->pieceManager->getCaptureSquaresForMove($target_x, $target_y, $moving_piece_id);
 
         // If the attempted move is not found in legal_moves table, throw an error
-        if ($move_id == null) {
+        if ($cap_squares === null) {
             throw new BgaSystemException("Illegal move");
         }
 
         $squares = $this->pieceManager->getSquaresData();
-
-        $cap_squares = $this->pieceManager->getCaptureSquaresForMove($move_id);
 
         $capture_queue = array();
 
@@ -598,7 +594,7 @@ class ChessSequel extends Table
 
         // Send notifications
         self::notifyAllPlayers(
-            "updateAllPieceData",
+            "updatePieces",
             $msg,
             array(
                 "piece_id" => $moving_piece->id,
@@ -633,7 +629,7 @@ class ChessSequel extends Table
                     );
 
                     self::notifyAllPlayers(
-                        "updateAllPieceData",
+                        "updatePieces",
                         clienttranslate('${player_name} castles: ${logpiece}${square}'),
                         array(
                             "piece_id" => $castling_rook->id,
@@ -674,7 +670,7 @@ class ChessSequel extends Table
         $promoting_pawn_type = ($active_player->army == "nemesis") ? "nemesispawn" : "pawn";
 
         self::notifyAllPlayers(
-            "updateAllPieceData",
+            "updatePieces",
             clienttranslate('${player_name} promotes ${logpiece_before} to ${logpiece_after}'),
             array(
                 "piece_id" => $promoting_pawn->id,
@@ -898,12 +894,16 @@ class ChessSequel extends Table
 
     function argDuelOffer()
     {
-        return $this->getDuelData();
-    }
+        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0];
+        $capture_queue = $this->captureManager->getCaptureQueue();
+        $def_piece = $this->pieceManager->getPiece($capture_queue[0]);
+        $duel_cost = $this->getCostToDuel($cap_piece, $def_piece);
+        $cap_stones = $this->playerManager->getPlayerByColor($cap_piece->color)->stones;
 
-    function argDuelBidding()
-    {
-        return $this->getDuelData();
+        return array(
+            "duel_cost" => $duel_cost,
+            "cap_stones" => $cap_stones
+        );
     }
 
     /*
@@ -1104,7 +1104,7 @@ class ChessSequel extends Table
     {
         switch ($state['name']) {
             case 'playerMove':
-                $move = $this->pieceManager->getLegalMoves()[0];
+                $move = $this->pieceManager->getFirstLegalMoveFromDB();
                 $this->movePiece($move['x'], $move['y'], $move['piece_id']);
                 return;
 

@@ -33,6 +33,8 @@ class CHSCaptureManager extends APP_GameClass
         }
 
         self::DbQuery("INSERT INTO capture_queue (piece_id) VALUES " . implode(',', $sql_values));
+
+        $this->game->notifyAllPlayers("updateCaptureQueue", "", ["capture_queue" => $capture_queue]);
     }
 
     public function getCaptureQueue()
@@ -123,7 +125,7 @@ class CHSCaptureManager extends APP_GameClass
         }
 
         $this->game->notifyAllPlayers(
-            "updateAllPieceData",
+            "updatePieces",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
             array(
                 "piece_id" => $def_piece->id,
@@ -136,13 +138,15 @@ class CHSCaptureManager extends APP_GameClass
         array_splice($this->capture_queue, 0, 1);
         self::DbQuery("DELETE FROM capture_queue WHERE piece_id = $def_piece->id");
 
+        $this->game->notifyAllPlayers("updateCaptureQueue", "", ["capture_queue" => $this->capture_queue]);
+
         if (count($this->capture_queue) == 0) {
             $new_state = ($this->cap_piece->state == CAPTURING_AND_PROMOTING) ? PROMOTING : NEUTRAL;
 
             $this->cap_piece->setState($new_state);
 
             $this->game->notifyAllPlayers(
-                "updateAllPieceData",
+                "updatePieces",
                 "",
                 array(
                     "piece_id" => $this->cap_piece->id,
@@ -177,7 +181,7 @@ class CHSCaptureManager extends APP_GameClass
         $def_piece->setState(CAPTURED);
 
         $this->game->notifyAllPlayers(
-            "updateAllPieceData",
+            "updatePieces",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
             array(
                 "piece_id" => $def_piece->id,
@@ -188,7 +192,7 @@ class CHSCaptureManager extends APP_GameClass
         );
 
         $this->game->notifyAllPlayers(
-            "updateAllPieceData",
+            "updatePieces",
             clienttranslate('${logpiece_def} captures ${logpiece_cap}'),
             array(
                 "piece_id" => $this->cap_piece->id,
@@ -200,6 +204,8 @@ class CHSCaptureManager extends APP_GameClass
 
         $this->capture_queue = [];
         self::DbQuery("DELETE FROM capture_queue");
+
+        $this->game->notifyAllPlayers("updateCaptureQueue", "", ["capture_queue" => $this->capture_queue]);
 
         $this->cap_piece = null;
     }

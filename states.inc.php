@@ -175,7 +175,6 @@ $machinestates = array(
         "descriptionmyturn" => clienttranslate('${you} must choose how many stones to bid'),
         "action" => "stMakeEveryoneActive",
         "possibleactions" => array("pickBid"),
-        "args" => "argDuelBidding",
         "transitions" => array(
             "processDuelOutcome" => ST_PROCESS_DUEL_OUTCOME
         )

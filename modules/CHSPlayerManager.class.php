@@ -36,14 +36,14 @@ class CHSPlayerManager extends APP_GameClass
         }
     }
 
-    public function getUIData($current_player_id)
+    public function getUIData($current_player_color)
     {
         $collection = self::getCollectionFromDB(
             "SELECT player_id id, player_color color, player_score score, player_army army, player_stones stones, player_bid bid FROM player"
         );
 
         foreach ($collection as $player_data) {
-            if ($player_data['id'] != $current_player_id) {
+            if ($player_data['color'] != $current_player_color) {
                 unset($collection[$player_data['id']]['army']);
                 unset($collection[$player_data['id']]['bid']);
             }

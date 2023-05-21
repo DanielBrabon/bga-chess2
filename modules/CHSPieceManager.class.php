@@ -312,7 +312,7 @@ class CHSPieceManager extends APP_GameClass
     }
 
     // Replaces content of legal_moves and capture_squares db tables with data provided. Returns number of legal moves
-    function insertLegalMoves($all_legal_moves)
+    function insertLegalMoves($all_legal_moves, $player)
     {
         self::DbQuery("DELETE FROM capture_squares");
         self::DbQuery("DELETE FROM legal_moves");
@@ -341,34 +341,78 @@ class CHSPieceManager extends APP_GameClass
             }
         }
 
-        $this->game->notifyAllPlayers("updateLegalMovesTable", "", array("moves_added" => $all_legal_moves));
+        $this->game->notifyPlayer($player->id, "updateLegalMoves", "", ["legal_moves" => $all_legal_moves]);
+
+        $this->game->notifyPlayer(
+            $this->game->playerManager->getOtherPlayerByColor($player->color)->id,
+            "updateLegalMoves",
+            "",
+            ["legal_moves" => null]
+        );
 
         return $move_counter;
     }
 
-    // TODO: Make this collection
-    public function getLegalMoves()
+    public function getLegalMoves($current_player_color)
     {
-        return self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
+        if ($this->pieces === null) {
+            $this->selectPieces();
+        }
+
+        $legal_moves = self::getObjectListFromDB("SELECT move_id, piece_id, x, y FROM legal_moves");
+
+        if (count($legal_moves) == 0) {
+            return null;
+        }
+
+        if ($this->pieces[$legal_moves[0]['piece_id']]->color != $current_player_color) {
+            return null;
+        }
+
+        $capture_squares = self::getObjectListFromDB("SELECT move_id, x, y FROM capture_squares");
+
+        $result = [];
+
+        foreach ($legal_moves as $move) {
+            $result_move = array(
+                "x" => $move['x'],
+                "y" => $move['y'],
+                "cap_squares" => []
+            );
+
+            foreach ($capture_squares as $square) {
+                if ($square['move_id'] == $move['move_id']) {
+                    $result_move['cap_squares'][] = array(
+                        "x" => $square['x'],
+                        "y" => $square['y']
+                    );
+                }
+            }
+
+            $result[$move['piece_id']][] = $result_move;
+        }
+
+        return $result;
     }
 
-    public function getLegalMoveId($x, $y, $piece_id)
+    public function getFirstLegalMoveFromDB()
     {
-        return self::getUniqueValueFromDB(
+        return self::getObjectFromDB("SELECT piece_id, x, y FROM legal_moves LIMIT 1");
+    }
+
+    public function getCaptureSquaresForMove($x, $y, $piece_id)
+    {
+        $move_id = self::getUniqueValueFromDB(
             "SELECT move_id FROM legal_moves
             WHERE piece_id = $piece_id
             AND x = $x
             AND y = $y"
         );
-    }
 
-    public function getCaptureSquares()
-    {
-        return self::getCollectionFromDB("SELECT move_id, x, y FROM capture_squares");
-    }
+        if ($move_id === null) {
+            return null;
+        }
 
-    public function getCaptureSquaresForMove($move_id)
-    {
         return self::getObjectListFromDB("SELECT x, y FROM capture_squares WHERE move_id = $move_id");
     }
 }

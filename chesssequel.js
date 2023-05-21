@@ -29,7 +29,12 @@ define([
                 // Example:
                 // this.myGlobalValue = 0;
 
-                this.ownBidShown = false;
+                this.duel_styling_applied = false;
+                this.own_bid_shown = false;
+
+                this.selected_piece_id = null;
+                this.cap_id = null;
+                this.def_id = null;
             },
 
             /*
@@ -48,8 +53,8 @@ define([
             setup: function (gamedatas) {
                 console.log("Starting game setup");
 
+                // Set up player boards
                 if (this.gamedatas.ruleset_version == this.gamedatas.constants['RULESET_TWO_POINT_FOUR']) {
-                    // Setting up player boards
                     for (var player_id in gamedatas.players) {
                         var player = gamedatas.players[player_id];
 
@@ -73,9 +78,10 @@ define([
                     dojo.destroy(`player_board_duel`);
                 }
 
-                // Placing pieces on the board
+                // Place pieces on the game board
                 this.populateBoard();
 
+                // Highlight last move
                 for (let key in this.gamedatas.last_move_piece_ids) {
                     let piece_id = this.gamedatas.last_move_piece_ids[key];
                     if (piece_id != 0) {
@@ -97,8 +103,11 @@ define([
                 // Setup game notifications to handle (see "setupNotifications" method below)
                 this.setupNotifications();
 
-                // Connect onclick events
+                // Connect events
                 dojo.query('.square').connect('onclick', this, 'squareClicked');
+                dojo.query('.square').connect('onmouseover', this, 'mouseOverSquare');
+                dojo.query('.square').connect('onmouseout', this, 'mouseOutSquare');
+
                 dojo.query('#main').connect('onclick', this, 'mainClicked');
 
                 dojo.query('#btn_draw').connect('onclick', this, 'offerDraw');
@@ -133,37 +142,35 @@ define([
                         break;
 
                     case 'duelOffer':
-                        this.duelPiecePositioning(args.args.capID, args.args.defID);
+                        this.duelStyling();
                         break;
 
                     case 'duelBidding':
-                        this.duelPiecePositioning(args.args.capID, args.args.defID);
-
-                        for (let player_id in this.gamedatas.players) {
-                            $(`duel_board_piece_${player_id}`).className = 'logpiece';
-
-                            let duel_piece_id = this.gamedatas.def_id;
-                            let status = _('Defender');
-
-                            if (this.gamedatas.pieces[this.gamedatas.cap_id]['color'] == this.gamedatas.players[player_id]['color']) {
-                                duel_piece_id = this.gamedatas.cap_id;
-                                status = _('Attacker');
-                            }
-
-                            dojo.addClass(`duel_board_piece_${player_id}`,
-                                [`piececolor_${this.gamedatas.pieces[duel_piece_id]['color']}`,
-                                `piecetype_${this.gamedatas.pieces[duel_piece_id]['type']}`]
-                            );
-
-                            $(`duel_board_status_${player_id}`).innerHTML = status;
+                        if (!this.duel_styling_applied) {
+                            this.duelStyling();
                         }
 
-                        if (this.gamedatas.players[this.player_id].bid != null) {
+                        this.setupDuelBoard();
+
+                        // For the case of a player reloading the page after placing a bid
+                        if (this.gamedatas.players[this.player_id].bid !== null) {
                             this.placeBidStones(this.player_id, this.gamedatas.players[this.player_id].bid);
                         }
 
-                        dojo.style('player_board_duel', 'display', 'block');
+                        break;
 
+                    case 'processDuelOutcome':
+                        // For the case of duelling a player with 0 stones
+                        if ($('player_board_duel').style.display == 'none') {
+                            this.setupDuelBoard();
+                        }
+                        break;
+
+                    case 'calledBluff':
+                        // For the case of calling bluff in the middle of an elephant rampage
+                        if (this.gamedatas.capture_queue.length != 0) {
+                            this.duelStyling();
+                        }
                         break;
 
                     /* Example:
@@ -190,22 +197,24 @@ define([
                         break;
 
                     case 'processDuelRejected':
-                        this.removeDuelPiecePositioning();
+                        this.removeDuelStyling();
                         break;
 
                     case 'processDuelOutcome':
-                        this.removeDuelPiecePositioning();
+                        this.removeDuelStyling();
 
-                        dojo.style('player_board_duel', 'display', 'none');
-
-                        dojo.query('.bid_slot').forEach(dojo.empty);
-
-                        dojo.query('.inactive_slot').removeClass('inactive_slot');
+                        this.clearDuelBoard();
 
                         this.gamedatas.players[this.player_id].bid = null;
 
-                        this.ownBidShown = false;
+                        this.own_bid_shown = false;
 
+                        break;
+
+                    case 'processBluffChoice':
+                        if (this.duel_styling_applied) {
+                            this.removeDuelStyling();
+                        }
                         break;
 
                     /* Example:
@@ -249,11 +258,11 @@ define([
                         case 'duelOffer':
                             let accept_label = "Accept Duel";
 
-                            if (args.costToDuel == 1) {
+                            if (args.duel_cost == 1) {
                                 accept_label += " (Pay 1 Stone)";
                             }
 
-                            if (args.capStones == 0) {
+                            if (args.cap_stones == 0) {
                                 accept_label += " (Bid 1 and Win)";
                             }
 
@@ -332,7 +341,9 @@ define([
                     selected_pieces.removeClass('selected_piece');
                     dojo.query('.possible_move').removeClass('possible_move');
                     dojo.query('.possible_move_oc').removeClass('possible_move_oc');
-                    this.gamedatas.players[this.player_id].piece_selected = null;
+                    dojo.query('.hover_possible_move').removeClass('hover_possible_move');
+                    dojo.query('.capture_square').removeClass('capture_square');
+                    this.selected_piece_id = null;
                 }
             },
 
@@ -469,33 +480,88 @@ define([
                 dojo.place('player_board_buttons', 'player_boards', 'last');
             },
 
-            duelPiecePositioning: function (cap_id, def_id) {
-                this.gamedatas.cap_id = String(cap_id);
-                this.gamedatas.def_id = String(def_id);
+            duelStyling: function () {
+                // Set this.cap_id and this.def_id
+                for (let piece_id in this.gamedatas.pieces) {
+                    if (this.gamedatas.pieces[piece_id].state == this.gamedatas.constants['CAPTURING']) {
+                        this.cap_id = piece_id;
+                        break;
+                    }
+                }
+
+                this.def_id = this.gamedatas.capture_queue[0];
 
                 // Place capturing piece on current capture square
-                dojo.place(this.gamedatas.cap_id,
-                    'square_' + this.gamedatas.pieces[this.gamedatas.def_id]['x'] + '_' + this.gamedatas.pieces[this.gamedatas.def_id]['y']
-                );
+                dojo.place(this.cap_id, $(this.gamedatas.capture_queue[0]).parentNode);
 
                 // Offset pieces
-                dojo.addClass(this.gamedatas.cap_id, 'cap_piece');
-                dojo.addClass(this.gamedatas.def_id, 'def_piece');
+                dx = this.gamedatas.pieces[this.cap_id]['last_x'] - this.gamedatas.pieces[this.def_id]['x'];
+                dy = this.gamedatas.pieces[this.def_id]['y'] - this.gamedatas.pieces[this.cap_id]['last_y'];
+
+                x_offset = (dx == 0) ? 0 : dx / Math.abs(dx);
+                y_offset = (dy == 0) ? 0 : dy / Math.abs(dy);
+
+                let offset_unit = (x_offset + y_offset == 2) ? 25 : 35;
+
+                dojo.style(this.cap_id, 'translate', `${x_offset * offset_unit}% ${y_offset * offset_unit}%`);
+                dojo.style(this.def_id, 'translate', `${x_offset * -1 * offset_unit}% ${y_offset * -1 * offset_unit}%`);
+
+                // Highlight capture squares
+                for (let piece_id of this.gamedatas.capture_queue) {
+                    dojo.addClass($(piece_id).parentNode, 'capture_square');
+                }
+
+                this.duel_styling_applied = true;
             },
 
-            removeDuelPiecePositioning: function () {
+            removeDuelStyling: function () {
                 // Place capturing piece back on its own square and remove offsets
-                dojo.query('.cap_piece').forEach(piece => this.restoreCapPiecePosition(piece));
-                dojo.query('.def_piece').removeClass('def_piece');
+                if (this.gamedatas.pieces[this.cap_id].state != this.gamedatas.constants['CAPTURED']) {
+                    dojo.place(
+                        this.cap_id,
+                        'square_' + this.gamedatas.pieces[this.cap_id]['x'] + '_' + this.gamedatas.pieces[this.cap_id]['y']
+                    );
+
+                    dojo.removeAttr(this.cap_id, 'style');
+                }
+
+                dojo.query('.capture_square').removeClass('capture_square');
+
+                this.cap_id = null;
+                this.def_id = null;
+
+                this.duel_styling_applied = false;
             },
 
-            restoreCapPiecePosition: function (piece) {
-                dojo.place(
-                    piece,
-                    'square_' + this.gamedatas.pieces[this.gamedatas.cap_id]['x'] + '_' + this.gamedatas.pieces[this.gamedatas.cap_id]['y']
-                );
+            setupDuelBoard: function () {
+                for (let player_id in this.gamedatas.players) {
+                    $(`duel_board_piece_${player_id}`).className = 'logpiece';
 
-                dojo.removeClass(piece, 'cap_piece');
+                    let duel_piece_id = this.def_id;
+                    let status = _('Defender');
+
+                    if (this.gamedatas.pieces[this.cap_id]['color'] == this.gamedatas.players[player_id]['color']) {
+                        duel_piece_id = this.cap_id;
+                        status = _('Attacker');
+                    }
+
+                    dojo.addClass(`duel_board_piece_${player_id}`,
+                        [`piececolor_${this.gamedatas.pieces[duel_piece_id]['color']}`,
+                        `piecetype_${this.gamedatas.pieces[duel_piece_id]['type']}`]
+                    );
+
+                    $(`duel_board_status_${player_id}`).innerHTML = status;
+                }
+
+                dojo.style('player_board_duel', 'display', 'block');
+            },
+
+            clearDuelBoard: function () {
+                dojo.style('player_board_duel', 'display', 'none');
+
+                dojo.query('.bid_slot').forEach(dojo.empty);
+
+                dojo.query('.inactive_slot').removeClass('inactive_slot');
             },
 
             placeBidStones: function (player_id, bid_amount) {
@@ -510,7 +576,7 @@ define([
                     this.gamedatas.players[player_id]['stones'] -= 1;
                 }
 
-                this.ownBidShown = true;
+                this.own_bid_shown = true;
             },
 
             ///////////////////////////////////////////////////
@@ -578,35 +644,95 @@ define([
 
                 // If the player clicked a highlighted possible move square, call the server to make the move
                 if (dojo.hasClass(evt.currentTarget, 'possible_move') || dojo.hasClass(evt.currentTarget, 'possible_move_oc')) {
+                    let id_split = evt.currentTarget.id.split('_');
+
                     this.ajaxcallWrapper("movePiece", {
-                        target_file: evt.currentTarget.id.split('_')[1],
-                        target_rank: evt.currentTarget.id.split('_')[2],
-                        moving_piece_id: this.gamedatas.players[this.player_id].piece_selected
+                        target_file: id_split[1],
+                        target_rank: id_split[2],
+                        moving_piece_id: this.selected_piece_id
                     });
+
+                    return;
                 }
-                else {
-                    // If the player has a piece selected, deselect it
-                    this.clearSelectedPiece();
 
-                    // If the player clicked a square with a friendly piece, select it
-                    const children = evt.currentTarget.children;
-                    if (children.length != 0 && this.gamedatas.pieces[children[0].id].color == this.gamedatas.players[this.player_id].color) {
-                        this.gamedatas.players[this.player_id].piece_selected = children[0].id;
-                        dojo.addClass(evt.currentTarget, 'selected_piece');
+                // If the player has a piece selected, deselect it
+                this.clearSelectedPiece();
 
-                        for (var move_index in this.gamedatas.legal_moves) {
-                            var move_object = this.gamedatas.legal_moves[move_index];
+                // If the player clicked a square with a friendly piece, select it
+                let children = evt.currentTarget.children;
 
-                            if (move_object['piece_id'] == children[0].id) {
-                                if ($('square_' + move_object['x'] + '_' + move_object['y']).children.length != 0) {
-                                    dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move_oc');
-                                } else {
-                                    dojo.addClass('square_' + move_object['x'] + '_' + move_object['y'], 'possible_move');
+                if (children.length != 0 && this.gamedatas.pieces[children[0].id].color == this.gamedatas.players[this.player_id].color) {
+                    this.selected_piece_id = children[0].id;
+
+                    dojo.addClass(evt.currentTarget, 'selected_piece');
+
+                    if (typeof this.gamedatas.legal_moves[this.selected_piece_id] == 'undefined') {
+                        return;
+                    }
+
+                    for (let move of this.gamedatas.legal_moves[this.selected_piece_id]) {
+                        if ($(`square_${move['x']}_${move['y']}`).children.length != 0) {
+                            dojo.addClass(`square_${move['x']}_${move['y']}`, 'possible_move_oc');
+                        } else {
+                            dojo.addClass(`square_${move['x']}_${move['y']}`, 'possible_move');
+                        }
+
+                        if (
+                            move['x'] == this.gamedatas.pieces[this.selected_piece_id]['x']
+                            && move['y'] == this.gamedatas.pieces[this.selected_piece_id]['y']
+                        ) {
+                            for (let square of move['cap_squares']) {
+                                if ($(`square_${square['x']}_${square['y']}`).children.length != 0) {
+                                    dojo.addClass(`square_${square['x']}_${square['y']}`, 'capture_square');
                                 }
                             }
                         }
                     }
                 }
+            },
+
+            mouseOverSquare: function (evt) {
+                dojo.stopEvent(evt);
+
+                if (!this.checkAction('movePiece', true)) {
+                    return;
+                }
+
+                if (dojo.hasClass(evt.currentTarget, 'possible_move') || dojo.hasClass(evt.currentTarget, 'possible_move_oc')) {
+                    dojo.addClass(evt.currentTarget, 'hover_possible_move');
+
+                    let id_split = evt.currentTarget.id.split('_');
+
+                    for (let move of this.gamedatas.legal_moves[this.selected_piece_id]) {
+                        if (move['x'] == id_split[1] && move['y'] == id_split[2]) {
+                            for (let square of move['cap_squares']) {
+                                if ($(`square_${square['x']}_${square['y']}`).children.length != 0) {
+                                    dojo.addClass(`square_${square['x']}_${square['y']}`, 'capture_square');
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                } else if (
+                    !dojo.hasClass(evt.currentTarget, 'selected_piece')
+                    && evt.currentTarget.children.length != 0
+                    && this.gamedatas.pieces[evt.currentTarget.children[0].id].color == this.gamedatas.players[this.player_id].color
+                ) {
+                    dojo.addClass(evt.currentTarget, 'hover_friendly');
+                }
+            },
+
+            mouseOutSquare: function (evt) {
+                dojo.stopEvent(evt);
+
+                if (!this.checkAction('movePiece', true)) {
+                    return;
+                }
+
+                dojo.query('.hover_friendly').removeClass('hover_friendly');
+                dojo.query('.hover_possible_move').removeClass('hover_possible_move');
+                dojo.query('.capture_square').removeClass('capture_square');
             },
 
             passKingMove: function (evt) {
@@ -779,9 +905,11 @@ define([
 
                 dojo.subscribe('stProcessArmySelection', this, "notif_stProcessArmySelection");
 
-                dojo.subscribe('updateLegalMovesTable', this, "notif_updateLegalMovesTable");
+                dojo.subscribe('updateLegalMoves', this, "notif_updateLegalMoves");
 
-                dojo.subscribe('updateAllPieceData', this, "notif_updateAllPieceData");
+                dojo.subscribe('updatePieces', this, "notif_updatePieces");
+
+                dojo.subscribe('updateCaptureQueue', this, "notif_updateCaptureQueue");
 
                 dojo.subscribe('gainOneStone', this, "notif_gainOneStone");
 
@@ -789,7 +917,7 @@ define([
 
                 dojo.subscribe('bidStones', this, "notif_bidStones");
                 this.notifqueue.setSynchronous('bidStones', 750);
-                this.notifqueue.setIgnoreNotificationCheck('bidStones', (notif) => (notif.args.player_id == this.player_id && this.ownBidShown));
+                this.notifqueue.setIgnoreNotificationCheck('bidStones', (notif) => (notif.args.player_id == this.player_id && this.own_bid_shown));
 
                 dojo.subscribe('showDuelOutcome', this, "notif_showDuelOutcome");
                 this.notifqueue.setSynchronous('showDuelOutcome', 4000);
@@ -816,23 +944,11 @@ define([
                 this.populateBoard();
             },
 
-            notif_updateLegalMovesTable: function (notif) {
-                this.gamedatas.legal_moves = [];
-
-                for (var piece_id in notif.args.moves_added) {
-                    var moves_for_piece = notif.args.moves_added[piece_id];
-
-                    for (move_index in moves_for_piece) {
-                        move = moves_for_piece[move_index];
-
-                        this.gamedatas.legal_moves.push({ 'piece_id': piece_id, 'x': move['x'], 'y': move['y'] });
-                    }
-                }
-
-                //console.log(this.gamedatas.legal_moves);
+            notif_updateLegalMoves: function (notif) {
+                this.gamedatas.legal_moves = notif.args.legal_moves;
             },
 
-            notif_updateAllPieceData: function (notif) {
+            notif_updatePieces: function (notif) {
                 for (var field in notif.args.values_updated) {
                     switch (field) {
                         case "location":
@@ -881,6 +997,10 @@ define([
                 //console.log(this.gamedatas.pieces);
             },
 
+            notif_updateCaptureQueue: function (notif) {
+                this.gamedatas.capture_queue = notif.args.capture_queue;
+            },
+
             notif_gainOneStone: function (notif) {
                 let new_stone_div = this.format_block('jstpl_stone', { 'color': this.gamedatas.players[notif.args.player_id]['color'] });
 
@@ -926,7 +1046,9 @@ define([
                     this.slideToObject($(`${notif.args.player_id}_bid_slot_${i}`).children[0], `${notif.args.player_id}_bid_slot_${i}`, 750).play();
                 }
 
-                this.ownBidShown = true;
+                if (notif.args.player_id == this.player_id) {
+                    this.own_bid_shown = true;
+                }
 
                 this.gamedatas.players[notif.args.player_id]['stones'] -= notif.args.bid_amount;
             },

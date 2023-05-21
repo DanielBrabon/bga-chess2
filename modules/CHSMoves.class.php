@@ -86,6 +86,10 @@ class CHSMoves
 
         $this->removeSelfChecks($friendly_kings, $game_data);
 
+        foreach ($piece_ids as $piece_id) {
+            $this->moves[$piece_id] = array_values($this->moves[$piece_id]);
+        }
+
         return array("moves" => $this->moves, "friendly_kings" => $friendly_kings);
     }
 
