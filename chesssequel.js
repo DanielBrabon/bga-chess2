@@ -535,7 +535,7 @@ define([
 
             setupDuelBoard: function () {
                 for (let player_id in this.gamedatas.players) {
-                    $(`duel_board_piece_${player_id}`).className = 'logpiece';
+                    $(`duel_board_piece_${player_id}`).className = 'piece logpiece';
 
                     let duel_piece_id = this.def_id;
                     let status = _('Defender');
