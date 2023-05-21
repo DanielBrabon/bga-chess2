@@ -133,51 +133,50 @@
 }
 
 .piece {
+    background-image: url(img/pieces.png);
+    background-size: 2000%;
+}
+
+.boardpiece {
     width: 100%;
     height: 100%;
     position: absolute;
-    background-size: 2000%;
     z-index: 1;
 }
 
 .logpiece {
     width: 30px;
     height: 30px;
-    background-size: 600px 30px;
     display: inline-block;
     vertical-align: bottom;
 }
 
-.piececolor_000000 {
-    background-image: url('img/blackpieces.png');
-}
-
 .piececolor_ffffff {
-    background-image: url('img/whitepieces.png');
+    background-position-y: -100%;
 }
 
-.piecetype_queen { background-position: -0%; }
-.piecetype_king { background-position: -100%; }
-.piecetype_rook { background-position: -200%; }
-.piecetype_knight { background-position: -300%; }
-.piecetype_bishop { background-position: -400%; }
-.piecetype_pawn { background-position: -500%; }
-.piecetype_nemesis { background-position: -600%; }
-.piecetype_nemesispawn { background-position: -700%; }
-.piecetype_empoweredknight { background-position: -800%; }
-.piecetype_empoweredbishop { background-position: -900%; }
-.piecetype_empoweredrook { background-position: -1000%; }
-.piecetype_elegantqueen { background-position: -1100%; }
-.piecetype_reaper { background-position: -1200%; }
-.piecetype_ghost { background-position: -1300%; }
-.piecetype_warriorking { background-position: -1400%; }
-.piecetype_wildhorse { background-position: -1500%; }
-.piecetype_tiger { background-position: -1600%; }
-.piecetype_elephant { background-position: -1700%; }
-.piecetype_junglequeen { background-position: -1800%; }
+.piecetype_queen { background-position-x: -0%; }
+.piecetype_king { background-position-x: -100%; }
+.piecetype_rook { background-position-x: -200%; }
+.piecetype_knight { background-position-x: -300%; }
+.piecetype_bishop { background-position-x: -400%; }
+.piecetype_pawn { background-position-x: -500%; }
+.piecetype_nemesis { background-position-x: -600%; }
+.piecetype_nemesispawn { background-position-x: -700%; }
+.piecetype_empoweredknight { background-position-x: -800%; }
+.piecetype_empoweredbishop { background-position-x: -900%; }
+.piecetype_empoweredrook { background-position-x: -1000%; }
+.piecetype_elegantqueen { background-position-x: -1100%; }
+.piecetype_reaper { background-position-x: -1200%; }
+.piecetype_ghost { background-position-x: -1300%; }
+.piecetype_warriorking { background-position-x: -1400%; }
+.piecetype_wildhorse { background-position-x: -1500%; }
+.piecetype_tiger { background-position-x: -1600%; }
+.piecetype_elephant { background-position-x: -1700%; }
+.piecetype_junglequeen { background-position-x: -1800%; }
 
 .piecetype_empty {
-    background-position: -1900%;
+    background-position-x: -1900%;
     animation: Pulsate 2s linear infinite;
 }
 
