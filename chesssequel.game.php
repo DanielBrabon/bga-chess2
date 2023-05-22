@@ -21,6 +21,7 @@
 require_once(APP_GAMEMODULE_PATH . 'module/table/table.game.php');
 require_once('modules/CHSPlayerManager.class.php');
 require_once('modules/CHSPieceManager.class.php');
+require_once('modules/CHSMoveManager.class.php');
 require_once('modules/CHSCaptureManager.class.php');
 require_once('modules/CHSMoves.class.php');
 require_once('modules/constants.inc.php');
@@ -29,6 +30,7 @@ class ChessSequel extends Table
 {
     public $playerManager;
     public $pieceManager;
+    private $moveManager;
     private $captureManager;
     private $moves;
 
@@ -51,6 +53,7 @@ class ChessSequel extends Table
 
         $this->playerManager = new CHSPlayerManager($this);
         $this->pieceManager = new CHSPieceManager($this);
+        $this->moveManager = new CHSMoveManager($this);
         $this->captureManager = new CHSCaptureManager($this);
         $this->moves = new CHSMoves($this);
     }
@@ -138,7 +141,7 @@ class ChessSequel extends Table
             // From database
             "players" => $this->playerManager->getUIData($current_player_color),
             "pieces" => $this->pieceManager->getPieces(),
-            "legal_moves" => $this->pieceManager->getLegalMoves($current_player_color),
+            "legal_moves" => $this->moveManager->getLegalMoves($current_player_color),
             "capture_queue" => $this->captureManager->getCaptureQueue(),
 
             // From material.inc.php
@@ -255,7 +258,7 @@ class ChessSequel extends Table
 
         $king_moves = $this->moves->getAllKingMovesForPlayer($player)['moves'];
 
-        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($king_moves, $player);
+        $amount_of_legal_moves = $this->moveManager->insertLegalMoves($king_moves, $player);
 
         if ($amount_of_legal_moves == 0) {
             return false;
@@ -301,7 +304,7 @@ class ChessSequel extends Table
 
         $moves = $this->moves->getAllMovesForPlayer($active_player);
 
-        $amount_of_legal_moves = $this->pieceManager->insertLegalMoves($moves['moves'], $active_player);
+        $amount_of_legal_moves = $this->moveManager->insertLegalMoves($moves['moves'], $active_player);
 
         // If the next player has no available moves, they lose
         if ($amount_of_legal_moves == 0) {
@@ -508,7 +511,7 @@ class ChessSequel extends Table
             throw new BgaSystemException("Invalid target");
         }
 
-        $cap_squares = $this->pieceManager->getCaptureSquaresForMove($target_x, $target_y, $moving_piece_id);
+        $cap_squares = $this->moveManager->getCaptureSquaresForMove($target_x, $target_y, $moving_piece_id);
 
         // If the attempted move is not found in legal_moves table, throw an error
         if ($cap_squares === null) {
@@ -1112,7 +1115,7 @@ class ChessSequel extends Table
     {
         switch ($state['name']) {
             case 'playerMove':
-                $move = $this->pieceManager->getFirstLegalMoveFromDB();
+                $move = $this->moveManager->getFirstLegalMoveFromDB();
                 $this->movePiece($move['x'], $move['y'], $move['piece_id']);
                 return;
 
