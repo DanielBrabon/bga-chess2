@@ -81,6 +81,19 @@ class CHSPlayerManager extends APP_GameClass
         return $this->players[$other_color];
     }
 
+    public function getPlayerById($player_id)
+    {
+        if ($this->players === null) {
+            $this->selectPlayers();
+        }
+
+        foreach ($this->players as $player) {
+            if ($player->id == $player_id) {
+                return $player;
+            }
+        }
+    }
+
     public function getActivePlayer()
     {
         if ($this->players === null) {

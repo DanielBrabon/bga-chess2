@@ -89,11 +89,6 @@ class CHSMoveManager extends APP_GameClass
         return $result;
     }
 
-    public function getFirstLegalMoveFromDB()
-    {
-        return self::getObjectFromDB("SELECT piece_id, x, y FROM legal_moves LIMIT 1");
-    }
-
     public function getCaptureSquaresForMove($x, $y, $piece_id)
     {
         $move_id = self::getUniqueValueFromDB(

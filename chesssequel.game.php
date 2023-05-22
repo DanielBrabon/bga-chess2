@@ -455,7 +455,7 @@ class ChessSequel extends Table
         (note: each method below must match an input method in chesssequel.action.php)
     */
 
-    function confirmArmy($army_name, $current_player_color = null)
+    function confirmArmy($army_name, $current_player = null)
     {
         // Check this action is allowed according to the game state
         $this->checkAction('confirmArmy');
@@ -467,12 +467,11 @@ class ChessSequel extends Table
 
         // Get the color of the CURRENT player (there are multiple active players in armySelect)
         // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
-        if ($current_player_color === null) {
-            $current_player_color = $this->getCurrentPlayerColor();
+        if ($current_player === null) {
+            $current_player = $this->playerManager->getPlayerByColor($this->getCurrentPlayerColor());
         }
 
-        $current_player = $this->playerManager->getPlayerByColor($current_player_color);
-        $opponent = $this->playerManager->getOtherPlayerByColor($current_player_color);
+        $opponent = $this->playerManager->getOtherPlayerByColor($current_player->color);
 
         // If opponent is active, deactivate this player before setting army (status bar inconsistency otherwise)
         if ($opponent->is_multiactive) {
@@ -739,14 +738,16 @@ class ChessSequel extends Table
         $this->gamestate->nextState('processDuelRejected');
     }
 
-    function pickBid($bid_amount)
+    function pickBid($bid_amount, $current_player = null)
     {
         // Check this action is allowed according to the game state
         $this->checkAction('pickBid');
 
         // Get the CURRENT player (there are multiple active players in duelBidding)
         // In the BGA framework, the CURRENT player is the player who played the current player action (player who made the AJAX request)
-        $current_player = $this->playerManager->getPlayerByColor($this->getCurrentPlayerColor());
+        if ($current_player === null) {
+            $current_player = $this->playerManager->getPlayerByColor($this->getCurrentPlayerColor());
+        }
 
         if (!in_array($bid_amount, [0, 1, 2]) || $bid_amount > $current_player->stones) {
             throw new BgaSystemException("Invalid bid amount");
@@ -1111,29 +1112,65 @@ class ChessSequel extends Table
         you must _never_ use getCurrentPlayerId() or getCurrentPlayerName(), otherwise it will fail with a "Not logged" error message. 
     */
 
-    function zombieTurn($state, $active_player)
+    function zombieTurn($state, $active_player_id)
     {
         switch ($state['name']) {
             case 'playerMove':
-                $move = $this->moveManager->getFirstLegalMoveFromDB();
+                $all_legal_moves = self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
+
+                $roll = bga_rand(0, count($all_legal_moves) - 1);
+
+                $move = $all_legal_moves[$roll];
+
                 $this->movePiece($move['x'], $move['y'], $move['piece_id']);
+
                 return;
 
             case 'playerKingMove':
-                $this->passKingMove();
+                $all_legal_moves = self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
+
+                $roll = bga_rand(0, count($all_legal_moves));
+
+                if ($roll == count($all_legal_moves)) {
+                    $this->passKingMove();
+                    return;
+                }
+
+                $move = $all_legal_moves[$roll];
+
+                $this->movePiece($move['x'], $move['y'], $move['piece_id']);
+
                 return;
 
             case 'pawnPromotion':
-                $army = $this->playerManager->getPlayerByColor($this->getPlayerColorById($active_player))->army;
-                $this->promotePawn($this->all_armies_promote_options[$army][0]);
+                $promote_options = $this->all_armies_promote_options[$this->playerManager->getPlayerById($active_player_id)->army];
+
+                $roll = bga_rand(0, count($promote_options) - 1);
+
+                $this->promotePawn($promote_options[$roll]);
+
                 return;
 
             case 'duelOffer':
-                $this->rejectDuel();
+                $roll = bga_rand(0, 1);
+
+                if ($roll == 0) {
+                    $this->rejectDuel();
+                } else {
+                    $this->acceptDuel();
+                }
+
                 return;
 
             case 'calledBluff':
-                $this->destroyStone();
+                $roll = bga_rand(0, 1);
+
+                if ($roll == 0) {
+                    $this->destroyStone();
+                } else {
+                    $this->gainStone();
+                }
+
                 return;
 
             case 'drawOffer':
@@ -1141,11 +1178,19 @@ class ChessSequel extends Table
                 return;
 
             case 'armySelect':
-                $this->confirmArmy("classic", $this->getPlayerColorById($active_player));
+                $roll = bga_rand(0, count($this->all_army_names) - 1);
+
+                $this->confirmArmy($this->all_army_names[$roll], $this->playerManager->getPlayerById($active_player_id));
+
                 return;
 
             case 'duelBidding':
-                $this->pickBid(0);
+                $active_player = $this->playerManager->getPlayerById($active_player_id);
+
+                $roll = bga_rand(0, $active_player->stones);
+
+                $this->pickBid($roll, $active_player);
+
                 return;
 
             default:

@@ -48,8 +48,6 @@ class CHSMoves
         "junglequeen" => array("knight", "rook")
     );
 
-    private $moves = [];
-
     // Note that $piece_ids must be an array of valid piece ids belonging to $player_id
     public function getAllMovesForPlayer($player)
     {
@@ -67,6 +65,8 @@ class CHSMoves
 
     private function getAllMovesForPieces($piece_ids, $player_id)
     {
+        $this->moves = [];
+
         $game_data = array(
             "pieces" => $this->game->pieceManager->getDataForMoveGen(),
             "squares" => $this->game->pieceManager->getSquaresData()
