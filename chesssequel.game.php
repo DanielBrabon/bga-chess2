@@ -925,11 +925,16 @@ class ChessSequel extends Table
         $this->playerManager->setRemainingReflexionTime(1800);
 
         // Notifying players of the changes to gamedatas
+        self::notifyAllPlayers("stProcessArmySelection", "", array("pieces" => $this->pieceManager->getPieces()));
+
+        if ($this->getGameStateValue('ruleset_version') == RULESET_THREE_POINT_ZERO) {
+            self::notifyAllPlayers("showBacklineRandomization", clienttranslate('Backline positions are randomized'), []);
+        }
+
         self::notifyAllPlayers(
-            "stProcessArmySelection",
+            "message",
             clienttranslate('Game begins: ${army_ffffff} vs ${army_000000}'),
             array(
-                "pieces" => $this->pieceManager->getPieces(),
                 "army_ffffff" => $this->button_labels[$this->playerManager->getPlayerByColor("ffffff")->army],
                 "army_000000" => $this->button_labels[$this->playerManager->getPlayerByColor("000000")->army]
             )

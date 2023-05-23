@@ -369,7 +369,7 @@ define([
 
                         if (piece_info['state'] != this.gamedatas.constants['CAPTURED']) {
                             // Insert the HTML element for the piece as a child of the square it's on
-                            dojo.place(this.format_block('jstpl_piece', {
+                            dojo.place(this.format_block('jstpl_boardpiece', {
                                 color: piece_info['color'],
                                 type: piece_info['type'],
                                 piece_id: piece_info['id']
@@ -412,7 +412,7 @@ define([
                     let y = y_values[Math.floor(piece_index / 8)];
 
                     // Insert the HTML element for the piece as a child of the square it's on
-                    dojo.place(this.format_block('jstpl_piece', {
+                    dojo.place(this.format_block('jstpl_boardpiece', {
                         color: player_color,
                         type: types[piece_index],
                         piece_id: piece_id
@@ -913,6 +913,9 @@ define([
 
                 dojo.subscribe('stProcessArmySelection', this, "notif_stProcessArmySelection");
 
+                dojo.subscribe('showBacklineRandomization', this, "notif_showBacklineRandomization");
+                this.notifqueue.setSynchronous('showBacklineRandomization', 3000);
+
                 dojo.subscribe('updateLegalMoves', this, "notif_updateLegalMoves");
 
                 dojo.subscribe('updatePieces', this, "notif_updatePieces");
@@ -948,8 +951,34 @@ define([
             notif_stProcessArmySelection: function (notif) {
                 this.gamedatas.pieces = notif.args.pieces;
 
-                dojo.query('.piece').forEach(dojo.destroy);
+                dojo.query('.boardpiece').forEach(dojo.destroy);
                 this.populateBoard();
+            },
+
+            notif_showBacklineRandomization: function () {
+                $('pagemaintitletext').innerHTML = _('Randomizing backline positions');
+
+                if (this.gamedatas.players[this.player_id].color == "000000") {
+                    dojo.query('.flipped').removeClass('flipped');
+                }
+
+                for (let piece_id in this.gamedatas.pieces) {
+                    if ((piece_id > 8 && piece_id < 17) || piece_id > 24) {
+                        continue;
+                    }
+
+                    let x = ((piece_id - 1) % 8) + 1;
+                    let y = (this.gamedatas.pieces[piece_id].color == "000000") ? 8 : 1;
+
+                    this.placeOnObject(piece_id, `square_${x}_${y}`);
+
+                    this.slideToObject(piece_id, $(piece_id).parentNode, 2000).play();
+                }
+
+                if (this.gamedatas.players[this.player_id].color == "000000") {
+                    dojo.addClass('board', 'flipped');
+                    dojo.query('.boardpiece').addClass('flipped');
+                }
             },
 
             notif_updateLegalMoves: function (notif) {

@@ -120,7 +120,7 @@ var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_I
 
     */
 
-    var jstpl_piece = '<div id="${piece_id}" class="piece boardpiece piececolor_${color} piecetype_${type}"></div>';
+    var jstpl_boardpiece = '<div id="${piece_id}" class="piece boardpiece piececolor_${color} piecetype_${type}"></div>';
 
     var jstpl_logpiece = '<div class="piece logpiece piececolor_${color} piecetype_${type}"></div>';
 
