@@ -398,20 +398,6 @@ class ChessSequel extends Table
         return $pos_string;
     }
 
-    function getDuelData()
-    {
-        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0];
-        $def_id = $this->captureManager->getCurrentDefenderId();
-        $def_piece = $this->pieceManager->getPiece($def_id);
-
-        return array(
-            "capID" => $cap_piece->id,
-            "defID" => $def_id,
-            "costToDuel" => $this->getCostToDuel($cap_piece, $def_piece),
-            "capStones" => $this->playerManager->getPlayerByColor($cap_piece->color)->stones
-        );
-    }
-
     function getCostToDuel($cap_piece, $def_piece)
     {
         $cap_piece_rank = $this->piece_ranks[$cap_piece->type];
@@ -690,10 +676,8 @@ class ChessSequel extends Table
     {
         $this->checkAction('acceptDuel');
 
-        $duel_data = $this->getDuelData();
-
-        $cap_piece = $this->pieceManager->getPiece($duel_data['capID']);
-        $def_piece = $this->pieceManager->getPiece($duel_data['defID']);
+        $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0];
+        $def_piece = $this->pieceManager->getPiece($this->captureManager->getCurrentDefenderId());
 
         $active_player = $this->playerManager->getActivePlayer();
         $inactive_player = $this->playerManager->getInactivePlayer();
@@ -702,7 +686,7 @@ class ChessSequel extends Table
 
         $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap}');
 
-        if ($duel_data['costToDuel'] == 1) {
+        if ($this->getCostToDuel($cap_piece, $def_piece) == 1) {
             // Pay the cost to duel
             $active_player->loseOneStone();
             $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap} (Pays 1 stone)');
