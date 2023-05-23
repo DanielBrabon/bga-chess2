@@ -151,6 +151,14 @@
     vertical-align: bottom;
 }
 
+.buttonpiece {
+    width: 40px;
+    height: 40px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
 .piececolor_ffffff {
     background-position-y: -100%;
 }

@@ -238,14 +238,20 @@ define([
                 if (this.isCurrentPlayerActive()) {
                     switch (stateName) {
                         case 'armySelect':
-                            const army_names = this.gamedatas.all_army_names;
+                            for (let army of this.gamedatas.all_army_names) {
+                                let button_id = `btn_${army}`;
 
-                            for (let army_name of army_names) {
-                                let button_id = 'btn_' + army_name;
+                                let button_piece = this.format_block(
+                                    'jstpl_buttonpiece',
+                                    {
+                                        color: this.gamedatas.players[this.player_id].color,
+                                        type: this.gamedatas.all_armies_layouts[army][3]
+                                    }
+                                );
 
-                                this.addActionButton(button_id, this.gamedatas.button_labels[army_name], 'pickArmy');
+                                this.addActionButton(button_id, button_piece + this.gamedatas.button_labels[army], 'pickArmy');
 
-                                this.addTooltip(button_id, "", this.gamedatas.army_tooltips[army_name]);
+                                this.addTooltip(button_id, "", this.gamedatas.army_tooltips[army]);
                             }
 
                             this.addActionButton('btn_confirm_army', _('Confirm Army'), 'confirmArmy', null, false, 'red');
@@ -285,11 +291,16 @@ define([
                             break;
 
                         case 'pawnPromotion':
-                            var player_army = this.gamedatas.players[this.player_id].army;
+                            for (let piece_type of args.promote_options) {
+                                let button_piece = this.format_block(
+                                    'jstpl_buttonpiece',
+                                    {
+                                        color: this.gamedatas.players[this.player_id].color,
+                                        type: piece_type
+                                    }
+                                );
 
-                            for (var piece_type_index in args.promoteOptions[player_army]) {
-                                var piece_type = args.promoteOptions[player_army][piece_type_index];
-                                this.addActionButton('btn_promote_' + piece_type, this.gamedatas.button_labels[piece_type], 'choosePromotion');
+                                this.addActionButton(`btn_promote_${piece_type}`, button_piece + this.gamedatas.button_labels[piece_type], 'choosePromotion');
                             }
                             break;
 
@@ -374,7 +385,7 @@ define([
 
                     // Flip the pieces for the black player
                     if (this.gamedatas.players[this.player_id].color == "000000") {
-                        dojo.query('.piece').addClass('flipped');
+                        dojo.query('.boardpiece').addClass('flipped');
                     }
                 }
             },
@@ -392,7 +403,7 @@ define([
                 }
 
                 // If pieces have already been placed for that color, remove those HTML elements
-                dojo.query('.piececolor_' + player_color).forEach(dojo.destroy);
+                dojo.query('.boardpiece.piececolor_' + player_color).forEach(dojo.destroy);
 
                 // For each piece in the layout
                 for (let piece_index in types) {
@@ -416,7 +427,7 @@ define([
 
                 // Flip the pieces for the black player
                 if (this.gamedatas.players[this.player_id].color == "000000") {
-                    dojo.query('.piece').addClass('flipped');
+                    dojo.query('.boardpiece').addClass('flipped');
                 }
             },
 
@@ -444,7 +455,8 @@ define([
 
                             switch (key_split[0]) {
                                 case 'logpiece':
-                                    args[key] = this.getLogPiece(args[key]);
+                                    let value_split = args[key].split("_");
+                                    args[key] = this.format_block('jstpl_logpiece', { color: value_split[0], type: value_split[1] });
                                     break;
                                 case 'army':
                                     args[key] = this.getPlayerColorText(key_split[1], args[key]);
@@ -456,11 +468,6 @@ define([
                     console.error(log, args, "Exception thrown", e.stack);
                 }
                 return this.inherited({ callee: format_string_recursive }, arguments);
-            },
-
-            getLogPiece: function (value) {
-                let split = value.split("_");
-                return this.format_block('jstpl_logpiece', { color: split[0], type: split[1] });
             },
 
             getPlayerColorText: function (color, text) {

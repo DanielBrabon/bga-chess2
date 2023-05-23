@@ -889,7 +889,8 @@ class ChessSequel extends Table
 
     function argPawnPromotion()
     {
-        return array("promoteOptions" => $this->all_armies_promote_options);
+        $army = $this->playerManager->getActivePlayer()->army;
+        return array("promote_options" => $this->all_armies_promote_options[$army]);
     }
 
     function argDuelOffer()
