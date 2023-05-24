@@ -37,39 +37,175 @@ $this->all_army_names = array(
 // The board layouts for all armies
 $this->all_armies_layouts = array(
   "classic" => array(
-    "rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook",
-    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
+    LAYOUT_ROOKA => "rook",
+    LAYOUT_KNIGHTA => "knight",
+    LAYOUT_BISHOPA => "bishop",
+    LAYOUT_QUEEN => "queen",
+    LAYOUT_KING => "king",
+    LAYOUT_BISHOPB => "bishop",
+    LAYOUT_KNIGHTB => "knight",
+    LAYOUT_ROOKB => "rook",
+    LAYOUT_PAWNA => "pawn",
+    LAYOUT_PAWNB => "pawn",
+    LAYOUT_PAWNC => "pawn",
+    LAYOUT_PAWND => "pawn",
+    LAYOUT_PAWNE => "pawn",
+    LAYOUT_PAWNF => "pawn",
+    LAYOUT_PAWNG => "pawn",
+    LAYOUT_PAWNH => "pawn"
   ),
 
   "nemesis" => array(
-    "rook", "knight", "bishop", "nemesis", "king", "bishop", "knight", "rook",
-    "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn", "nemesispawn"
+    LAYOUT_ROOKA => "rook",
+    LAYOUT_KNIGHTA => "knight",
+    LAYOUT_BISHOPA => "bishop",
+    LAYOUT_QUEEN => "nemesis",
+    LAYOUT_KING => "king",
+    LAYOUT_BISHOPB => "bishop",
+    LAYOUT_KNIGHTB => "knight",
+    LAYOUT_ROOKB => "rook",
+    LAYOUT_PAWNA => "nemesispawn",
+    LAYOUT_PAWNB => "nemesispawn",
+    LAYOUT_PAWNC => "nemesispawn",
+    LAYOUT_PAWND => "nemesispawn",
+    LAYOUT_PAWNE => "nemesispawn",
+    LAYOUT_PAWNF => "nemesispawn",
+    LAYOUT_PAWNG => "nemesispawn",
+    LAYOUT_PAWNH => "nemesispawn"
   ),
 
   "empowered" => array(
-    "empoweredrook", "empoweredknight", "empoweredbishop", "elegantqueen", "king", "empoweredbishop", "empoweredknight", "empoweredrook",
-    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
+    LAYOUT_ROOKA => "empoweredrook",
+    LAYOUT_KNIGHTA => "empoweredknight",
+    LAYOUT_BISHOPA => "empoweredbishop",
+    LAYOUT_QUEEN => "elegantqueen",
+    LAYOUT_KING => "king",
+    LAYOUT_BISHOPB => "empoweredbishop",
+    LAYOUT_KNIGHTB => "empoweredknight",
+    LAYOUT_ROOKB => "empoweredrook",
+    LAYOUT_PAWNA => "pawn",
+    LAYOUT_PAWNB => "pawn",
+    LAYOUT_PAWNC => "pawn",
+    LAYOUT_PAWND => "pawn",
+    LAYOUT_PAWNE => "pawn",
+    LAYOUT_PAWNF => "pawn",
+    LAYOUT_PAWNG => "pawn",
+    LAYOUT_PAWNH => "pawn"
   ),
 
   "reaper" => array(
-    "ghost", "knight", "bishop", "reaper", "king", "bishop", "knight", "ghost",
-    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
+    LAYOUT_ROOKA => "ghost",
+    LAYOUT_KNIGHTA => "knight",
+    LAYOUT_BISHOPA => "bishop",
+    LAYOUT_QUEEN => "reaper",
+    LAYOUT_KING => "king",
+    LAYOUT_BISHOPB => "bishop",
+    LAYOUT_KNIGHTB => "knight",
+    LAYOUT_ROOKB => "ghost",
+    LAYOUT_PAWNA => "pawn",
+    LAYOUT_PAWNB => "pawn",
+    LAYOUT_PAWNC => "pawn",
+    LAYOUT_PAWND => "pawn",
+    LAYOUT_PAWNE => "pawn",
+    LAYOUT_PAWNF => "pawn",
+    LAYOUT_PAWNG => "pawn",
+    LAYOUT_PAWNH => "pawn"
   ),
 
   "twokings" => array(
-    "rook", "knight", "bishop", "warriorking", "warriorking", "bishop", "knight", "rook",
-    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
+    LAYOUT_ROOKA => "rook",
+    LAYOUT_KNIGHTA => "knight",
+    LAYOUT_BISHOPA => "bishop",
+    LAYOUT_QUEEN => "warriorking",
+    LAYOUT_KING => "warriorking",
+    LAYOUT_BISHOPB => "bishop",
+    LAYOUT_KNIGHTB => "knight",
+    LAYOUT_ROOKB => "rook",
+    LAYOUT_PAWNA => "pawn",
+    LAYOUT_PAWNB => "pawn",
+    LAYOUT_PAWNC => "pawn",
+    LAYOUT_PAWND => "pawn",
+    LAYOUT_PAWNE => "pawn",
+    LAYOUT_PAWNF => "pawn",
+    LAYOUT_PAWNG => "pawn",
+    LAYOUT_PAWNH => "pawn"
   ),
 
   "animal" => array(
-    "elephant", "wildhorse", "tiger", "junglequeen", "king", "tiger", "wildhorse", "elephant",
-    "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn", "pawn"
+    LAYOUT_ROOKA => "elephant",
+    LAYOUT_KNIGHTA => "wildhorse",
+    LAYOUT_BISHOPA => "tiger",
+    LAYOUT_QUEEN => "junglequeen",
+    LAYOUT_KING => "king",
+    LAYOUT_BISHOPB => "tiger",
+    LAYOUT_KNIGHTB => "wildhorse",
+    LAYOUT_ROOKB => "elephant",
+    LAYOUT_PAWNA => "pawn",
+    LAYOUT_PAWNB => "pawn",
+    LAYOUT_PAWNC => "pawn",
+    LAYOUT_PAWND => "pawn",
+    LAYOUT_PAWNE => "pawn",
+    LAYOUT_PAWNF => "pawn",
+    LAYOUT_PAWNG => "pawn",
+    LAYOUT_PAWNH => "pawn"
   ),
 
   "empty" => array(
-    "empty", "empty", "empty", "empty", "empty", "empty", "empty", "empty",
-    "empty", "empty", "empty", "empty", "empty", "empty", "empty", "empty"
+    LAYOUT_ROOKA => "empty",
+    LAYOUT_KNIGHTA => "empty",
+    LAYOUT_BISHOPA => "empty",
+    LAYOUT_QUEEN => "empty",
+    LAYOUT_KING => "empty",
+    LAYOUT_BISHOPB => "empty",
+    LAYOUT_KNIGHTB => "empty",
+    LAYOUT_ROOKB => "empty",
+    LAYOUT_PAWNA => "empty",
+    LAYOUT_PAWNB => "empty",
+    LAYOUT_PAWNC => "empty",
+    LAYOUT_PAWND => "empty",
+    LAYOUT_PAWNE => "empty",
+    LAYOUT_PAWNF => "empty",
+    LAYOUT_PAWNG => "empty",
+    LAYOUT_PAWNH => "empty"
   )
+);
+
+$this->layout_x = array(
+  LAYOUT_ROOKA => 1,
+  LAYOUT_KNIGHTA => 2,
+  LAYOUT_BISHOPA => 3,
+  LAYOUT_QUEEN => 4,
+  LAYOUT_KING => 5,
+  LAYOUT_BISHOPB => 6,
+  LAYOUT_KNIGHTB => 7,
+  LAYOUT_ROOKB => 8,
+  LAYOUT_PAWNA => 1,
+  LAYOUT_PAWNB => 2,
+  LAYOUT_PAWNC => 3,
+  LAYOUT_PAWND => 4,
+  LAYOUT_PAWNE => 5,
+  LAYOUT_PAWNF => 6,
+  LAYOUT_PAWNG => 7,
+  LAYOUT_PAWNH => 8
+);
+
+$this->layout_y = array(
+  LAYOUT_ROOKA => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_KNIGHTA => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_BISHOPA => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_QUEEN => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_KING => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_BISHOPB => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_KNIGHTB => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_ROOKB => ["000000" => 8, "ffffff" => 1],
+  LAYOUT_PAWNA => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWNB => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWNC => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWND => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWNE => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWNF => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWNG => ["000000" => 7, "ffffff" => 2],
+  LAYOUT_PAWNH => ["000000" => 7, "ffffff" => 2]
 );
 
 $this->all_armies_promote_options = array(

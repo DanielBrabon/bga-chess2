@@ -147,6 +147,8 @@ class ChessSequel extends Table
             // From material.inc.php
             "all_army_names" => $this->all_army_names,
             "all_armies_layouts" => $this->all_armies_layouts,
+            "layout_x" => $this->layout_x,
+            "layout_y" => $this->layout_y,
             "button_labels" => $this->button_labels,
             "piece_tooltips" => $this->piece_tooltips,
             "army_tooltips" => $this->army_tooltips,
@@ -920,16 +922,21 @@ class ChessSequel extends Table
     // Enter the starting board state into the database  
     function stProcessArmySelection()
     {
-        $this->pieceManager->insertPieces();
+        if ($this->getGameStateValue('ruleset_version') == RULESET_THREE_POINT_ZERO) {
+            $x_positions = $this->pieceManager->rollBacklinePositions();
+
+            $this->pieceManager->insertPieces($x_positions);
+
+            self::notifyAllPlayers("stProcessArmySelection", "", ["pieces" => $this->pieceManager->getPieces()]);
+
+            self::notifyAllPlayers("showBacklineRandomization", clienttranslate('Backline positions are randomized'), ["x_positions" => $x_positions]);
+        } else {
+            $this->pieceManager->insertPieces();
+
+            self::notifyAllPlayers("stProcessArmySelection", "", ["pieces" => $this->pieceManager->getPieces()]);
+        }
 
         $this->playerManager->setRemainingReflexionTime(1800);
-
-        // Notifying players of the changes to gamedatas
-        self::notifyAllPlayers("stProcessArmySelection", "", array("pieces" => $this->pieceManager->getPieces()));
-
-        if ($this->getGameStateValue('ruleset_version') == RULESET_THREE_POINT_ZERO) {
-            self::notifyAllPlayers("showBacklineRandomization", clienttranslate('Backline positions are randomized'), []);
-        }
 
         self::notifyAllPlayers(
             "message",

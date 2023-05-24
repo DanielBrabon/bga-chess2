@@ -27,11 +27,8 @@ class CHSPieceManager extends APP_GameClass
         }
     }
 
-    public function insertPieces()
+    public function insertPieces($x_positions = null)
     {
-        // Randomized backline positions in ruleset 3.0
-        $x_offsets = ($this->game->getGameStateValue('ruleset_version') == RULESET_THREE_POINT_ZERO) ? $this->rollXOffsets() : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
         $sql_values = [];
 
         $piece_rows = [];
@@ -39,13 +36,10 @@ class CHSPieceManager extends APP_GameClass
         $counter = 1;
 
         foreach ($this->game->playerManager->getPlayers() as $player) {
-            // Correct y positions for this color
-            $y_values = ($player->color == "000000") ? [8, 7] : [1, 2];
-
             // For each piece in the chosen army
-            foreach ($this->game->all_armies_layouts[$player->army] as $piece_index => $piece_type) {
-                $x = ($piece_index % 8) + 1 + $x_offsets[$piece_index];
-                $y = $y_values[floor($piece_index / 8)];
+            foreach ($this->game->all_armies_layouts[$player->army] as $layout_index => $piece_type) {
+                $x = $x_positions[$layout_index] ?? $this->game->layout_x[$layout_index];
+                $y = $this->game->layout_y[$layout_index][$player->color];
 
                 // Piece data for the insert query
                 $sql_values[] = "('$player->color', '$piece_type', $x, $y)";
@@ -72,55 +66,29 @@ class CHSPieceManager extends APP_GameClass
         $this->selectPieces($piece_rows);
     }
 
-    // TODO: Improve?
-    private function rollXOffsets()
+    public function rollBacklinePositions()
     {
-        $x_offsets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        $available_x = [1, 2, 3, 4, 5, 6, 7, 8];
 
-        $squares = [1, 2, 3, 4, 5, 6, 7, 8];
+        $x_positions = [];
 
-        // The 5 needed rolls
-        $rolls = array();
-        foreach ([4, 4, 6, 5, 4] as $max_roll) {
-            $rolls[] = bga_rand(1, $max_roll);
-        }
+        $x_positions[LAYOUT_BISHOPA] = (bga_rand(1, 4) * 2) - 1; // Random black square
+        $x_positions[LAYOUT_BISHOPB] = bga_rand(1, 4) * 2; // Random white square
 
-        // Move the black square bishop
-        $bb_square_index = ($rolls[0] - 1) * 2;
-        $x_offsets[2] = $squares[$bb_square_index] - 3;
+        unset($available_x[$x_positions[LAYOUT_BISHOPA] - 1]);
+        unset($available_x[$x_positions[LAYOUT_BISHOPB] - 1]);
+        $available_x = array_values($available_x);
 
-        // Move the white square bishop
-        $wb_square_index = ($rolls[1] * 2) - 1;
-        $x_offsets[5] = $squares[$wb_square_index] - 6;
+        $x_positions[LAYOUT_QUEEN] = array_splice($available_x, bga_rand(0, 5), 1)[0]; // Random remaining square
+        $x_positions[LAYOUT_KNIGHTA] = array_splice($available_x, bga_rand(0, 4), 1)[0]; // Random remaining square
+        $x_positions[LAYOUT_KNIGHTB] = array_splice($available_x, bga_rand(0, 3), 1)[0]; // Random remaining square
 
-        unset($squares[$bb_square_index]);
-        unset($squares[$wb_square_index]);
-        $squares = array_values($squares);
+        // King between the rooks in the remaining squares
+        $x_positions[LAYOUT_ROOKA] = $available_x[0];
+        $x_positions[LAYOUT_KING] = $available_x[1];
+        $x_positions[LAYOUT_ROOKB] = $available_x[2];
 
-        // Move the queen
-        $square_index = $rolls[2] - 1;
-        $x_offsets[3] = $squares[$square_index] - 4;
-        unset($squares[$square_index]);
-        $squares = array_values($squares);
-
-        // Move the first knight
-        $square_index = $rolls[3] - 1;
-        $x_offsets[1] = $squares[$square_index] - 2;
-        unset($squares[$square_index]);
-        $squares = array_values($squares);
-
-        // Move the second knight
-        $square_index = $rolls[4] - 1;
-        $x_offsets[6] = $squares[$square_index] - 7;
-        unset($squares[$square_index]);
-        $squares = array_values($squares);
-
-        // Move the remaining pieces
-        $x_offsets[0] = $squares[0] - 1;
-        $x_offsets[4] = $squares[1] - 5;
-        $x_offsets[7] = $squares[2] - 8;
-
-        return $x_offsets;
+        return $x_positions;
     }
 
     public function getPieces()

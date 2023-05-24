@@ -15,6 +15,24 @@ define('REAPER', 3);
 define('TWOKINGS', 4);
 define('ANIMAL', 5);
 
+// Layout indices
+define('LAYOUT_ROOKA', 0);
+define('LAYOUT_KNIGHTA', 1);
+define('LAYOUT_BISHOPA', 2);
+define('LAYOUT_QUEEN', 3);
+define('LAYOUT_KING', 4);
+define('LAYOUT_BISHOPB', 5);
+define('LAYOUT_KNIGHTB', 6);
+define('LAYOUT_ROOKB', 7);
+define('LAYOUT_PAWNA', 8);
+define('LAYOUT_PAWNB', 9);
+define('LAYOUT_PAWNC', 10);
+define('LAYOUT_PAWND', 11);
+define('LAYOUT_PAWNE', 12);
+define('LAYOUT_PAWNF', 13);
+define('LAYOUT_PAWNG', 14);
+define('LAYOUT_PAWNH', 15);
+
 // Game end conditions
 define('CHECKMATE', 0);
 define('STALEMATE', 1);

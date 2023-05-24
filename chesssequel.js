@@ -245,7 +245,7 @@ define([
                                     'jstpl_buttonpiece',
                                     {
                                         color: this.gamedatas.players[this.player_id].color,
-                                        type: this.gamedatas.all_armies_layouts[army][3]
+                                        type: this.gamedatas.all_armies_layouts[army][this.gamedatas.constants['LAYOUT_QUEEN']]
                                     }
                                 );
 
@@ -391,37 +391,24 @@ define([
             },
 
             placeStartingPiecesOnBoard: function (army_name, player_color) {
-                // Gets the array of piece types in this army's layout
-                var types = this.gamedatas.all_armies_layouts[army_name];
-
-                var piece_id_offset = 1;
-                var y_values = [1, 2];
-                // If this is for black, change the y values and ids to be correct for this player
-                if (player_color == "000000") {
-                    piece_id_offset = 17;
-                    y_values = [8, 7];
-                }
-
-                // If pieces have already been placed for that color, remove those HTML elements
+                // If board pieces have already been placed for that color, remove those HTML elements
                 dojo.query('.boardpiece.piececolor_' + player_color).forEach(dojo.destroy);
 
-                // For each piece in the layout
-                for (let piece_index in types) {
-                    let piece_id = piece_id_offset + piece_index;
-                    let x = (piece_index % 8) + 1;
-                    let y = y_values[Math.floor(piece_index / 8)];
+                for (let layout_index in this.gamedatas.all_armies_layouts[army_name]) {
+                    let type = this.gamedatas.all_armies_layouts[army_name][layout_index];
+                    let piece_id = `${player_color}_${layout_index}`;
 
                     // Insert the HTML element for the piece as a child of the square it's on
                     dojo.place(this.format_block('jstpl_boardpiece', {
                         color: player_color,
-                        type: types[piece_index],
+                        type: type,
                         piece_id: piece_id
-                    }), 'square_' + x + '_' + y);
+                    }), `square_${this.gamedatas.layout_x[layout_index]}_${this.gamedatas.layout_y[layout_index][player_color]}`);
 
                     this.addTooltip(
                         piece_id,
-                        this.gamedatas.piece_tooltips[types[piece_index]].help_string,
-                        this.gamedatas.piece_tooltips[types[piece_index]].action_string
+                        this.gamedatas.piece_tooltips[type].help_string,
+                        this.gamedatas.piece_tooltips[type].action_string
                     );
                 }
 
@@ -955,24 +942,21 @@ define([
                 this.populateBoard();
             },
 
-            notif_showBacklineRandomization: function () {
+            notif_showBacklineRandomization: function (notif) {
                 $('pagemaintitletext').innerHTML = _('Randomizing backline positions');
 
                 if (this.gamedatas.players[this.player_id].color == "000000") {
                     dojo.query('.flipped').removeClass('flipped');
                 }
 
-                for (let piece_id in this.gamedatas.pieces) {
-                    if ((piece_id > 8 && piece_id < 17) || piece_id > 24) {
-                        continue;
+                for (let layout_index in notif.args.x_positions) {
+                    for (let y of [1, 8]) {
+                        let square = $(`square_${notif.args.x_positions[layout_index]}_${y}`);
+
+                        this.placeOnObject(square.children[0], `square_${this.gamedatas.layout_x[layout_index]}_${y}`);
+
+                        this.slideToObject(square.children[0], square, 2000).play();
                     }
-
-                    let x = ((piece_id - 1) % 8) + 1;
-                    let y = (this.gamedatas.pieces[piece_id].color == "000000") ? 8 : 1;
-
-                    this.placeOnObject(piece_id, `square_${x}_${y}`);
-
-                    this.slideToObject(piece_id, $(piece_id).parentNode, 2000).play();
                 }
 
                 if (this.gamedatas.players[this.player_id].color == "000000") {
