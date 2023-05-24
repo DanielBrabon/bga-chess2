@@ -132,9 +132,11 @@ $gameinfos = array(
     // Each paragraph must be wrapped with totranslate() for translation and should not contain html (plain text without formatting).
     // A good length for this text is between 100 and 150 words (about 6 to 9 lines on a standard display)
     'presentation' => array(
-        //    totranslate("This wonderful game is about geometric shapes!"),
-        //    totranslate("It was awarded best triangle game of the year in 2005 and nominated for the Spiel des Jahres."),
-        //    ...
+        totranslate("Chess 1 was a hit, no doubt about it. Chess 2 seeks to build on the greatness of the original while addressing a few problems and also going in a new direction."),
+        totranslate("There are now SIX ARMIES to choose from, rather than just 1, creating 21 matchups instead of just 1."),
+        totranslate("There's a new win condition for crossing the midline of the board with your king (in addition to your grandpa's checkmates)."),
+        totranslate("And each of the two available rulesets has a mechanic to combat memorization: v2.4 has a bidding mechanic, while v3.0 randomizes backline positioning."),
+        totranslate("The chess variant from David Sirlin, creator of the Fantasy Strike and Yomi worlds.")
     ),
 
     // Games tags (categories)
