@@ -136,9 +136,18 @@ define([
                         break;
 
                     case 'playerMove':
+                        for (let piece_id in this.gamedatas.pieces) {
+                            let piece = this.gamedatas.pieces[piece_id];
+
+                            if (piece.state == this.gamedatas.constants['IN_CHECK']) {
+                                dojo.addClass($(piece_id).parentNode, 'in_check');
+                            }
+                        }
+
                         if (this.isCurrentPlayerActive()) {
                             dojo.style('player_board_buttons', 'display', 'block');
                         }
+
                         break;
 
                     case 'duelOffer':
@@ -194,6 +203,7 @@ define([
                 switch (stateName) {
                     case 'playerMove':
                         dojo.style('player_board_buttons', 'display', 'none');
+                        dojo.query('.in_check').removeClass('in_check');
                         break;
 
                     case 'processDuelRejected':

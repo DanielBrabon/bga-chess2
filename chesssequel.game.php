@@ -316,6 +316,23 @@ class ChessSequel extends Table
             return;
         }
 
+        foreach ($moves['friendly_kings'] as $king_id => $king) {
+            if (count($king['checked_by']) != 0) {
+                $king_piece = $this->pieceManager->getPiece($king_id);
+                $king_piece->setState(IN_CHECK);
+
+                self::notifyAllPlayers(
+                    "updatePieces",
+                    "",
+                    [
+                        "piece_id" => $king_piece->id,
+                        "values_updated" => ["state" => IN_CHECK]
+
+                    ]
+                );
+            }
+        }
+
         if ($active_player->army == "twokings") {
             $active_player->setKingMoveAvailable();
         }
@@ -503,6 +520,22 @@ class ChessSequel extends Table
         // If the attempted move is not found in legal_moves table, throw an error
         if ($cap_squares === null) {
             throw new BgaSystemException("Illegal move");
+        }
+
+        $checked = $this->pieceManager->getPiecesInStates([IN_CHECK]);
+
+        foreach ($checked as $piece) {
+            $piece->setState(NEUTRAL);
+
+            self::notifyAllPlayers(
+                "updatePieces",
+                "",
+                [
+                    "piece_id" => $piece->id,
+                    "values_updated" => ["state" => NEUTRAL]
+
+                ]
+            );
         }
 
         $squares = $this->pieceManager->getSquaresData();

@@ -49,6 +49,7 @@ define('PROMOTING', 2);
 define('CAPTURING_AND_PROMOTING', 3);
 define('EN_PASSANT_VULNERABLE', 4);
 define('CAPTURED', 5);
+define('IN_CHECK', 6);
 
 // Game states
 define('ST_GAME_SETUP', 1);
