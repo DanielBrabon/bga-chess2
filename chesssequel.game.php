@@ -589,12 +589,9 @@ class ChessSequel extends Table
 
         // Send notifications
         self::notifyAllPlayers(
-            "updatePieces",
+            "message",
             $msg,
             array(
-                "piece_id" => $moving_piece->id,
-                "values_updated" => $values_updated,
-                "state_name" => $state_name,
                 "player_name" => self::getActivePlayerName(),
                 "logpiece" => $moving_piece->color . "_" . $moving_piece->type,
                 "square" => $this->files[$target_x] . $target_y
@@ -630,7 +627,7 @@ class ChessSequel extends Table
             }
         }
 
-        $moving_piece->movePiece($values_updated);
+        $moving_piece->movePiece($values_updated, $state_name);
 
         // Change player state
         $this->gamestate->nextState('processMove');

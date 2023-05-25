@@ -38,7 +38,7 @@ class CHSPiece extends APP_GameClass
         $this->game->notifyAllPlayers("updatePieces", "", ["piece_id" => $this->id, "values_updated" => ["state" => $state]]);
     }
 
-    public function movePiece($values)
+    public function movePiece($values, $state_name)
     {
         $this->state = $values['state'];
         $this->x = $values['location'][0];
@@ -56,6 +56,16 @@ class CHSPiece extends APP_GameClass
             last_y = $this->last_y,
             moves_made = moves_made + 1
             WHERE piece_id = $this->id"
+        );
+
+        $this->game->notifyAllPlayers(
+            "updatePieces",
+            "",
+            array(
+                "piece_id" => $this->id,
+                "values_updated" => $values,
+                "state_name" => $state_name
+            )
         );
     }
 
