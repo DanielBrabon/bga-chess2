@@ -106,8 +106,6 @@ class CHSCaptureManager extends APP_GameClass
 
     public function singleCapture($def_piece)
     {
-        $def_piece->setState(CAPTURED);
-
         $same_color = ($def_piece->color == $this->cap_piece->color);
         $stat = ($same_color) ? "friendlies_captured" : "enemies_captured";
 
@@ -124,12 +122,12 @@ class CHSCaptureManager extends APP_GameClass
             $cap_player->gainOneStone($def_piece->id);
         }
 
+        $def_piece->setState(CAPTURED);
+
         $this->game->notifyAllPlayers(
-            "updatePieces",
+            "message",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
             array(
-                "piece_id" => $def_piece->id,
-                "values_updated" => array("state" => CAPTURED),
                 "logpiece_cap" => $this->cap_piece->color . "_" . $this->cap_piece->type,
                 "logpiece_def" => $def_piece->color . "_" . $def_piece->type
             )
@@ -144,15 +142,6 @@ class CHSCaptureManager extends APP_GameClass
             $new_state = ($this->cap_piece->state == CAPTURING_AND_PROMOTING) ? PROMOTING : NEUTRAL;
 
             $this->cap_piece->setState($new_state);
-
-            $this->game->notifyAllPlayers(
-                "updatePieces",
-                "",
-                array(
-                    "piece_id" => $this->cap_piece->id,
-                    "values_updated" => array("state" => $new_state)
-                )
-            );
 
             $this->cap_piece = null;
         }
@@ -181,22 +170,18 @@ class CHSCaptureManager extends APP_GameClass
         $def_piece->setState(CAPTURED);
 
         $this->game->notifyAllPlayers(
-            "updatePieces",
+            "message",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
             array(
-                "piece_id" => $def_piece->id,
-                "values_updated" => array("state" => CAPTURED),
                 "logpiece_cap" => $this->cap_piece->color . "_" . $this->cap_piece->type,
                 "logpiece_def" => $def_piece->color . "_" . $def_piece->type
             )
         );
 
         $this->game->notifyAllPlayers(
-            "updatePieces",
+            "message",
             clienttranslate('${logpiece_def} captures ${logpiece_cap}'),
             array(
-                "piece_id" => $this->cap_piece->id,
-                "values_updated" => array("state" => CAPTURED),
                 "logpiece_def" => $def_piece->color . "_" . $def_piece->type,
                 "logpiece_cap" => $this->cap_piece->color . "_" . $this->cap_piece->type
             )

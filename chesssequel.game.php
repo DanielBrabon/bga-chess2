@@ -287,11 +287,6 @@ class ChessSequel extends Table
         foreach ($enpassant_pieces as $piece) {
             if ($piece->id != $last_move_piece) {
                 $piece->setState(NEUTRAL);
-
-                self::notifyAllPlayers("updatePieces", "", array(
-                    "piece_id" => $piece->id,
-                    "values_updated" => array("state" => NEUTRAL)
-                ));
             }
         }
 
@@ -318,18 +313,7 @@ class ChessSequel extends Table
 
         foreach ($moves['friendly_kings'] as $king_id => $king) {
             if (count($king['checked_by']) != 0) {
-                $king_piece = $this->pieceManager->getPiece($king_id);
-                $king_piece->setState(IN_CHECK);
-
-                self::notifyAllPlayers(
-                    "updatePieces",
-                    "",
-                    [
-                        "piece_id" => $king_piece->id,
-                        "values_updated" => ["state" => IN_CHECK]
-
-                    ]
-                );
+                $this->pieceManager->getPiece($king_id)->setState(IN_CHECK);
             }
         }
 
@@ -522,20 +506,8 @@ class ChessSequel extends Table
             throw new BgaSystemException("Illegal move");
         }
 
-        $checked = $this->pieceManager->getPiecesInStates([IN_CHECK]);
-
-        foreach ($checked as $piece) {
+        foreach ($this->pieceManager->getPiecesInStates([IN_CHECK]) as $piece) {
             $piece->setState(NEUTRAL);
-
-            self::notifyAllPlayers(
-                "updatePieces",
-                "",
-                [
-                    "piece_id" => $piece->id,
-                    "values_updated" => ["state" => NEUTRAL]
-
-                ]
-            );
         }
 
         $squares = $this->pieceManager->getSquaresData();

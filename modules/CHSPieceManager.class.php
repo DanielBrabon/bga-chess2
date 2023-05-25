@@ -22,7 +22,7 @@ class CHSPieceManager extends APP_GameClass
         }
 
         foreach ($piece_rows as $piece_data) {
-            $piece = new CHSPiece($piece_data);
+            $piece = new CHSPiece($this->game, $piece_data);
             $this->pieces[$piece_data['piece_id']] = $piece;
         }
     }

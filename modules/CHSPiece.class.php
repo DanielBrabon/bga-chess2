@@ -2,6 +2,8 @@
 
 class CHSPiece extends APP_GameClass
 {
+    private $game;
+
     public $id;
     public $color;
     public $type;
@@ -12,8 +14,10 @@ class CHSPiece extends APP_GameClass
     public $moves_made;
     public $state;
 
-    public function __construct($piece_data)
+    public function __construct($game, $piece_data)
     {
+        $this->game = $game;
+
         $this->id = $piece_data['piece_id'];
         $this->color = $piece_data['color'];
         $this->type = $piece_data['type'];
@@ -28,7 +32,10 @@ class CHSPiece extends APP_GameClass
     public function setState($state)
     {
         $this->state = $state;
+
         self::DbQuery("UPDATE pieces SET state = $state WHERE piece_id = $this->id");
+
+        $this->game->notifyAllPlayers("updatePieces", "", ["piece_id" => $this->id, "values_updated" => ["state" => $state]]);
     }
 
     public function movePiece($values)
