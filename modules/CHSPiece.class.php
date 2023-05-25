@@ -61,18 +61,44 @@ class CHSPiece extends APP_GameClass
 
     public function setNewLocation($x, $y)
     {
+        $this->game->notifyAllPlayers(
+            "updatePieces",
+            "",
+            array(
+                "piece_id" => $this->id,
+                "values_updated" => array(
+                    "location" => [$x, $y],
+                    "last_x" => $this->x,
+                    "last_y" => $this->y
+                )
+            )
+        );
+
         self::DbQuery("UPDATE pieces SET x = $x, y = $y, last_x = $this->x, last_y = $this->y WHERE piece_id = $this->id");
 
-        $this->x = $x;
-        $this->y = $y;
         $this->last_x = $this->x;
         $this->last_y = $this->y;
+        $this->x = $x;
+        $this->y = $y;
     }
 
     public function promote($promotion_type)
     {
         $this->type = $promotion_type;
         $this->state = NEUTRAL;
+
         self::DbQuery("UPDATE pieces SET type = '$promotion_type', state = " . NEUTRAL . " WHERE piece_id = $this->id");
+
+        $this->game->notifyAllPlayers(
+            "updatePieces",
+            "",
+            array(
+                "piece_id" => $this->id,
+                "values_updated" => array(
+                    "type" => $promotion_type,
+                    "state" => NEUTRAL
+                )
+            )
+        );
     }
 }

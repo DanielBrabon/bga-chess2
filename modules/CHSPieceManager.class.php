@@ -64,6 +64,8 @@ class CHSPieceManager extends APP_GameClass
         self::DbQuery("INSERT INTO pieces (color, type, x, y) VALUES " . implode(',', $sql_values));
 
         $this->selectPieces($piece_rows);
+
+        $this->game->notifyAllPlayers("insertPieces", "", ["pieces" => $this->pieces]);
     }
 
     public function rollBacklinePositions()

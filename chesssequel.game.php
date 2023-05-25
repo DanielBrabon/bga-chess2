@@ -601,8 +601,6 @@ class ChessSequel extends Table
             )
         );
 
-        self::notifyAllPlayers("clearSelectedPiece", "", array());
-
         // If the moving piece is a castling king, resolve the castle
         if ($moving_piece->type == "king" && abs($moving_piece->x - $target_x) == 2) {
             $dir = ($target_x - $moving_piece->x) / 2;
@@ -617,18 +615,10 @@ class ChessSequel extends Table
 
                     $castling_rook->setNewLocation($rook_dest_x, $target_y);
 
-                    $rook_values_updated = array(
-                        "location" => array($rook_dest_x, $target_y),
-                        "last_x" => $x,
-                        "last_y" => $target_y
-                    );
-
                     self::notifyAllPlayers(
-                        "updatePieces",
+                        "message",
                         clienttranslate('${player_name} castles: ${logpiece}${square}'),
                         array(
-                            "piece_id" => $castling_rook->id,
-                            "values_updated" => $rook_values_updated,
                             "player_name" => self::getActivePlayerName(),
                             "logpiece" => $castling_rook->color . "_" . $castling_rook->type,
                             "square" => $this->files[$rook_dest_x] . $castling_rook->y
@@ -665,11 +655,9 @@ class ChessSequel extends Table
         $promoting_pawn_type = ($active_player->army == "nemesis") ? "nemesispawn" : "pawn";
 
         self::notifyAllPlayers(
-            "updatePieces",
+            "message",
             clienttranslate('${player_name} promotes ${logpiece_before} to ${logpiece_after}'),
             array(
-                "piece_id" => $promoting_pawn->id,
-                "values_updated" => array("type" => $chosen_promotion, "state" => NEUTRAL),
                 "player_name" => $active_player->name,
                 "logpiece_before" => $active_player->color . "_" . $promoting_pawn_type,
                 "logpiece_after" => $active_player->color . "_" . $chosen_promotion
@@ -932,13 +920,9 @@ class ChessSequel extends Table
 
             $this->pieceManager->insertPieces($x_positions);
 
-            self::notifyAllPlayers("stProcessArmySelection", "", ["pieces" => $this->pieceManager->getPieces()]);
-
             self::notifyAllPlayers("showBacklineRandomization", clienttranslate('Backline positions are randomized'), ["x_positions" => $x_positions]);
         } else {
             $this->pieceManager->insertPieces();
-
-            self::notifyAllPlayers("stProcessArmySelection", "", ["pieces" => $this->pieceManager->getPieces()]);
         }
 
         $this->playerManager->setRemainingReflexionTime(1800);

@@ -908,7 +908,7 @@ define([
 
                 dojo.subscribe('confirmArmy', this, "notif_confirmArmy");
 
-                dojo.subscribe('stProcessArmySelection', this, "notif_stProcessArmySelection");
+                dojo.subscribe('insertPieces', this, "notif_insertPieces");
 
                 dojo.subscribe('showBacklineRandomization', this, "notif_showBacklineRandomization");
                 this.notifqueue.setSynchronous('showBacklineRandomization', 3000);
@@ -930,8 +930,6 @@ define([
                 dojo.subscribe('showDuelOutcome', this, "notif_showDuelOutcome");
                 this.notifqueue.setSynchronous('showDuelOutcome', 4000);
 
-                dojo.subscribe('clearSelectedPiece', this, "notif_clearSelectedPiece");
-
                 dojo.subscribe('highlightAttackedSquares', this, "notif_highlightAttackedSquares");
 
                 dojo.subscribe('printWithJavascript', this, "notif_printWithJavascript");
@@ -945,7 +943,7 @@ define([
                 }
             },
 
-            notif_stProcessArmySelection: function (notif) {
+            notif_insertPieces: function (notif) {
                 this.gamedatas.pieces = notif.args.pieces;
 
                 dojo.query('.boardpiece').forEach(dojo.destroy);
@@ -1023,6 +1021,7 @@ define([
                     }
 
                     this.highlightLastMove(notif.args.piece_id);
+                    this.clearSelectedPiece();
                 }
 
                 //console.log(this.gamedatas.pieces);
@@ -1086,10 +1085,6 @@ define([
 
             notif_showDuelOutcome: function (notif) {
                 $('pagemaintitletext').innerHTML = notif.args.outcome_message;
-            },
-
-            notif_clearSelectedPiece: function () {
-                this.clearSelectedPiece();
             },
 
             notif_highlightAttackedSquares: function (notif) {
