@@ -64,11 +64,15 @@ define([
                             dojo.place(this.format_block('jstpl_stone', player), `${player_id}_stone_slot_${i}`);
                         }
 
+                        // Translate
                         this.addTooltip(`player_stones_wrap_${player_id}`, _('Stones'), _('The resource used in duels'));
 
                         let player_name = this.getPlayerColorText(player['color'], player['name']);
                         dojo.place(player_name, `duel_board_name_${player_id}`);
                     }
+
+                    // Translate
+                    $('duel_board_title').innerHTML = _('Bids:');
 
                     dojo.style('player_board_duel', 'display', 'none');
                 } else {
@@ -99,6 +103,9 @@ define([
                     dojo.query('.coordtype_0').style('color', 'var(--dark-square-color)');
                     dojo.query('.coordtype_1').style('color', 'var(--light-square-color)');
                 }
+
+                // Translate
+                $('btn_draw').innerHTML = _('Offer Draw');
 
                 // Setup game notifications to handle (see "setupNotifications" method below)
                 this.setupNotifications();
@@ -259,29 +266,32 @@ define([
                                     }
                                 );
 
-                                this.addActionButton(button_id, button_piece + this.gamedatas.button_labels[army], 'pickArmy');
-
-                                this.addTooltip(button_id, "", this.gamedatas.army_tooltips[army]);
+                                // Translate
+                                this.addActionButton(button_id, button_piece + _(this.gamedatas.button_labels[army]), 'pickArmy');
+                                this.addTooltip(button_id, "", _(this.gamedatas.army_tooltips[army]));
                             }
 
+                            // Translate
                             this.addActionButton('btn_confirm_army', _('Confirm Army'), 'confirmArmy', null, false, 'red');
                             break;
 
                         case 'playerKingMove':
+                            // Translate
                             this.addActionButton('btn_pass_king_move', _('Pass King Move'), 'passKingMove', null, false, 'red');
                             break;
 
                         case 'duelOffer':
-                            let accept_label = "Accept Duel";
+                            let accept_label = _('Accept Duel');
 
                             if (args.duel_cost == 1) {
-                                accept_label += " (Pay 1 Stone)";
+                                accept_label += _(' (Pay 1 Stone)');
                             }
 
                             if (args.cap_stones == 0) {
-                                accept_label += " (Bid 1 and Win)";
+                                accept_label += _(' (Bid 1 and Win)');
                             }
 
+                            // Translate
                             this.addActionButton('btn_accept_duel', accept_label, 'acceptDuel');
                             this.addActionButton('btn_reject_duel', _('Reject Duel'), 'rejectDuel');
                             break;
@@ -291,11 +301,13 @@ define([
                             let max_bid = (stones > 2) ? 2 : stones;
 
                             for (let i = 0; i <= max_bid; i++) {
-                                this.addActionButton('btn_bid_' + i, this.gamedatas.button_labels["bid_" + i], 'pickBid');
+                                // Translate
+                                this.addActionButton(`btn_bid_${i}`, dojo.string.substitute(_('Bid ${i} Stone(s)'), { i: i }), 'pickBid');
                             }
                             break;
 
                         case 'calledBluff':
+                            // Translate
                             this.addActionButton('btn_gain_stone', _('Gain 1 Stone'), 'gainStone');
                             this.addActionButton('btn_destroy_stone', _('Destroy 1 Enemy Stone'), 'destroyStone');
                             break;
@@ -310,11 +322,13 @@ define([
                                     }
                                 );
 
-                                this.addActionButton(`btn_promote_${piece_type}`, button_piece + this.gamedatas.button_labels[piece_type], 'choosePromotion');
+                                // Translate
+                                this.addActionButton(`btn_promote_${piece_type}`, button_piece + _(this.gamedatas.button_labels[piece_type]), 'choosePromotion');
                             }
                             break;
 
                         case 'drawOffer':
+                            // Translate
                             this.addActionButton('btn_accept_draw', _('Accept Draw'), 'acceptDraw');
                             this.addActionButton('btn_reject_draw', _('Reject Draw'), 'rejectDraw');
                             break;
@@ -385,10 +399,11 @@ define([
                                 piece_id: piece_info['id']
                             }), 'square_' + piece_info['x'] + '_' + piece_info['y']);
 
+                            // Translate
                             this.addTooltip(
                                 piece_info['id'],
-                                this.gamedatas.piece_tooltips[piece_info['type']].help_string,
-                                this.gamedatas.piece_tooltips[piece_info['type']].action_string
+                                _(this.gamedatas.piece_tooltips[piece_info['type']].help_string),
+                                _(this.gamedatas.piece_tooltips[piece_info['type']].action_string)
                             );
                         }
                     }
@@ -415,10 +430,11 @@ define([
                         piece_id: piece_id
                     }), `square_${this.gamedatas.layout_x[layout_index]}_${this.gamedatas.layout_y[layout_index][player_color]}`);
 
+                    // Translate
                     this.addTooltip(
                         piece_id,
-                        this.gamedatas.piece_tooltips[type].help_string,
-                        this.gamedatas.piece_tooltips[type].action_string
+                        _(this.gamedatas.piece_tooltips[type].help_string),
+                        _(this.gamedatas.piece_tooltips[type].action_string)
                     );
                 }
 
@@ -435,13 +451,11 @@ define([
             },
 
             updateArmySelectTitleText: function (army) {
-                $('pagemaintitletext').innerHTML = this.format_block(
-                    'jstpl_army_select_title_text',
-                    {
-                        you: this.getPlayerColorText(this.gamedatas.players[this.player_id].color, "You"),
-                        army: army
-                    }
-                );
+                // Translate
+                $('pagemaintitletext').innerHTML = dojo.string.substitute(
+                    _('${you} must select an army'),
+                    { you: this.getPlayerColorText(this.gamedatas.players[this.player_id].color, _('You')) }
+                ) + '<br>' + dojo.string.substitute(_('Current selection: ${selected_army}'), { selected_army: _(army) }) + '<br>';
             },
 
             format_string_recursive: function format_string_recursive(log, args) {
@@ -456,7 +470,8 @@ define([
                                     args[key] = this.format_block('jstpl_logpiece', { color: value_split[0], type: value_split[1] });
                                     break;
                                 case 'army':
-                                    args[key] = this.getPlayerColorText(key_split[1], args[key]);
+                                    // Translate (Do I need _() here?)
+                                    args[key] = this.getPlayerColorText(key_split[1], _(args[key]));
                                     break;
                             }
                         }
@@ -555,6 +570,7 @@ define([
                         `piecetype_${this.gamedatas.pieces[duel_piece_id]['type']}`]
                     );
 
+                    // Translate
                     $(`duel_board_status_${player_id}`).innerHTML = status;
                 }
 
@@ -951,6 +967,7 @@ define([
             },
 
             notif_showBacklineRandomization: function (notif) {
+                // Translate
                 $('pagemaintitletext').innerHTML = _('Randomizing backline positions');
 
                 if (this.gamedatas.players[this.player_id].color == "000000") {
@@ -1084,7 +1101,8 @@ define([
             },
 
             notif_showDuelOutcome: function (notif) {
-                $('pagemaintitletext').innerHTML = notif.args.outcome_message;
+                // Translate
+                $('pagemaintitletext').innerHTML = _(notif.args.outcome_message);
             },
 
             notif_highlightAttackedSquares: function (notif) {

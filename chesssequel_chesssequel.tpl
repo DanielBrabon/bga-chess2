@@ -59,7 +59,7 @@
 
 <div id="player_board_buttons" class="player-board">
 
-    <button id="btn_draw" class="bgabutton bgabutton_blue">Offer Draw</button>
+    <button id="btn_draw" class="bgabutton bgabutton_blue"></button>
 
 </div>
 
@@ -78,7 +78,7 @@
 
 <div id="player_board_duel" class="player-board">
 
-    <div class="duel_board_title">Bids:</div>
+    <div id="duel_board_title"></div>
 
     <!-- BEGIN player_bids -->
     <div id="duel_board_{ID}" class="duel_board_player_section">
@@ -127,8 +127,6 @@ var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_I
     var jstpl_buttonpiece = '<div class="piece buttonpiece piececolor_${color} piecetype_${type}"></div>';
 
     var jstpl_player_color_text = '<span style="font-weight: bold; color: #${color}; background-color: ${bg_color};">${text}</span>';
-
-    var jstpl_army_select_title_text = '${you} must select an army<br>Current selection: ${army}<br>';
 
     var jstpl_stone = '<div class="stone stonecolor_${color}"></div>';
 </script>

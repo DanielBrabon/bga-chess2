@@ -13,7 +13,7 @@
 $gameinfos = array(
 
     // Name of the game in English (will serve as the basis for translation) 
-    'game_name' => "Chess 2: The Sequel",
+    'game_name' => totranslate("Chess 2: The Sequel"),
 
     // Game designer (or game designers, separated by commas)
     'designer' => 'David Sirlin',

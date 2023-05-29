@@ -412,16 +412,18 @@ class ChessSequel extends Table
     {
         self::setStat($condition, "end_condition");
 
+        $args = array("i18n" => ["condition"], "condition" => $this->end_conditions[$condition]);
+
         if ($winner !== null) {
             $winner->setAsWinner();
 
             $msg = clienttranslate('${player_name} wins by ${condition}');
-            $args = array("player_name" => $winner->name, "condition" => $this->end_conditions[$condition]);
+            $args['player_name'] = $winner->name;
         } else {
             $msg = clienttranslate('The game is a draw by ${condition}');
-            $args = array("condition" => $this->end_conditions[$condition]);
         }
 
+        // Translate
         self::notifyAllPlayers("message", $msg, $args);
 
         $this->gamestate->nextState('gameEnd');
@@ -578,7 +580,7 @@ class ChessSequel extends Table
             $values_updated['last_y'] = $moving_piece->last_y;
         }
 
-        $msg = clienttranslate('${player_name}: ${logpiece}${square}');
+        $msg = '${player_name}: ${logpiece}${square}';
         if (
             $moving_piece->type == "warriorking"
             && $target_x == $moving_piece->x
@@ -588,6 +590,7 @@ class ChessSequel extends Table
         }
 
         // Send notifications
+        // Translate
         self::notifyAllPlayers(
             "message",
             $msg,
@@ -612,6 +615,7 @@ class ChessSequel extends Table
 
                     $castling_rook->setNewLocation($rook_dest_x, $target_y);
 
+                    // Translate
                     self::notifyAllPlayers(
                         "message",
                         clienttranslate('${player_name} castles: ${logpiece}${square}'),
@@ -651,6 +655,7 @@ class ChessSequel extends Table
 
         $promoting_pawn_type = ($active_player->army == "nemesis") ? "nemesispawn" : "pawn";
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             clienttranslate('${player_name} promotes ${logpiece_before} to ${logpiece_after}'),
@@ -681,9 +686,10 @@ class ChessSequel extends Table
         if ($this->getCostToDuel($cap_piece, $def_piece) == 1) {
             // Pay the cost to duel
             $active_player->loseOneStone();
-            $msg = clienttranslate('${player_name}: ${logpiece_def} duels ${logpiece_cap} (Pays 1 stone)');
+            $msg .= clienttranslate(' (Pays 1 stone)');
         }
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             $msg,
@@ -755,6 +761,7 @@ class ChessSequel extends Table
 
         $active_player->gainOneStone("board");
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             clienttranslate('${player_name} gains a stone'),
@@ -772,6 +779,7 @@ class ChessSequel extends Table
 
         $this->playerManager->getInactivePlayer()->loseOneStone();
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             clienttranslate('${player_name} destroys an enemy stone'),
@@ -794,6 +802,7 @@ class ChessSequel extends Table
     {
         $this->checkAction('offerDraw');
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             clienttranslate('${player_name} offers a draw'),
@@ -815,6 +824,7 @@ class ChessSequel extends Table
     {
         $this->checkAction('rejectDraw');
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             clienttranslate('${player_name} rejects the draw'),
@@ -917,6 +927,7 @@ class ChessSequel extends Table
 
             $this->pieceManager->insertPieces($x_positions);
 
+            // Translate
             self::notifyAllPlayers("showBacklineRandomization", clienttranslate('Backline positions are randomized'), ["x_positions" => $x_positions]);
         } else {
             $this->pieceManager->insertPieces();
@@ -924,6 +935,7 @@ class ChessSequel extends Table
 
         $this->playerManager->setRemainingReflexionTime(1800);
 
+        // Translate
         self::notifyAllPlayers(
             "message",
             clienttranslate('Game begins: ${army_ffffff} vs ${army_000000}'),
@@ -987,6 +999,7 @@ class ChessSequel extends Table
             $msg = clienttranslate('Duel outcome: called bluff');
         }
 
+        // Translate
         self::notifyAllPlayers(
             "showDuelOutcome",
             clienttranslate('Bids: ${logpiece_def} ${bid_def} - ${bid_cap} ${logpiece_cap}'),
@@ -1017,6 +1030,7 @@ class ChessSequel extends Table
             if ($cap_player->stones == 6) {
                 $def_player->loseOneStone();
 
+                // Translate
                 self::notifyAllPlayers(
                     "message",
                     clienttranslate('${player_name} destroys an enemy stone'),

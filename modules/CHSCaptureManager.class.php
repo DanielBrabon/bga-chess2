@@ -124,6 +124,7 @@ class CHSCaptureManager extends APP_GameClass
 
         $def_piece->setState(CAPTURED);
 
+        // Translate
         $this->game->notifyAllPlayers(
             "message",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
@@ -169,6 +170,7 @@ class CHSCaptureManager extends APP_GameClass
         $this->cap_piece->setState(CAPTURED);
         $def_piece->setState(CAPTURED);
 
+        // Translate
         $this->game->notifyAllPlayers(
             "message",
             clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
@@ -178,12 +180,13 @@ class CHSCaptureManager extends APP_GameClass
             )
         );
 
+        // Translate
         $this->game->notifyAllPlayers(
             "message",
-            clienttranslate('${logpiece_def} captures ${logpiece_cap}'),
+            clienttranslate('${logpiece_cap} captures ${logpiece_def}'),
             array(
-                "logpiece_def" => $def_piece->color . "_" . $def_piece->type,
-                "logpiece_cap" => $this->cap_piece->color . "_" . $this->cap_piece->type
+                "logpiece_cap" => $def_piece->color . "_" . $def_piece->type,
+                "logpiece_def" => $this->cap_piece->color . "_" . $this->cap_piece->type
             )
         );
 

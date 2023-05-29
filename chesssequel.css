@@ -353,7 +353,7 @@
     background: radial-gradient(var(--white-stone-inner) 40%, var(--stone-border) 42% 52%, transparent 54%);
 }
 
-.duel_board_title {
+#duel_board_title {
     font-weight: bold;
     text-align: center;
     margin: 2px;

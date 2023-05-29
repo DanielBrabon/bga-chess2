@@ -35,6 +35,7 @@ class CHSPlayer extends APP_GameClass
 
         $this->setStat(array_search($army, $this->game->all_army_names), "army");
 
+        // Translate
         $this->game->notifyAllPlayers("confirmArmy", clienttranslate('${player_name} selects an army'), array(
             'player_id' => $this->id,
             'player_name' => $this->name
