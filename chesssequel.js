@@ -302,7 +302,7 @@ define([
 
                             for (let i = 0; i <= max_bid; i++) {
                                 // Translate
-                                this.addActionButton(`btn_bid_${i}`, dojo.string.substitute(_('Bid ${i} Stone(s)'), { i: i }), 'pickBid');
+                                this.addActionButton(`btn_bid_${i}`, i, 'pickBid');
                             }
                             break;
 

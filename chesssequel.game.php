@@ -585,7 +585,7 @@ class ChessSequel extends Table
             && $target_x == $moving_piece->x
             && $target_y == $moving_piece->y
         ) {
-            $msg = clienttranslate('${player_name}: ${logpiece} whirlwinds');
+            $msg .= clienttranslate(' (Whirlwind)');
         }
 
         // Send notifications
