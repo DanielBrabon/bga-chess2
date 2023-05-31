@@ -21,7 +21,6 @@
 require_once(APP_GAMEMODULE_PATH . 'module/table/table.game.php');
 require_once('modules/CHSPlayerManager.class.php');
 require_once('modules/CHSPieceManager.class.php');
-require_once('modules/CHSMoveManager.class.php');
 require_once('modules/CHSCaptureManager.class.php');
 require_once('modules/CHSMoves.class.php');
 require_once('modules/constants.inc.php');
@@ -30,7 +29,6 @@ class ChessSequel extends Table
 {
     public $playerManager;
     public $pieceManager;
-    private $moveManager;
     private $captureManager;
     private $moves;
 
@@ -53,7 +51,6 @@ class ChessSequel extends Table
 
         $this->playerManager = new CHSPlayerManager($this);
         $this->pieceManager = new CHSPieceManager($this);
-        $this->moveManager = new CHSMoveManager($this);
         $this->captureManager = new CHSCaptureManager($this);
         $this->moves = new CHSMoves($this);
     }
@@ -126,7 +123,7 @@ class ChessSequel extends Table
 
     /*
         getAllDatas: 
-        
+
         Gather all informations about current game situation (visible by the current player).
         
         The method is called each time the game interface is displayed to a player, ie:
@@ -141,7 +138,7 @@ class ChessSequel extends Table
             // From database
             "players" => $this->playerManager->getUIData($current_player_color),
             "pieces" => $this->pieceManager->getPieces(),
-            "legal_moves" => $this->moveManager->getLegalMoves($current_player_color),
+            "legal_moves" => $this->moves->getUIData($current_player_color),
             "capture_queue" => $this->captureManager->getCaptureQueue(),
 
             // From material.inc.php
@@ -258,13 +255,14 @@ class ChessSequel extends Table
 
         $player->setKingMoveUnavailable();
 
-        $king_moves = $this->moves->getAllKingMovesForPlayer($player)['moves'];
+        $king_moves = $this->moves->getKingMovesForPlayer($player);
 
-        $amount_of_legal_moves = $this->moveManager->insertLegalMoves($king_moves, $player);
-
-        if ($amount_of_legal_moves == 0) {
+        if ($king_moves['move_count'] == 0) {
             return false;
         }
+
+        self::notifyPlayer($player->id, "updateLegalMoves", "", ["legal_moves" => $king_moves['moves']]);
+        self::notifyPlayer($this->playerManager->getOtherPlayerByColor($player->color)->id, "updateLegalMoves", "", ["legal_moves" => null]);
 
         // Giving king move
         return true;
@@ -301,15 +299,16 @@ class ChessSequel extends Table
 
         $moves = $this->moves->getAllMovesForPlayer($active_player);
 
-        $amount_of_legal_moves = $this->moveManager->insertLegalMoves($moves['moves'], $active_player);
-
         // If the next player has no available moves, they lose
-        if ($amount_of_legal_moves == 0) {
+        if ($moves['move_count'] == 0) {
             $condition = ($this->kingIsInCheck($moves['friendly_kings'])) ? CHECKMATE : STALEMATE;
 
             $this->endGame($condition, $this->playerManager->getInactivePlayer());
             return;
         }
+
+        self::notifyPlayer($active_player->id, "updateLegalMoves", "", ["legal_moves" => $moves['moves']]);
+        self::notifyPlayer($this->playerManager->getInactivePlayer()->id, "updateLegalMoves", "", ["legal_moves" => null]);
 
         foreach ($moves['friendly_kings'] as $king_id => $king) {
             if (count($king['checked_by']) != 0) {
@@ -481,7 +480,7 @@ class ChessSequel extends Table
 
         $valid_coords = [1, 2, 3, 4, 5, 6, 7, 8];
 
-        // Check inputs are all valid
+        // Check piece id exists and target square is on board
         if (
             !$this->pieceManager->pieceIdExists($moving_piece_id)
             || !in_array($target_x, $valid_coords)
@@ -490,20 +489,22 @@ class ChessSequel extends Table
             throw new BgaSystemException("Invalid inputs");
         }
 
-        // Get some information
-        $player_id = $this->getActivePlayerId();
-        $player_color = $this->getPlayerColorById($player_id);
-
+        $moving_player = $this->playerManager->getActivePlayer();
         $moving_piece = $this->pieceManager->getPiece($moving_piece_id);
+        $state_name = $this->gamestate->state()['name'];
 
-        // Check that the player is trying to move their own piece
-        if ($moving_piece->color != $player_color) {
+        // Check player is moving own piece. If this is a playerKingMove, check a warrior king is being moved
+        if (
+            $moving_piece->color != $moving_player->color
+            || ($state_name == "playerKingMove" && $moving_piece->type != "warriorking")
+        ) {
             throw new BgaSystemException("Invalid target");
         }
 
-        $cap_squares = $this->moveManager->getCaptureSquaresForMove($target_x, $target_y, $moving_piece_id);
+        // Get capture squares for the attempted move (null if move is not legal)
+        $cap_squares = $this->moves->getCaptureSquaresForMove($target_x, $target_y, $moving_piece);
 
-        // If the attempted move is not found in legal_moves table, throw an error
+        // Check move is legal
         if ($cap_squares === null) {
             throw new BgaSystemException("Illegal move");
         }
@@ -563,8 +564,6 @@ class ChessSequel extends Table
                 $values_updated['state'] = EN_PASSANT_VULNERABLE;
             }
         }
-
-        $state_name = $this->gamestate->state()['name'];
 
         if ($state_name == "playerMove") {
             $this->setGameStateValue("last_player_move_piece_id", $moving_piece_id);
@@ -1111,36 +1110,52 @@ class ChessSequel extends Table
 
     function zombieTurn($state, $active_player_id)
     {
+        $active_player = $this->playerManager->getPlayerById($active_player_id);
+
         switch ($state['name']) {
             case 'playerMove':
-                $all_legal_moves = self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
+                $all_legal_moves = $this->moves->getAllMovesForPlayer($active_player);
 
-                $roll = bga_rand(0, count($all_legal_moves) - 1);
+                $roll = bga_rand(1, $all_legal_moves['move_count']);
 
-                $move = $all_legal_moves[$roll];
+                $counter = 0;
 
-                $this->movePiece($move['x'], $move['y'], $move['piece_id']);
+                foreach ($all_legal_moves['moves'] as $piece_id => $moves_for_piece) {
+                    foreach ($moves_for_piece as $move) {
+                        $counter++;
 
-                return;
+                        if ($counter == $roll) {
+                            $this->movePiece($move['x'], $move['y'], $piece_id);
+                            return;
+                        }
+                    }
+                }
 
             case 'playerKingMove':
-                $all_legal_moves = self::getObjectListFromDB("SELECT piece_id, x, y FROM legal_moves");
+                $all_legal_moves = $this->moves->getKingMovesForPlayer($active_player);
 
-                $roll = bga_rand(0, count($all_legal_moves));
+                $roll = bga_rand(0, $all_legal_moves['move_count']);
 
-                if ($roll == count($all_legal_moves)) {
+                if ($roll == 0) {
                     $this->passKingMove();
                     return;
                 }
 
-                $move = $all_legal_moves[$roll];
+                $counter = 0;
 
-                $this->movePiece($move['x'], $move['y'], $move['piece_id']);
+                foreach ($all_legal_moves['moves'] as $piece_id => $moves_for_piece) {
+                    foreach ($moves_for_piece as $move) {
+                        $counter++;
 
-                return;
+                        if ($counter == $roll) {
+                            $this->movePiece($move['x'], $move['y'], $piece_id);
+                            return;
+                        }
+                    }
+                }
 
             case 'pawnPromotion':
-                $promote_options = $this->all_armies_promote_options[$this->playerManager->getPlayerById($active_player_id)->army];
+                $promote_options = $this->all_armies_promote_options[$active_player->army];
 
                 $roll = bga_rand(0, count($promote_options) - 1);
 
@@ -1177,13 +1192,11 @@ class ChessSequel extends Table
             case 'armySelect':
                 $roll = bga_rand(0, count($this->all_army_names) - 1);
 
-                $this->confirmArmy($this->all_army_names[$roll], $this->playerManager->getPlayerById($active_player_id));
+                $this->confirmArmy($this->all_army_names[$roll], $active_player);
 
                 return;
 
             case 'duelBidding':
-                $active_player = $this->playerManager->getPlayerById($active_player_id);
-
                 $roll = bga_rand(0, $active_player->stones);
 
                 $this->pickBid($roll, $active_player);

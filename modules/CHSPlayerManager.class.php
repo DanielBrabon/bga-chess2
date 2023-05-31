@@ -21,6 +21,7 @@ class CHSPlayerManager extends APP_GameClass
             "SELECT player_id,
             player_name,
             player_color,
+            player_score,
             player_is_multiactive,
             player_army,
             player_stones,
@@ -38,18 +39,27 @@ class CHSPlayerManager extends APP_GameClass
 
     public function getUIData($current_player_color)
     {
-        $collection = self::getCollectionFromDB(
-            "SELECT player_id id, player_color color, player_score score, player_army army, player_stones stones, player_bid bid FROM player"
-        );
+        if ($this->players === null) {
+            $this->selectPlayers();
+        }
 
-        foreach ($collection as $player_data) {
-            if ($player_data['color'] != $current_player_color) {
-                unset($collection[$player_data['id']]['army']);
-                unset($collection[$player_data['id']]['bid']);
+        $result = [];
+
+        foreach ($this->players as $player) {
+            $result[$player->id] = array(
+                "id" => $player->id,
+                "color" => $player->color,
+                "score" => $player->score,
+                "stones" => $player->stones
+            );
+
+            if ($player->color == $current_player_color) {
+                $result[$player->id]['army'] = $player->army;
+                $result[$player->id]['bid'] = $player->bid;
             }
         }
 
-        return $collection;
+        return $result;
     }
 
     public function getPlayers()

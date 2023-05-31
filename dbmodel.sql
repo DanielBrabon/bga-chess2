@@ -51,24 +51,6 @@ CREATE TABLE IF NOT EXISTS `pieces` (
   PRIMARY KEY (`piece_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE IF NOT EXISTS `legal_moves` (
-  `move_id` INT UNSIGNED,
-  `piece_id` TINYINT UNSIGNED,
-  `x` TINYINT UNSIGNED NOT NULL,
-  `y` TINYINT UNSIGNED NOT NULL,
-  PRIMARY KEY (`move_id`),
-  FOREIGN KEY (`piece_id`) REFERENCES `pieces`(`piece_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-CREATE TABLE IF NOT EXISTS `capture_squares` (
-  `cs_id` INT UNSIGNED AUTO_INCREMENT,
-  `move_id` INT UNSIGNED,
-  `x` TINYINT UNSIGNED NOT NULL,
-  `y` TINYINT UNSIGNED NOT NULL,
-  PRIMARY KEY (`cs_id`),
-  FOREIGN KEY (`move_id`) REFERENCES `legal_moves`(`move_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 CREATE TABLE IF NOT EXISTS `capture_queue` (
   `cq_id` INT UNSIGNED AUTO_INCREMENT,
   `piece_id` TINYINT UNSIGNED,

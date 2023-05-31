@@ -48,6 +48,28 @@ class CHSMoves
         "junglequeen" => array("knight", "rook")
     );
 
+    public function getUIData($current_player_color)
+    {
+        $current_player = $this->game->playerManager->getPlayerByColor($current_player_color);
+
+        $state_name = $this->game->gamestate->state()['name'];
+
+        if ($current_player->id == $this->game->getActivePlayerId()) {
+            switch ($state_name) {
+                case "playerMove":
+                    return $this->getAllMovesForPlayer($current_player)['moves'];
+                case "playerKingMove":
+                    return $this->getKingMovesForPlayer($current_player)['moves'];
+                default:
+                    return null;
+            }
+        } else if ($state_name == "drawOffer") {
+            return $this->getAllMovesForPlayer($current_player)['moves'];
+        }
+
+        return null;
+    }
+
     // Note that $piece_ids must be an array of valid piece ids belonging to $player_id
     public function getAllMovesForPlayer($player)
     {
@@ -56,11 +78,24 @@ class CHSMoves
         return $this->getAllMovesForPieces($piece_ids, $player->id);
     }
 
-    public function getAllKingMovesForPlayer($player)
+    public function getKingMovesForPlayer($player)
     {
         $king_ids = $this->game->pieceManager->getPlayerKingIds($player->id);
 
         return $this->getAllMovesForPieces($king_ids, $player->id);
+    }
+
+    public function getCaptureSquaresForMove($target_x, $target_y, $moving_piece)
+    {
+        $piece_player = $this->game->playerManager->getPlayerByColor($moving_piece->color);
+
+        foreach ($this->getAllMovesForPieces([$moving_piece->id], $piece_player->id)['moves'][$moving_piece->id] as $move) {
+            if ($move['x'] == $target_x && $move['y'] == $target_y) {
+                return $move['cap_squares'];
+            }
+        }
+
+        return null;
     }
 
     private function getAllMovesForPieces($piece_ids, $player_id)
@@ -86,11 +121,13 @@ class CHSMoves
 
         $this->removeSelfChecks($friendly_kings, $game_data);
 
+        $move_count = 0;
         foreach ($piece_ids as $piece_id) {
             $this->moves[$piece_id] = array_values($this->moves[$piece_id]);
+            $move_count += count($this->moves[$piece_id]);
         }
 
-        return array("moves" => $this->moves, "friendly_kings" => $friendly_kings);
+        return array("moves" => $this->moves, "move_count" => $move_count, "friendly_kings" => $friendly_kings);
     }
 
     private function getChecksAndThreats($enemy_color, $game_data)

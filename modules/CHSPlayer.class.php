@@ -7,6 +7,7 @@ class CHSPlayer extends APP_GameClass
     public $id;
     public $name;
     public $color;
+    public $score;
     public $is_multiactive;
     public $army;
     public $stones;
@@ -20,6 +21,7 @@ class CHSPlayer extends APP_GameClass
         $this->id = $player_data['player_id'];
         $this->name = $player_data['player_name'];
         $this->color = $player_data['player_color'];
+        $this->score = $player_data['player_score'];
         $this->is_multiactive = $player_data['player_is_multiactive'];
         $this->army = $player_data['player_army'];
         $this->stones = $player_data['player_stones'];
