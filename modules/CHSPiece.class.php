@@ -97,7 +97,7 @@ class CHSPiece extends APP_GameClass
         $this->type = $promotion_type;
         $this->state = NEUTRAL;
 
-        self::DbQuery("UPDATE pieces SET type = '$promotion_type', state = " . NEUTRAL . " WHERE piece_id = $this->id");
+        self::DbQuery("UPDATE pieces SET type = $promotion_type, state = " . NEUTRAL . " WHERE piece_id = $this->id");
 
         $this->game->notifyAllPlayers(
             "updatePieces",

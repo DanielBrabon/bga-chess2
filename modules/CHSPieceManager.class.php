@@ -37,9 +37,9 @@ class CHSPieceManager extends APP_GameClass
 
         foreach ($this->game->playerManager->getPlayers() as $player) {
             // For each piece in the chosen army
-            foreach ($this->game->all_armies_layouts[$player->army] as $layout_index => $piece_type) {
-                $x = $x_positions[$layout_index] ?? $this->game->layout_x[$layout_index];
-                $y = $this->game->layout_y[$layout_index][$player->color];
+            foreach ($this->game->army_material[$player->army]['layout'] as $layout_slot => $piece_type) {
+                $x = $x_positions[$layout_slot] ?? $this->game->layout_slot_material[$layout_slot]['x'];
+                $y = $this->game->layout_slot_material[$layout_slot]['y'][$player->color];
 
                 // Piece data for the insert query
                 $sql_values[] = "('$player->color', '$piece_type', $x, $y)";
@@ -48,7 +48,7 @@ class CHSPieceManager extends APP_GameClass
                 $piece_rows[] = array(
                     "piece_id" => (string) $counter,
                     "color" => $player->color,
-                    "type" => $piece_type,
+                    "type" => (string) $piece_type,
                     "x" => (string) $x,
                     "y" => (string) $y,
                     "last_x" => null,
@@ -158,7 +158,7 @@ class CHSPieceManager extends APP_GameClass
         $piece_ids = [];
 
         foreach ($this->pieces as $piece) {
-            if ($piece->color == $player_color && in_array($piece->type, ["king", "warriorking"])) {
+            if ($piece->color == $player_color && in_array($piece->type, [KING, WARRIORKING])) {
                 $piece_ids[] = $piece->id;
             }
         }

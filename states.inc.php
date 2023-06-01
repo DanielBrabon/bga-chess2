@@ -122,7 +122,6 @@ $machinestates = array(
         "description" => clienttranslate('${actplayer} must choose the pawn promotion'),
         "descriptionmyturn" => clienttranslate('${you} must choose the pawn promotion'),
         "possibleactions" => array("promotePawn"),
-        "args" => "argPawnPromotion",
         "transitions" => array(
             "processPromotion" => ST_PROCESS_PROMOTION
         )

@@ -33,7 +33,7 @@
 -- Example 2: add a custom field to the standard "player" table
 -- ALTER TABLE `player` ADD `player_my_custom_field` INT UNSIGNED NOT NULL DEFAULT '0';
 
-ALTER TABLE `player` ADD `player_army` VARCHAR(16) NOT NULL DEFAULT 'classic';
+ALTER TABLE `player` ADD `player_army` TINYINT UNSIGNED NOT NULL DEFAULT 1;
 ALTER TABLE `player` ADD `player_stones` TINYINT UNSIGNED DEFAULT NULL;
 ALTER TABLE `player` ADD `player_bid` TINYINT UNSIGNED DEFAULT NULL;
 ALTER TABLE `player` ADD `player_king_move_available` TINYINT UNSIGNED NOT NULL DEFAULT 0;
@@ -41,7 +41,7 @@ ALTER TABLE `player` ADD `player_king_move_available` TINYINT UNSIGNED NOT NULL 
 CREATE TABLE IF NOT EXISTS `pieces` (
   `piece_id` TINYINT UNSIGNED AUTO_INCREMENT,
   `color` CHAR(6) NOT NULL,
-  `type` VARCHAR(15) NOT NULL,
+  `type` TINYINT UNSIGNED NOT NULL,
   `x` TINYINT UNSIGNED NOT NULL,
   `y` TINYINT UNSIGNED NOT NULL,
   `last_x` TINYINT UNSIGNED DEFAULT NULL,

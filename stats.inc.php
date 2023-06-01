@@ -153,12 +153,12 @@ $stats_type = array(
         ),
 
         STAT_ARMY => array(
-            CLASSIC => totranslate("Classic"),
-            NEMESIS => totranslate("Nemesis"),
-            EMPOWERED => totranslate("Empowered"),
-            REAPER => totranslate("Reaper"),
-            TWOKINGS => totranslate("Two Kings"),
-            ANIMAL => totranslate("Animal")
+            ARMY_CLASSIC => totranslate("Classic"),
+            ARMY_NEMESIS => totranslate("Nemesis"),
+            ARMY_EMPOWERED => totranslate("Empowered"),
+            ARMY_REAPER => totranslate("Reaper"),
+            ARMY_TWOKINGS => totranslate("Two Kings"),
+            ARMY_ANIMAL => totranslate("Animal")
         )
 
     )

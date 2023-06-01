@@ -33,9 +33,9 @@ class CHSPlayer extends APP_GameClass
     {
         $this->army = $army;
 
-        self::DbQuery("UPDATE player SET player_army = '$army' WHERE player_id = $this->id");
+        self::DbQuery("UPDATE player SET player_army = $army WHERE player_id = $this->id");
 
-        $this->setStat(array_search($army, $this->game->all_army_names), "army");
+        $this->setStat($army, "army");
 
         // Translate
         $this->game->notifyAllPlayers("confirmArmy", clienttranslate('${player_name} selects an army'), array(

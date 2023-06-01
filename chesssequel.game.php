@@ -99,7 +99,7 @@ class ChessSequel extends Table
         self::initStat("table", "end_condition", CONCESSION);
         self::initStat("table", "moves_number", 0);
 
-        self::initStat("player", "army", CLASSIC);
+        self::initStat("player", "army", ARMY_CLASSIC);
         self::initStat("player", "enemies_captured", 0);
         self::initStat("player", "friendlies_captured", 0);
 
@@ -142,13 +142,10 @@ class ChessSequel extends Table
             "capture_queue" => $this->captureManager->getCaptureQueue(),
 
             // From material.inc.php
-            "all_army_names" => $this->all_army_names,
-            "all_armies_layouts" => $this->all_armies_layouts,
-            "layout_x" => $this->layout_x,
-            "layout_y" => $this->layout_y,
-            "button_labels" => $this->button_labels,
-            "piece_tooltips" => $this->piece_tooltips,
-            "army_tooltips" => $this->army_tooltips,
+            "army_options" => $this->army_options,
+            "army_material" => $this->army_material,
+            "layout_slot_material" => $this->layout_slot_material,
+            "piece_type_material" => $this->piece_type_material,
 
             // Globals
             "last_move_piece_ids" => array(
@@ -316,7 +313,7 @@ class ChessSequel extends Table
             }
         }
 
-        if ($active_player->army == "twokings") {
+        if ($active_player->army == ARMY_TWOKINGS) {
             $active_player->setKingMoveAvailable();
         }
 
@@ -372,18 +369,18 @@ class ChessSequel extends Table
 
                 $piece = $this->pieceManager->getPiece($pid);
 
-                $pos_string .= $this->type_code[$piece->type];
+                $pos_string .= $this->piece_type_material[$piece->type]['type_code'];
                 $pos_string .= $piece->color[0];
 
-                if (in_array($piece->type, ["pawn", "nemesispawn"])) {
+                if (in_array($piece->type, [PAWN, NEMESISPAWN])) {
                     if ($piece->color == $active_color) {
                         $pos_string .= count($all_legal_moves[$pid]);
                     } else {
                         $pos_string .= count($this->moves->getAvailableEnPassants($pid, array("pieces" => $pieces, "squares" => $squares)));
                     }
                 } else if (
-                    $piece->type == "king"
-                    && $this->playerManager->getPlayerByColor($piece->color)->army == "classic"
+                    $piece->type == KING
+                    && $this->playerManager->getPlayerByColor($piece->color)->army == ARMY_CLASSIC
                 ) {
                     if ($piece->color == $active_color) {
                         $pos_string .= count($all_legal_moves[$pid]);
@@ -402,8 +399,8 @@ class ChessSequel extends Table
 
     function getCostToDuel($cap_piece, $def_piece)
     {
-        $cap_piece_rank = $this->piece_ranks[$cap_piece->type];
-        $def_piece_rank = $this->piece_ranks[$def_piece->type];
+        $cap_piece_rank = $this->piece_type_material[$cap_piece->type]['rank'];
+        $def_piece_rank = $this->piece_type_material[$def_piece->type]['rank'];
         return ($cap_piece_rank > $def_piece_rank) ? 1 : 0;
     }
 
@@ -445,13 +442,13 @@ class ChessSequel extends Table
         (note: each method below must match an input method in chesssequel.action.php)
     */
 
-    function confirmArmy($army_name, $current_player = null)
+    function confirmArmy($army, $current_player = null)
     {
         // Check this action is allowed according to the game state
         $this->checkAction('confirmArmy');
 
-        // Check it's a valid army name according to the array in material.inc.php
-        if (!in_array($army_name, $this->all_army_names)) {
+        // Check it's a valid army according to the array in material.inc.php
+        if (!in_array($army, $this->army_options)) {
             throw new BgaSystemException("Invalid army selection");
         }
 
@@ -466,9 +463,9 @@ class ChessSequel extends Table
         // If opponent is active, deactivate this player before setting army (status bar inconsistency otherwise)
         if ($opponent->is_multiactive) {
             $this->gamestate->setPlayerNonMultiactive($current_player->id, 'processArmySelection');
-            $current_player->setArmy($army_name);
+            $current_player->setArmy($army);
         } else {
-            $current_player->setArmy($army_name);
+            $current_player->setArmy($army);
             $this->gamestate->setPlayerNonMultiactive($current_player->id, 'processArmySelection');
         }
     }
@@ -496,7 +493,7 @@ class ChessSequel extends Table
         // Check player is moving own piece. If this is a playerKingMove, check a warrior king is being moved
         if (
             $moving_piece->color != $moving_player->color
-            || ($state_name == "playerKingMove" && $moving_piece->type != "warriorking")
+            || ($state_name == "playerKingMove" && $moving_piece->type != WARRIORKING)
         ) {
             throw new BgaSystemException("Invalid target");
         }
@@ -524,7 +521,7 @@ class ChessSequel extends Table
             if ($piece_on_square !== null) {
                 $capture_queue[] = $piece_on_square;
 
-                if ($moving_piece->type == "tiger") {
+                if ($moving_piece->type == TIGER) {
                     $target_x = $moving_piece->x;
                     $target_y = $moving_piece->y;
                 }
@@ -545,7 +542,7 @@ class ChessSequel extends Table
         }
 
         // Special conditions for pawns
-        if (in_array($moving_piece->type, ["pawn", "nemesispawn"])) {
+        if (in_array($moving_piece->type, [PAWN, NEMESISPAWN])) {
             // 50 move rule
             $this->setGameStateValue('fifty_counter', 51);
 
@@ -581,7 +578,7 @@ class ChessSequel extends Table
 
         $msg = '${player_name}: ${logpiece}${square}';
         if (
-            $moving_piece->type == "warriorking"
+            $moving_piece->type == WARRIORKING
             && $target_x == $moving_piece->x
             && $target_y == $moving_piece->y
         ) {
@@ -601,7 +598,7 @@ class ChessSequel extends Table
         );
 
         // If the moving piece is a castling king, resolve the castle
-        if ($moving_piece->type == "king" && abs($moving_piece->x - $target_x) == 2) {
+        if ($moving_piece->type == KING && abs($moving_piece->x - $target_x) == 2) {
             $dir = ($target_x - $moving_piece->x) / 2;
 
             for ($i = 1; $i < 5; $i++) {
@@ -644,7 +641,7 @@ class ChessSequel extends Table
         $active_player = $this->playerManager->getActivePlayer();
 
         // Check that the chosen promotion is valid for this player
-        if (!in_array($chosen_promotion, $this->all_armies_promote_options[$active_player->army])) {
+        if (!in_array($chosen_promotion, $this->army_material[$active_player->army]['promote_options'])) {
             throw new BgaSystemException("Invalid promotion");
         }
 
@@ -652,7 +649,7 @@ class ChessSequel extends Table
 
         $promoting_pawn->promote($chosen_promotion);
 
-        $promoting_pawn_type = ($active_player->army == "nemesis") ? "nemesispawn" : "pawn";
+        $promoting_pawn_type = ($active_player->army == ARMY_NEMESIS) ? NEMESISPAWN : PAWN;
 
         // Translate
         self::notifyAllPlayers(
@@ -872,12 +869,6 @@ class ChessSequel extends Table
         game state.
     */
 
-    function argPawnPromotion()
-    {
-        $army = $this->playerManager->getActivePlayer()->army;
-        return array("promote_options" => $this->all_armies_promote_options[$army]);
-    }
-
     function argDuelOffer()
     {
         $cap_piece = $this->pieceManager->getPiecesInStates([CAPTURING, CAPTURING_AND_PROMOTING])[0];
@@ -939,8 +930,8 @@ class ChessSequel extends Table
             "message",
             clienttranslate('Game begins: ${army_ffffff} vs ${army_000000}'),
             array(
-                "army_ffffff" => $this->button_labels[$this->playerManager->getPlayerByColor("ffffff")->army],
-                "army_000000" => $this->button_labels[$this->playerManager->getPlayerByColor("000000")->army]
+                "army_ffffff" => $this->army_material[$this->playerManager->getPlayerByColor("ffffff")->army]['label'],
+                "army_000000" => $this->army_material[$this->playerManager->getPlayerByColor("000000")->army]['label']
             )
         );
 
@@ -1155,7 +1146,7 @@ class ChessSequel extends Table
                 }
 
             case 'pawnPromotion':
-                $promote_options = $this->all_armies_promote_options[$active_player->army];
+                $promote_options = $this->army_material[$active_player->army]['promote_options'];
 
                 $roll = bga_rand(0, count($promote_options) - 1);
 
@@ -1190,9 +1181,9 @@ class ChessSequel extends Table
                 return;
 
             case 'armySelect':
-                $roll = bga_rand(0, count($this->all_army_names) - 1);
+                $roll = bga_rand(0, count($this->army_options) - 1);
 
-                $this->confirmArmy($this->all_army_names[$roll], $active_player);
+                $this->confirmArmy($this->army_options[$roll], $active_player);
 
                 return;
 

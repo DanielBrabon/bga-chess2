@@ -73,7 +73,7 @@ class CHSCaptureManager extends APP_GameClass
         // If we are not using the v2 ruleset or a (warrior)king is capturing, there is no duelling at all
         if (
             $this->game->getGameStateValue('ruleset_version') != RULESET_TWO_POINT_FOUR
-            || in_array($this->cap_piece->type, ["king", "warriorking"])
+            || in_array($this->cap_piece->type, [KING, WARRIORKING])
         ) {
             $this->captureEntireQueue();
             return false;
@@ -115,7 +115,7 @@ class CHSCaptureManager extends APP_GameClass
 
         if (
             $this->game->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR
-            && in_array($def_piece->type, ["pawn", "nemesispawn"])
+            && in_array($def_piece->type, [PAWN, NEMESISPAWN])
             && !$same_color
         ) {
             // Player with the other color gets a stone
@@ -158,11 +158,11 @@ class CHSCaptureManager extends APP_GameClass
         $cap_player->incStat(1, "enemies_captured");
 
         if ($this->game->getGameStateValue('ruleset_version') == RULESET_TWO_POINT_FOUR) {
-            if (in_array($this->cap_piece->type, ["pawn", "nemesispawn"])) {
+            if (in_array($this->cap_piece->type, [PAWN, NEMESISPAWN])) {
                 $def_player->gainOneStone($this->cap_piece->id);
             }
 
-            if (in_array($def_piece->type, ["pawn", "nemesispawn"])) {
+            if (in_array($def_piece->type, [PAWN, NEMESISPAWN])) {
                 $cap_player->gainOneStone($def_piece->id);
             }
         }

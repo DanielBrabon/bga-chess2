@@ -10,42 +10,42 @@ class CHSMoves
     }
 
     private static $attack_steps = array(
-        "wpawn" => array([1, 1], [-1, 1]),
-        "bpawn" => array([1, -1], [-1, -1]),
-        "knight" => array([2, 1], [1, 2], [2, -1], [1, -2], [-2, 1], [-1, 2], [-2, -1], [-1, -2]),
-        "bishop" => array([1, 1], [-1, 1], [-1, -1], [1, -1]),
-        "rook" => array([1, 0], [-1, 0], [0, 1], [0, -1]),
-        "king" => array([1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]),
-        "tiger" => array([1, 1], [-1, 1], [-1, -1], [1, -1])
+        WPAWN => array([1, 1], [-1, 1]),
+        BPAWN => array([1, -1], [-1, -1]),
+        KNIGHT => array([2, 1], [1, 2], [2, -1], [1, -2], [-2, 1], [-1, 2], [-2, -1], [-1, -2]),
+        BISHOP => array([1, 1], [-1, 1], [-1, -1], [1, -1]),
+        ROOK => array([1, 0], [-1, 0], [0, 1], [0, -1]),
+        KING => array([1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]),
+        TIGER => array([1, 1], [-1, 1], [-1, -1], [1, -1])
     );
 
     private static $attack_reps = array(
-        "wpawn" => 1,
-        "bpawn" => 1,
-        "knight" => 1,
-        "bishop" => 7,
-        "rook" => 7,
-        "king" => 1,
-        "tiger" => 2
+        WPAWN => 1,
+        BPAWN => 1,
+        KNIGHT => 1,
+        BISHOP => 7,
+        ROOK => 7,
+        KING => 1,
+        TIGER => 2
     );
 
     private static $effective_types = array(
-        "wpawn" => array("wpawn"),
-        "bpawn" => array("bpawn"),
-        "knight" => array("knight"),
-        "bishop" => array("bishop"),
-        "rook" => array("rook"),
-        "king" => array("king"),
-        "tiger" => array("tiger"),
-        "queen" => array("bishop", "rook"),
-        "nemesis" => array("bishop", "rook"),
-        "empoweredknight" => array("knight"),
-        "empoweredbishop" => array("bishop"),
-        "empoweredrook" => array("rook"),
-        "elegantqueen" => array("king"),
-        "warriorking" => array("king"),
-        "wildhorse" => array("knight"),
-        "junglequeen" => array("knight", "rook")
+        WPAWN => array(WPAWN),
+        BPAWN => array(BPAWN),
+        KNIGHT => array(KNIGHT),
+        BISHOP => array(BISHOP),
+        ROOK => array(ROOK),
+        KING => array(KING),
+        TIGER => array(TIGER),
+        QUEEN => array(BISHOP, ROOK),
+        NEMESIS => array(BISHOP, ROOK),
+        EMPOWEREDKNIGHT => array(KNIGHT),
+        EMPOWEREDBISHOP => array(BISHOP),
+        EMPOWEREDROOK => array(ROOK),
+        ELEGANTQUEEN => array(KING),
+        WARRIORKING => array(KING),
+        WILDHORSE => array(KNIGHT),
+        JUNGLEQUEEN => array(KNIGHT, ROOK)
     );
 
     public function getUIData($current_player_color)
@@ -140,7 +140,7 @@ class CHSMoves
         }
 
         foreach ($game_data['pieces'] as $piece_id => $piece_data) {
-            if ($piece_data['color'] != $enemy_color || $piece_data['state'] == CAPTURED || in_array($piece_data['type'], ["reaper", "ghost"])) {
+            if ($piece_data['color'] != $enemy_color || $piece_data['state'] == CAPTURED || in_array($piece_data['type'], [REAPER, GHOST])) {
                 continue;
             }
 
@@ -167,11 +167,11 @@ class CHSMoves
 
         $result = array("attacking_moves" => [], "semi_attacking_moves" => []);
 
-        if ($piece_data['type'] == "ghost") {
+        if ($piece_data['type'] == GHOST) {
             return $result;
         }
 
-        if ($piece_data['type'] == "reaper") {
+        if ($piece_data['type'] == REAPER) {
             $start_y = ($piece_data['color'] == "000000") ? 2 : 1;
 
             for ($i = 1; $i <= 8; $i++) {
@@ -183,18 +183,18 @@ class CHSMoves
             return $result;
         }
 
-        if ($piece_data['type'] == "elephant") {
+        if ($piece_data['type'] == ELEPHANT) {
             $result['attacking_moves'] = $this->getElephantAttackingMoves($piece_id, $game_data);
             return $result;
         }
 
-        if (in_array($piece_data['type'], ["pawn", "nemesispawn"])) {
-            $piece_data['type'] = ($piece_data['color'] == "000000") ? "bpawn" : "wpawn";
+        if (in_array($piece_data['type'], [PAWN, NEMESISPAWN])) {
+            $piece_data['type'] = ($piece_data['color'] == "000000") ? BPAWN : WPAWN;
         }
 
         $ef_types = self::$effective_types[$piece_data['type']];
 
-        if (in_array($piece_data['type'], ["empoweredknight", "empoweredbishop", "empoweredrook"])) {
+        if (in_array($piece_data['type'], [EMPOWEREDKNIGHT, EMPOWEREDBISHOP, EMPOWEREDROOK])) {
             foreach ($this->getEmpowerments($piece_id, $game_data) as $empowerment) {
                 array_push($ef_types, $empowerment);
             }
@@ -254,7 +254,7 @@ class CHSMoves
         $x_i = $game_data['pieces'][$elephant_id]['x'];
         $y_i = $game_data['pieces'][$elephant_id]['y'];
 
-        $directions = self::$attack_steps["rook"];
+        $directions = self::$attack_steps[ROOK];
 
         foreach ($directions as $index => $dir) {
             $squares = array([$x_i, $y_i]);
@@ -297,16 +297,16 @@ class CHSMoves
                 && $game_data['pieces'][$piece_on_square]['type'] != $game_data['pieces'][$piece_id]['type']
             ) {
                 switch ($game_data['pieces'][$piece_on_square]['type']) {
-                    case "empoweredknight":
-                        $empowerments[] = "knight";
+                    case EMPOWEREDKNIGHT:
+                        $empowerments[] = KNIGHT;
                         break;
 
-                    case "empoweredbishop":
-                        $empowerments[] = "bishop";
+                    case EMPOWEREDBISHOP:
+                        $empowerments[] = BISHOP;
                         break;
 
-                    case "empoweredrook":
-                        $empowerments[] = "rook";
+                    case EMPOWEREDROOK:
+                        $empowerments[] = ROOK;
                         break;
                 }
             }
@@ -356,19 +356,19 @@ class CHSMoves
     {
         $piece_type = $game_data['pieces'][$piece_id]['type'];
 
-        if (!in_array($piece_type, ["elephant", "wildhorse"])) {
+        if (!in_array($piece_type, [ELEPHANT, WILDHORSE])) {
             $possible_moves = $this->removeFriendlyOccupiedSquares($piece_id, $possible_moves, $game_data);
         }
 
-        if (in_array($piece_type, ["pawn", "nemesispawn"])) {
+        if (in_array($piece_type, [PAWN, NEMESISPAWN])) {
             $possible_moves = $this->removeUnavailablePawnNormalAttacks($possible_moves, $game_data);
         }
 
-        if ($piece_type == "nemesis") {
+        if ($piece_type == NEMESIS) {
             $possible_moves = $this->removeOccupiedNonKingSquares($possible_moves, $game_data);
         }
 
-        if ($piece_type == "reaper") {
+        if ($piece_type == REAPER) {
             $possible_moves = $this->removeKingOccupiedSquares($possible_moves, $game_data);
         }
 
@@ -412,7 +412,7 @@ class CHSMoves
             // If there is a non (warrior)king on the square, remove the move from the array
             if (
                 $piece_on_square !== null
-                && !in_array($game_data['pieces'][$piece_on_square]['type'], ["king", "warriorking"])
+                && !in_array($game_data['pieces'][$piece_on_square]['type'], [KING, WARRIORKING])
             ) {
                 unset($moves_array[$index]);
             }
@@ -428,7 +428,7 @@ class CHSMoves
             // If there is a (warrior)king on the square, remove the move from the array
             if (
                 $piece_on_square !== null
-                && in_array($game_data['pieces'][$piece_on_square]['type'], ["king", "warriorking"])
+                && in_array($game_data['pieces'][$piece_on_square]['type'], [KING, WARRIORKING])
             ) {
                 unset($moves_array[$index]);
             }
@@ -452,25 +452,25 @@ class CHSMoves
             $piece_on_square = $game_data['squares'][$square['x']][$square['y']]['def_piece'];
 
             if ($piece_on_square !== null) {
-                if ($game_data['pieces'][$piece_on_square]['type'] == "ghost") {
+                if ($game_data['pieces'][$piece_on_square]['type'] == GHOST) {
                     return false;
                 }
 
                 if (
-                    in_array($game_data['pieces'][$piece_on_square]['type'], ["king", "warriorking"])
+                    in_array($game_data['pieces'][$piece_on_square]['type'], [KING, WARRIORKING])
                     && $game_data['pieces'][$piece_on_square]['color'] == $game_data['pieces'][$cap_id]['color']
                 ) {
                     return false;
                 }
 
                 if (
-                    $game_data['pieces'][$piece_on_square]['type'] == "nemesis"
-                    && !in_array($game_data['pieces'][$cap_id]['type'], ["king", "warriorking"])
+                    $game_data['pieces'][$piece_on_square]['type'] == NEMESIS
+                    && !in_array($game_data['pieces'][$cap_id]['type'], [KING, WARRIORKING])
                 ) {
                     return false;
                 }
 
-                if ($game_data['pieces'][$piece_on_square]['type'] == "elephant") {
+                if ($game_data['pieces'][$piece_on_square]['type'] == ELEPHANT) {
                     if (
                         abs($game_data['pieces'][$cap_id]['x'] - $square['x']) > 2
                         || abs($game_data['pieces'][$cap_id]['y'] - $square['y']) > 2
@@ -487,29 +487,29 @@ class CHSMoves
     private function getAvailableExtraMovesForPiece($piece_id, $game_data)
     {
         switch ($game_data['pieces'][$piece_id]['type']) {
-            case "pawn":
+            case PAWN:
                 $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableEnPassants($piece_id, $game_data));
                 $this->getAvailablePawnPushes($piece_id, $game_data);
                 break;
 
-            case "king":
+            case KING:
                 $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableCastleMoves($piece_id, $game_data));
                 break;
 
-            case "nemesispawn":
+            case NEMESISPAWN:
                 $this->moves[$piece_id] = array_merge($this->moves[$piece_id], $this->getAvailableEnPassants($piece_id, $game_data));
                 $this->getAvailableNemesisPawnPushes($piece_id, $game_data);
                 break;
 
-            case "ghost":
+            case GHOST:
                 $this->getAvailableGhostMoves($piece_id, $game_data);
                 break;
 
-            case "elephant":
+            case ELEPHANT:
                 $this->getAvailableElephantNonAttackingMoves($piece_id, $game_data);
                 break;
 
-            case "warriorking":
+            case WARRIORKING:
                 $this->getWarriorKingWhirlwind($piece_id, $game_data);
                 break;
             default:
@@ -580,7 +580,7 @@ class CHSMoves
 
         // The king cannot castle if it isn't classic, or it already moved, or it is in check
         if (
-            $this->game->playerManager->getPlayerByColor($game_data['pieces'][$king_id]['color'])->army != "classic"
+            $this->game->playerManager->getPlayerByColor($game_data['pieces'][$king_id]['color'])->army != ARMY_CLASSIC
             || $game_data['pieces'][$king_id]['moves_made'] != 0
             || count($game_data['squares'][$x_i][$y_i]['checks']) != 0
         ) {
@@ -598,7 +598,7 @@ class CHSMoves
                     if (
                         abs($x - $x_i) >= 3
                         && $game_data['pieces'][$pid]['color'] == $game_data['pieces'][$king_id]['color']
-                        && $game_data['pieces'][$pid]['type'] == "rook"
+                        && $game_data['pieces'][$pid]['type'] == ROOK
                         && $game_data['pieces'][$pid]['moves_made'] == 0
                         && count($game_data['squares'][$x_i + $dir][$y_i]['checks']) == 0
                         && count($game_data['squares'][$x_i + (2 * $dir)][$y_i]['checks']) == 0
@@ -627,7 +627,7 @@ class CHSMoves
         foreach ($game_data['pieces'] as $piece_id => $piece_data) {
             if (
                 $piece_data['color'] != $game_data['pieces'][$nemesis_pawn_id]['color']
-                && in_array($piece_data['type'], ["king", "warriorking"])
+                && in_array($piece_data['type'], [KING, WARRIORKING])
             ) {
                 $enemy_kings[$piece_id]['x'] = $piece_data['x'];
                 $enemy_kings[$piece_id]['y'] = $piece_data['y'];
@@ -697,7 +697,7 @@ class CHSMoves
         $x_i = $game_data['pieces'][$ele_id]['x'];
         $y_i = $game_data['pieces'][$ele_id]['y'];
 
-        $directions = self::$attack_steps["rook"];
+        $directions = self::$attack_steps[ROOK];
 
         foreach ($directions as $dir) {
             $sq = [$x_i, $y_i];
@@ -726,7 +726,7 @@ class CHSMoves
 
         $cap_squares = array();
 
-        $directions = self::$attack_steps['king'];
+        $directions = self::$attack_steps[KING];
 
         foreach ($directions as $dir) {
             $x = $x_i + $dir[0];
@@ -763,7 +763,7 @@ class CHSMoves
             $moving_type = $game_data['pieces'][$moving_id]['type'];
 
             // If the moving piece is a king or warriorking, it can't move onto an attacked square
-            if (in_array($moving_type, ["king", "warriorking"])) {
+            if (in_array($moving_type, [KING, WARRIORKING])) {
                 foreach ($moves as $index => $move) {
                     if (
                         ($move['x'] != $x_i || $move['y'] != $y_i)
@@ -789,7 +789,7 @@ class CHSMoves
             }
 
             // Can capture and land on different squares
-            $disjointed = (in_array($moving_type, ["pawn", "warriorking", "tiger", "elephant"])) ? true : false;
+            $disjointed = (in_array($moving_type, [PAWN, WARRIORKING, TIGER, ELEPHANT])) ? true : false;
 
             foreach ($moves as $index => $move) {
                 $ids_move = $ids_piece;
@@ -845,7 +845,7 @@ class CHSMoves
                 $game_data['squares'][$square['x']][$square['y']]['def_piece'] = null;
                 $game_data['pieces'][$piece_on_cap_square]['state'] = CAPTURED;
 
-                if ($game_data['pieces'][$piece_id]['type'] == "tiger") {
+                if ($game_data['pieces'][$piece_id]['type'] == TIGER) {
                     $p_move['x'] = $x_i;
                     $p_move['y'] = $y_i;
                 }

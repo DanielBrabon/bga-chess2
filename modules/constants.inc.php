@@ -1,21 +1,22 @@
 <?php
 
+// Options
+define('OPTION_RULESET', 100);
+
 // Rulesets
 define('RULESET_TWO_POINT_FOUR', 2);
 define('RULESET_THREE_POINT_ZERO', 3);
 
-// Options
-define('OPTION_RULESET', 100);
-
 // Armies
-define('CLASSIC', 0);
-define('NEMESIS', 1);
-define('EMPOWERED', 2);
-define('REAPER', 3);
-define('TWOKINGS', 4);
-define('ANIMAL', 5);
+define('ARMY_EMPTY', 0);
+define('ARMY_CLASSIC', 1);
+define('ARMY_NEMESIS', 2);
+define('ARMY_EMPOWERED', 3);
+define('ARMY_REAPER', 4);
+define('ARMY_TWOKINGS', 5);
+define('ARMY_ANIMAL', 6);
 
-// Layout indices
+// Layout slots
 define('LAYOUT_ROOKA', 0);
 define('LAYOUT_KNIGHTA', 1);
 define('LAYOUT_BISHOPA', 2);
@@ -41,6 +42,30 @@ define('THREEFOLD_REPETITION', 3);
 define('FIFTY_MOVE_RULE', 4);
 define('AGREED_TO_DRAW', 5);
 define('CONCESSION', 6);
+
+// Piece types
+define('EMPTY_PIECE', 0);
+define('PAWN', 1);
+define('KNIGHT', 2);
+define('BISHOP', 3);
+define('ROOK', 4);
+define('QUEEN', 5);
+define('KING', 6);
+define('NEMESISPAWN', 7);
+define('NEMESIS', 8);
+define('EMPOWEREDKNIGHT', 9);
+define('EMPOWEREDBISHOP', 10);
+define('EMPOWEREDROOK', 11);
+define('ELEGANTQUEEN', 12);
+define('GHOST', 13);
+define('REAPER', 14);
+define('WARRIORKING', 15);
+define('WILDHORSE', 16);
+define('TIGER', 17);
+define('ELEPHANT', 18);
+define('JUNGLEQUEEN', 19);
+define('WPAWN', 20);
+define('BPAWN', 21);
 
 // Piece states
 define('NEUTRAL', 0);

@@ -44,8 +44,8 @@ class action_chesssequel extends APP_GameAction
   {
     // We call a corresponding "confirmArmy" method in game.php
     self::setAjaxMode();
-    $army_name = self::getArg("army_name", AT_alphanum, true);
-    $result = $this->game->confirmArmy($army_name);
+    $army = self::getArg("army", AT_alphanum, true);
+    $result = $this->game->confirmArmy($army);
     self::ajaxResponse();
   }
 

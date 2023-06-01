@@ -138,7 +138,7 @@ define([
                 switch (stateName) {
                     case 'armySelect':
                         if (this.isCurrentPlayerActive()) {
-                            this.updateArmySelectTitleText("Classic");
+                            this.updateArmySelectTitleText(this.gamedatas.constants['ARMY_CLASSIC']);
                         }
                         break;
 
@@ -255,20 +255,22 @@ define([
                 if (this.isCurrentPlayerActive()) {
                     switch (stateName) {
                         case 'armySelect':
-                            for (let army of this.gamedatas.all_army_names) {
-                                let button_id = `btn_${army}`;
+                            for (let index in this.gamedatas.army_options) {
+                                let army = this.gamedatas.army_options[index];
 
                                 let button_piece = this.format_block(
                                     'jstpl_buttonpiece',
                                     {
                                         color: this.gamedatas.players[this.player_id].color,
-                                        type: this.gamedatas.all_armies_layouts[army][this.gamedatas.constants['LAYOUT_QUEEN']]
+                                        type: this.gamedatas.piece_type_material[this.gamedatas.army_material[army].layout[this.gamedatas.constants['LAYOUT_QUEEN']]].ui_name
                                     }
                                 );
 
+                                let button_id = `btn_army_${army}`;
+
                                 // Translate
-                                this.addActionButton(button_id, button_piece + _(this.gamedatas.button_labels[army]), 'pickArmy');
-                                this.addTooltip(button_id, "", _(this.gamedatas.army_tooltips[army]));
+                                this.addActionButton(button_id, button_piece + _(this.gamedatas.army_material[army].label), 'pickArmy');
+                                this.addTooltip(button_id, "", _(this.gamedatas.army_material[army].tooltip));
                             }
 
                             // Translate
@@ -313,17 +315,17 @@ define([
                             break;
 
                         case 'pawnPromotion':
-                            for (let piece_type of args.promote_options) {
+                            for (let piece_type of this.gamedatas.army_material[this.gamedatas.players[this.player_id].army].promote_options) {
                                 let button_piece = this.format_block(
                                     'jstpl_buttonpiece',
                                     {
                                         color: this.gamedatas.players[this.player_id].color,
-                                        type: piece_type
+                                        type: this.gamedatas.piece_type_material[piece_type].ui_name
                                     }
                                 );
 
                                 // Translate
-                                this.addActionButton(`btn_promote_${piece_type}`, button_piece + _(this.gamedatas.button_labels[piece_type]), 'choosePromotion');
+                                this.addActionButton(`btn_promote_${piece_type}`, button_piece + _(this.gamedatas.piece_type_material[piece_type].label), 'choosePromotion');
                             }
                             break;
 
@@ -383,7 +385,7 @@ define([
             populateBoard: function () {
                 if (this.gamedatas.pieces.length == 0) { // We're in armySelect and pieces haven't been added to the database yet
                     for (var player_id in this.gamedatas.players) {
-                        let army = (player_id == this.player_id) ? this.gamedatas.players[this.player_id].army : "empty";
+                        let army = (player_id == this.player_id) ? this.gamedatas.players[this.player_id].army : this.gamedatas.constants['ARMY_EMPTY'];
                         this.placeStartingPiecesOnBoard(army, this.gamedatas.players[player_id].color);
                     }
                 }
@@ -395,15 +397,15 @@ define([
                             // Insert the HTML element for the piece as a child of the square it's on
                             dojo.place(this.format_block('jstpl_boardpiece', {
                                 color: piece_info['color'],
-                                type: piece_info['type'],
+                                type: this.gamedatas.piece_type_material[piece_info['type']].ui_name,
                                 piece_id: piece_info['id']
                             }), 'square_' + piece_info['x'] + '_' + piece_info['y']);
 
                             // Translate
                             this.addTooltip(
                                 piece_info['id'],
-                                _(this.gamedatas.piece_tooltips[piece_info['type']].help_string),
-                                _(this.gamedatas.piece_tooltips[piece_info['type']].action_string)
+                                _(this.gamedatas.piece_type_material[piece_info['type']].label),
+                                _(this.gamedatas.piece_type_material[piece_info['type']].tooltip)
                             );
                         }
                     }
@@ -415,26 +417,26 @@ define([
                 }
             },
 
-            placeStartingPiecesOnBoard: function (army_name, player_color) {
+            placeStartingPiecesOnBoard: function (army, player_color) {
                 // If board pieces have already been placed for that color, remove those HTML elements
                 dojo.query('.boardpiece.piececolor_' + player_color).forEach(dojo.destroy);
 
-                for (let layout_index in this.gamedatas.all_armies_layouts[army_name]) {
-                    let type = this.gamedatas.all_armies_layouts[army_name][layout_index];
-                    let piece_id = `${player_color}_${layout_index}`;
+                for (let layout_slot in this.gamedatas.army_material[army].layout) {
+                    let type = this.gamedatas.army_material[army].layout[layout_slot];
+                    let piece_id = `${player_color}_${layout_slot}`;
 
                     // Insert the HTML element for the piece as a child of the square it's on
                     dojo.place(this.format_block('jstpl_boardpiece', {
                         color: player_color,
-                        type: type,
+                        type: this.gamedatas.piece_type_material[type].ui_name,
                         piece_id: piece_id
-                    }), `square_${this.gamedatas.layout_x[layout_index]}_${this.gamedatas.layout_y[layout_index][player_color]}`);
+                    }), `square_${this.gamedatas.layout_slot_material[layout_slot].x}_${this.gamedatas.layout_slot_material[layout_slot].y[player_color]}`);
 
                     // Translate
                     this.addTooltip(
                         piece_id,
-                        _(this.gamedatas.piece_tooltips[type].help_string),
-                        _(this.gamedatas.piece_tooltips[type].action_string)
+                        _(this.gamedatas.piece_type_material[type].label),
+                        _(this.gamedatas.piece_type_material[type].tooltip)
                     );
                 }
 
@@ -455,7 +457,7 @@ define([
                 $('pagemaintitletext').innerHTML = dojo.string.substitute(
                     _('${you} must select an army'),
                     { you: this.getPlayerColorText(this.gamedatas.players[this.player_id].color, _('You')) }
-                ) + '<br>' + dojo.string.substitute(_('Current selection: ${selected_army}'), { selected_army: _(army) }) + '<br>';
+                ) + '<br>' + dojo.string.substitute(_('Current selection: ${selected_army}'), { selected_army: _(this.gamedatas.army_material[army].label) }) + '<br>';
             },
 
             format_string_recursive: function format_string_recursive(log, args) {
@@ -467,7 +469,7 @@ define([
                             switch (key_split[0]) {
                                 case 'logpiece':
                                     let value_split = args[key].split("_");
-                                    args[key] = this.format_block('jstpl_logpiece', { color: value_split[0], type: value_split[1] });
+                                    args[key] = this.format_block('jstpl_logpiece', { color: value_split[0], type: this.gamedatas.piece_type_material[value_split[1]].ui_name });
                                     break;
                                 case 'army':
                                     // Translate (Do I need _() here?)
@@ -567,7 +569,7 @@ define([
 
                     dojo.addClass(`duel_board_piece_${player_id}`,
                         [`piececolor_${this.gamedatas.pieces[duel_piece_id]['color']}`,
-                        `piecetype_${this.gamedatas.pieces[duel_piece_id]['type']}`]
+                        `piecetype_${this.gamedatas.piece_type_material[this.gamedatas.pieces[duel_piece_id]['type']].ui_name}`]
                     );
 
                     // Translate
@@ -619,18 +621,14 @@ define([
                 // Otherwise, it can lead to random behavior so it's always a good idea.
                 dojo.stopEvent(evt);
 
-                // Gets the army name, e.g. 'classic'
-                var army_name = evt.currentTarget.id.split('_')[1];
+                var army = Number(evt.currentTarget.id.split('_')[2]);
 
-                // Gets the array of valid army names that started in material.inc.php and was returned by getAllDatas
-                var all_army_names = this.gamedatas.all_army_names;
-
-                // Check client side that the army name is valid
-                if (all_army_names.indexOf(army_name) >= 0) {
-                    // Place the starting pieces for that army_name on the board for this player
-                    this.placeStartingPiecesOnBoard(army_name, this.gamedatas.players[this.player_id].color);
-                    this.gamedatas.players[this.player_id].army = army_name;
-                    this.updateArmySelectTitleText(this.gamedatas.button_labels[army_name]);
+                // Check client side that the army exists
+                if (this.gamedatas.army_options.indexOf(army) >= 0) {
+                    // Place the starting pieces for that army on the board for this player
+                    this.placeStartingPiecesOnBoard(army, this.gamedatas.players[this.player_id].color);
+                    this.gamedatas.players[this.player_id].army = army;
+                    this.updateArmySelectTitleText(army);
                 }
             },
 
@@ -641,7 +639,7 @@ define([
 
                 // Check that "confirmArmy" action is possible, according to current game state
                 if (this.checkAction('confirmArmy')) {
-                    this.ajaxcallWrapper("confirmArmy", { army_name: this.gamedatas.players[this.player_id].army });
+                    this.ajaxcallWrapper("confirmArmy", { army: this.gamedatas.players[this.player_id].army });
                 }
             },
 
@@ -955,7 +953,7 @@ define([
 
             notif_confirmArmy: function (notif) {
                 if (this.player_id != notif.args.player_id) {
-                    this.updateArmySelectTitleText(this.gamedatas.button_labels[this.gamedatas.players[this.player_id].army]);
+                    this.updateArmySelectTitleText(this.gamedatas.players[this.player_id].army);
                 }
             },
 
@@ -974,11 +972,11 @@ define([
                     dojo.query('.flipped').removeClass('flipped');
                 }
 
-                for (let layout_index in notif.args.x_positions) {
+                for (let layout_slot in notif.args.x_positions) {
                     for (let y of [1, 8]) {
-                        let square = $(`square_${notif.args.x_positions[layout_index]}_${y}`);
+                        let square = $(`square_${notif.args.x_positions[layout_slot]}_${y}`);
 
-                        this.placeOnObject(square.children[0], `square_${this.gamedatas.layout_x[layout_index]}_${y}`);
+                        this.placeOnObject(square.children[0], `square_${this.gamedatas.layout_slot_material[layout_slot].x}_${y}`);
 
                         this.slideToObject(square.children[0], square, 2000).play();
                     }
@@ -1013,8 +1011,8 @@ define([
                         case "type":
                             var previous_type = this.gamedatas.pieces[notif.args.piece_id]['type'];
 
-                            dojo.query('#' + notif.args.piece_id).removeClass('piecetype_' + previous_type);
-                            dojo.query('#' + notif.args.piece_id).addClass('piecetype_' + notif.args.values_updated['type']);
+                            dojo.query('#' + notif.args.piece_id).removeClass('piecetype_' + this.gamedatas.piece_type_material[previous_type].ui_name);
+                            dojo.query('#' + notif.args.piece_id).addClass('piecetype_' + this.gamedatas.piece_type_material[notif.args.values_updated['type']].ui_name);
                             break;
                     }
 
