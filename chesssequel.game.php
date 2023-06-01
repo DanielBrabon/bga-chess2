@@ -325,8 +325,11 @@ class ChessSequel extends Table
             return true;
         }
 
+        if ($active_player->color == "ffffff") {
+            self::incStat(1, "moves_number");
+        }
+
         // If none of the above occurred, go to playerMove state
-        self::incStat(1, "moves_number");
         $this->gamestate->nextState('playerMove');
     }
 
