@@ -100,6 +100,7 @@ define('ST_GAME_END', 99);
 // Statistics
 define('STAT_END_CONDITION', 10);
 define('STAT_MOVES_NUMBER', 11);
+define('STAT_PIECE_COLOR', 19);
 define('STAT_ARMY', 12);
 define('STAT_ENEMIES_CAPTURED', 13);
 define('STAT_FRIENDLIES_CAPTURED', 14);
@@ -107,3 +108,7 @@ define('STAT_DUELS_INITIATED', 15);
 define('STAT_STONES_BID', 16);
 define('STAT_DUEL_CAPTURES', 17);
 define('STAT_BLUFFS_CALLED', 18);
+
+// Piece colors
+define('WHITE_PIECES', 0);
+define('BLACK_PIECES', 1);

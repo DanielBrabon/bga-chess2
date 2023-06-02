@@ -83,6 +83,9 @@ class ChessSequel extends Table
         foreach ($players as $player_id => $player) {
             $color = array_shift($default_colors);
             $values[] = "('" . $player_id . "','$color','" . $player['player_canal'] . "','" . addslashes($player['player_name']) . "','" . addslashes($player['player_avatar']) . "')";
+
+            $piece_color_stat = ($color == "ffffff") ? WHITE_PIECES : BLACK_PIECES;
+            self::initStat("player", "piece_color", $piece_color_stat, $player_id);
         }
         $sql .= implode(',', $values);
         self::DbQuery($sql);

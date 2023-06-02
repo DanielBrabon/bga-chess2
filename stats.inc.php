@@ -83,6 +83,12 @@ $stats_type = array(
     // Statistics existing for each player
     "player" => array(
 
+        "piece_color" => array(
+            "id" => STAT_PIECE_COLOR,
+            "name" => totranslate("Piece color"),
+            "type" => "int"
+        ),
+
         "army" => array(
             "id" => STAT_ARMY,
             "name" => totranslate("Army"),
@@ -150,6 +156,11 @@ $stats_type = array(
             FIFTY_MOVE_RULE => totranslate("50 move rule"),
             AGREED_TO_DRAW => totranslate("Agreed to draw"),
             CONCESSION => totranslate("Concession")
+        ),
+
+        STAT_PIECE_COLOR => array(
+            WHITE_PIECES => totranslate("White"),
+            BLACK_PIECES => totranslate("Black")
         ),
 
         STAT_ARMY => array(
